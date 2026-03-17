@@ -1,26 +1,81 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6fbf5;
+  --foreground: #15311d;
+  --card: #ffffff;
+  --card-foreground: #16311e;
+  --popover: #ffffff;
+  --popover-foreground: #16311e;
+  --primary: #1f8f4c;
+  --primary-foreground: #f7fff9;
+  --secondary: #e5f4e8;
+  --secondary-foreground: #1e4d2f;
+  --muted: #edf6ef;
+  --muted-foreground: #567261;
+  --accent: #d9f1df;
+  --accent-foreground: #154526;
+  --destructive: #b9383e;
+  --destructive-foreground: #fff7f7;
+  --border: #cde4d2;
+  --input: #ffffff;
+  --ring: #48a768;
+  --success: #2f9c5a;
+  --warning: #c98a1f;
+  --radius: 1.25rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-mono: "Consolas", "Courier New", monospace;
+  --radius-sm: calc(var(--radius) - 0.5rem);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 0.25rem);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  * {
+    @apply border-border;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  html {
+    @apply bg-background;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground antialiased;
+    background-image:
+      radial-gradient(circle at top, rgba(31, 143, 76, 0.18), transparent 28%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(246, 251, 245, 1));
+    font-family: var(--font-sans);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    @apply outline-none;
+  }
 }
