@@ -8,12 +8,14 @@ import type { PayUnits } from "@/lib/types";
 export type TodayActionState = {
   status: "idle" | "success" | "error";
   message: string | null;
+  messageKey: "msgSaveSuccess" | "msgSaveError" | null;
   refreshKey: string | null;
 };
 
 export const initialTodayActionState: TodayActionState = {
   status: "idle",
   message: null,
+  messageKey: null,
   refreshKey: null,
 };
 
@@ -104,6 +106,7 @@ export async function saveTodayReportAction(
     return {
       status: "error",
       message: "Supabase is not configured. Today data cannot be saved in demo mode.",
+      messageKey: "msgSaveError" as const,
       refreshKey: null,
     };
   }
@@ -113,6 +116,7 @@ export async function saveTodayReportAction(
     return {
       status: "error",
       message: "Supabase client is unavailable for saving.",
+      messageKey: "msgSaveError" as const,
       refreshKey: null,
     };
   }
@@ -235,6 +239,7 @@ export async function saveTodayReportAction(
     return {
       status: "success",
       message: "Today report and attendance were saved to Supabase.",
+      messageKey: "msgSaveSuccess" as const,
       refreshKey: crypto.randomUUID(),
     };
   } catch (error) {
@@ -242,6 +247,7 @@ export async function saveTodayReportAction(
       status: "error",
       message:
         error instanceof Error ? error.message : "Today data could not be saved.",
+      messageKey: "msgSaveError" as const,
       refreshKey: null,
     };
   }

@@ -560,7 +560,9 @@ export function TodayDashboard({
                   : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               }
             >
-              {actionState.message}
+              {actionState.messageKey
+                ? t.today[actionState.messageKey]
+                : actionState.message}
             </div>
           ) : null}
           {dataMode === "demo" ? (

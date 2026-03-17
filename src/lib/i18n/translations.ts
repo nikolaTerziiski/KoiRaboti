@@ -126,6 +126,8 @@ const translations = {
       manualExpense: "Manual expense",
       savingSupabase: "Saving to Supabase...",
       saveToday: "Save today",
+      msgSaveSuccess: "Today report and attendance were saved.",
+      msgSaveError: "Could not save. Please try again.",
     },
     employees: {
       activeTeam: "Active team",
@@ -332,6 +334,8 @@ const translations = {
       manualExpense: "Ръчен разход",
       savingSupabase: "Запазване в Supabase...",
       saveToday: "Запази за днес",
+      msgSaveSuccess: "Дневният отчет и присъствието бяха запазени.",
+      msgSaveError: "Запазването неуспешно. Моля, опитай отново.",
     },
     employees: {
       activeTeam: "Активен екип",
