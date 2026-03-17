@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { MoneyDisplay } from "@/components/ui/money-display";
+import { useLocale } from "@/lib/i18n/context";
 import type { Employee, SnapshotMode } from "@/lib/types";
 
 type EmployeesPageClientProps = {
@@ -21,6 +22,7 @@ export function EmployeesPageClient({
   initialEmployees,
   dataMode,
 }: EmployeesPageClientProps) {
+  const { t } = useLocale();
   const activeEmployees = initialEmployees.filter((employee) => employee.isActive);
   const averageRate =
     activeEmployees.reduce((sum, employee) => sum + employee.dailyRate, 0) /
@@ -42,7 +44,7 @@ export function EmployeesPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Active team
+              {t.employees.activeTeam}
             </p>
             <p className="mt-2 text-2xl font-semibold">{activeEmployees.length}</p>
           </CardContent>
@@ -50,7 +52,7 @@ export function EmployeesPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Avg daily rate
+              {t.employees.avgDailyRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={averageRate} />
@@ -63,15 +65,13 @@ export function EmployeesPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>Employee roster</CardTitle>
-          <CardDescription>
-            Highest current daily rate with active/inactive soft status management.
-          </CardDescription>
+          <CardTitle>{t.employees.employeeRoster}</CardTitle>
+          <CardDescription>{t.employees.rosterDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-2xl bg-secondary/35 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Highest rate
+              {t.employees.highestRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={highestRate} />

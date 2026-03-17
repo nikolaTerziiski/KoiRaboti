@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
+import { useLocale } from "@/lib/i18n/context";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
 import type { Employee, SnapshotMode } from "@/lib/types";
 
@@ -31,6 +32,7 @@ export function EmployeeRowEditor({
   dataMode,
 }: EmployeeRowEditorProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const [updateState, updateFormAction, isUpdating] = useActionState(
     updateEmployeeAction,
     initialEmployeeActionState,
@@ -68,7 +70,7 @@ export function EmployeeRowEditor({
           <p className="text-sm text-muted-foreground">{employee.role}</p>
         </div>
         <Badge variant={employee.isActive ? "success" : "outline"}>
-          {employee.isActive ? "Active" : "Inactive"}
+          {employee.isActive ? t.employees.active : t.employees.inactive}
         </Badge>
       </div>
 
@@ -76,7 +78,7 @@ export function EmployeeRowEditor({
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Wallet className="size-4" />
-            Current rate
+            {t.employees.currentRate}
           </div>
           <MoneyDisplay amount={employee.dailyRate} align="end" />
         </div>
@@ -85,7 +87,7 @@ export function EmployeeRowEditor({
       <form action={updateFormAction} className="mt-4 space-y-3">
         <input type="hidden" name="employeeId" value={employee.id} />
         <div className="space-y-2">
-          <Label htmlFor={`employee-name-${employee.id}`}>Name</Label>
+          <Label htmlFor={`employee-name-${employee.id}`}>{t.employees.name}</Label>
           <Input
             id={`employee-name-${employee.id}`}
             name="fullName"
@@ -96,7 +98,7 @@ export function EmployeeRowEditor({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`employee-role-${employee.id}`}>Role</Label>
+          <Label htmlFor={`employee-role-${employee.id}`}>{t.employees.role}</Label>
           <Input
             id={`employee-role-${employee.id}`}
             name="role"
@@ -107,7 +109,9 @@ export function EmployeeRowEditor({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`employee-rate-${employee.id}`}>Daily rate (EUR)</Label>
+          <Label htmlFor={`employee-rate-${employee.id}`}>
+            {t.employees.dailyRateEur}
+          </Label>
           <Input
             id={`employee-rate-${employee.id}`}
             name="dailyRate"
@@ -118,7 +122,7 @@ export function EmployeeRowEditor({
             }
           />
           <p className="text-xs text-muted-foreground">
-            BGN view: {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
+            {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
           </p>
         </div>
         {updateState.status !== "idle" ? (
@@ -138,7 +142,7 @@ export function EmployeeRowEditor({
           disabled={isUpdating || dataMode === "demo"}
           aria-busy={isUpdating}
         >
-          {isUpdating ? "Saving changes..." : "Save employee"}
+          {isUpdating ? t.employees.savingChanges : t.employees.saveEmployee}
         </Button>
       </form>
 
@@ -164,11 +168,11 @@ export function EmployeeRowEditor({
         >
           {isToggling
             ? employee.isActive
-              ? "Deactivating..."
-              : "Reactivating..."
+              ? t.employees.deactivating
+              : t.employees.reactivating
             : employee.isActive
-              ? "Mark inactive"
-              : "Reactivate"}
+              ? t.employees.markInactive
+              : t.employees.reactivate}
         </Button>
       </form>
     </div>

@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Leaf, LogOut } from "lucide-react";
@@ -5,22 +7,35 @@ import { logoutAction } from "@/actions/auth";
 import { MobileNav } from "@/components/layout/mobile-nav";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LocaleSwitcher } from "@/components/ui/locale-switcher";
+import { useLocale } from "@/lib/i18n/context";
+import type { PageKey } from "@/lib/i18n/translations";
 
 type AppShellProps = {
-  title: string;
-  description: string;
-  sessionLabel: string;
-  dataLabel: string;
+  pageKey: PageKey;
+  sessionMode: "supabase" | "demo";
+  dataMode: "supabase" | "demo" | "error";
   children: ReactNode;
 };
 
 export function AppShell({
-  title,
-  description,
-  sessionLabel,
-  dataLabel,
+  pageKey,
+  sessionMode,
+  dataMode,
   children,
 }: AppShellProps) {
+  const { t } = useLocale();
+  const page = t.pages[pageKey];
+
+  const sessionLabel =
+    sessionMode === "supabase" ? t.shell.sessionSupabase : t.shell.sessionDemo;
+  const dataLabel =
+    dataMode === "error"
+      ? t.shell.dataError
+      : dataMode === "supabase"
+        ? t.shell.dataSupabase
+        : t.shell.dataDemo;
+
   return (
     <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-5 sm:max-w-3xl sm:px-6">
@@ -35,24 +50,25 @@ export function AppShell({
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
                     KoiRaboti
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    Restaurant daily control
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t.shell.subtitle}</p>
                 </div>
               </Link>
               <div>
-                <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+                <h1 className="text-2xl font-semibold tracking-tight">{page.title}</h1>
                 <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                  {description}
+                  {page.description}
                 </p>
               </div>
             </div>
-            <form action={logoutAction}>
-              <Button type="submit" variant="ghost" size="sm">
-                <LogOut className="size-4" />
-                Log out
-              </Button>
-            </form>
+            <div className="flex flex-col items-end gap-1">
+              <LocaleSwitcher />
+              <form action={logoutAction}>
+                <Button type="submit" variant="ghost" size="sm">
+                  <LogOut className="size-4" />
+                  {t.shell.logOut}
+                </Button>
+              </form>
+            </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Badge variant="success">{sessionLabel}</Badge>

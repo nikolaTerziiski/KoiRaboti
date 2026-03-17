@@ -3,13 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
 import { TodayDashboard } from "@/components/today/today-dashboard";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ErrorCard } from "@/components/ui/error-card";
 import { DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 
@@ -25,11 +19,11 @@ export default async function TodayPage() {
     redirect("/login");
   }
 
-  const dataLabel = snapshot.errorMessage
-    ? "Data: error"
+  const dataMode = snapshot.errorMessage
+    ? "error"
     : snapshot.mode === "supabase"
-      ? "Data: Supabase"
-      : "Data: demo";
+      ? "supabase"
+      : "demo";
 
   const todayKey = format(new Date(), "yyyy-MM-dd");
   const initialReport =
@@ -63,23 +57,12 @@ export default async function TodayPage() {
 
   return (
     <AppShell
-      title="Today"
-      description="Log daily numbers and staff attendance before payroll closes."
-      sessionLabel={sessionMode === "supabase" ? "Supabase session" : "Demo session"}
-      dataLabel={dataLabel}
+      pageKey="today"
+      sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
+      dataMode={dataMode}
     >
       {snapshot.errorMessage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Live data could not be loaded</CardTitle>
-            <CardDescription>
-              Supabase env vars are present, so demo fallback is intentionally disabled.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {snapshot.errorMessage}
-          </CardContent>
-        </Card>
+        <ErrorCard pageKey="today" message={snapshot.errorMessage} />
       ) : (
         <TodayDashboard
           key={dashboardVersion}

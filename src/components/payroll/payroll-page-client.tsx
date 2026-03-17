@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/card";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
+import { useLocale } from "@/lib/i18n/context";
 import { formatExchangeRateLabel, formatMonthLabel } from "@/lib/format";
 import {
   buildPayrollRows,
@@ -37,6 +38,7 @@ export function PayrollPageClient({
   reports,
   dataMode,
 }: PayrollPageClientProps) {
+  const { t } = useLocale();
   const monthOptions = Array.from(
     new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`)),
   );
@@ -54,15 +56,13 @@ export function PayrollPageClient({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Payroll window</CardTitle>
-          <CardDescription>
-            Split wages into the two required monthly periods.
-          </CardDescription>
+          <CardTitle>{t.payroll.window}</CardTitle>
+          <CardDescription>{t.payroll.windowDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="payroll-month">
-              Month
+              {t.payroll.month}
             </label>
             <SelectField
               id="payroll-month"
@@ -82,30 +82,30 @@ export function PayrollPageClient({
               variant={period === "first_half" ? "default" : "outline"}
               onClick={() => setPeriod("first_half")}
             >
-              1st to 15th
+              {t.payroll.firstHalf}
             </Button>
             <Button
               type="button"
               variant={period === "second_half" ? "default" : "outline"}
               onClick={() => setPeriod("second_half")}
             >
-              16th to month end
+              {t.payroll.secondHalf}
             </Button>
           </div>
           <div className="rounded-2xl bg-secondary/35 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Active range
+              {t.payroll.activeRange}
             </p>
             <p className="mt-2 text-lg font-semibold">
               {getPayrollPeriodLabel(period, referenceDate)}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {dataMode === "demo"
-                ? "Using demo attendance seeded from recent days."
-                : "Using attendance pulled from Supabase."}
+                ? t.payroll.demoAttendance
+                : t.payroll.supabaseAttendance}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              BGN display uses the fixed rate {formatExchangeRateLabel()}.
+              {t.payroll.bgnRate} {formatExchangeRateLabel()}.
             </p>
           </div>
         </CardContent>
@@ -115,7 +115,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Total payroll
+              {t.payroll.totalPayroll}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={summary.totalPayroll} />
@@ -125,7 +125,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Staff paid
+              {t.payroll.staffPaid}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.employeeCount}</p>
           </CardContent>
@@ -133,7 +133,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Pay units
+              {t.payroll.payUnits}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.totalUnits.toFixed(1)}</p>
           </CardContent>
@@ -141,7 +141,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Overrides
+              {t.payroll.overrides}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.overrideDays}</p>
           </CardContent>
@@ -150,15 +150,13 @@ export function PayrollPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>Payroll rows</CardTitle>
-          <CardDescription>
-            Amount = pay override when present, otherwise daily rate x pay units.
-          </CardDescription>
+          <CardTitle>{t.payroll.payrollRows}</CardTitle>
+          <CardDescription>{t.payroll.payrollRowsDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {payrollRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No attendance is available in this month/period yet.
+              {t.payroll.noAttendance}
             </div>
           ) : null}
           {payrollRows.map((row) => (
@@ -172,22 +170,24 @@ export function PayrollPageClient({
                   <p className="text-sm text-muted-foreground">{row.employee.role}</p>
                 </div>
                 {row.overrideCount > 0 ? (
-                  <Badge variant="warning">{row.overrideCount} override day(s)</Badge>
+                  <Badge variant="warning">
+                    {row.overrideCount} {t.payroll.overrideDays}
+                  </Badge>
                 ) : (
-                  <Badge variant="outline">Standard formula</Badge>
+                  <Badge variant="outline">{t.payroll.standardFormula}</Badge>
                 )}
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
                 <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Shifts</p>
+                  <p className="text-muted-foreground">{t.payroll.shifts}</p>
                   <p className="mt-1 font-semibold">{row.shiftsWorked}</p>
                 </div>
                 <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Units</p>
+                  <p className="text-muted-foreground">{t.payroll.units}</p>
                   <p className="mt-1 font-semibold">{row.totalUnits.toFixed(1)}</p>
                 </div>
                 <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">Amount</p>
+                  <p className="text-muted-foreground">{t.payroll.amount}</p>
                   <div className="mt-1">
                     <MoneyDisplay amount={row.totalAmount} />
                   </div>

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useLocale } from "@/lib/i18n/context";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
 import type { SnapshotMode } from "@/lib/types";
 
@@ -31,6 +32,7 @@ function toNumber(value: string) {
 
 export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const [actionState, formAction, isPending] = useActionState(
     createEmployeeAction,
     initialEmployeeActionState,
@@ -56,15 +58,13 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add employee</CardTitle>
-        <CardDescription>
-          Save the roster directly to Supabase. Demo mode keeps the form visible but disabled.
-        </CardDescription>
+        <CardTitle>{t.employees.addEmployee}</CardTitle>
+        <CardDescription>{t.employees.addEmployeeDesc}</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="create-fullName">Full name</Label>
+            <Label htmlFor="create-fullName">{t.employees.fullName}</Label>
             <Input
               id="create-fullName"
               name="fullName"
@@ -75,7 +75,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="create-role">Role</Label>
+            <Label htmlFor="create-role">{t.employees.role}</Label>
             <Input
               id="create-role"
               name="role"
@@ -86,7 +86,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="create-dailyRate">Daily rate (EUR)</Label>
+            <Label htmlFor="create-dailyRate">{t.employees.dailyRateEur}</Label>
             <Input
               id="create-dailyRate"
               name="dailyRate"
@@ -97,7 +97,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               }
             />
             <p className="text-xs text-muted-foreground">
-              BGN view: {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
+              {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
           </div>
           {actionState.status !== "idle" ? (
@@ -113,7 +113,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           ) : null}
           {dataMode === "demo" ? (
             <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
-              Demo mode does not persist employee changes. Configure Supabase to enable save.
+              {t.employees.demoNote}
             </div>
           ) : null}
           <Button
@@ -123,7 +123,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             aria-busy={isPending}
           >
             <Plus className="size-4" />
-            {isPending ? "Saving employee..." : "Add to roster"}
+            {isPending ? t.employees.savingEmployee : t.employees.addToRoster}
           </Button>
         </form>
       </CardContent>

@@ -2,13 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
 import { AppShell } from "@/components/layout/app-shell";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ErrorCard } from "@/components/ui/error-card";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 
 export const dynamic = "force-dynamic";
@@ -23,31 +17,20 @@ export default async function EmployeesPage() {
     redirect("/login");
   }
 
-  const dataLabel = snapshot.errorMessage
-    ? "Data: error"
+  const dataMode = snapshot.errorMessage
+    ? "error"
     : snapshot.mode === "supabase"
-      ? "Data: Supabase"
-      : "Data: demo";
+      ? "supabase"
+      : "demo";
 
   return (
     <AppShell
-      title="Employees"
-      description="Manage the active roster and each employee's daily rate."
-      sessionLabel={sessionMode === "supabase" ? "Supabase session" : "Demo session"}
-      dataLabel={dataLabel}
+      pageKey="employees"
+      sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
+      dataMode={dataMode}
     >
       {snapshot.errorMessage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Live employee data could not be loaded</CardTitle>
-            <CardDescription>
-              Supabase env vars are present, so the app is not hiding this behind demo data.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            {snapshot.errorMessage}
-          </CardContent>
-        </Card>
+        <ErrorCard pageKey="employees" message={snapshot.errorMessage} />
       ) : (
         <EmployeesPageClient
           initialEmployees={snapshot.employees}

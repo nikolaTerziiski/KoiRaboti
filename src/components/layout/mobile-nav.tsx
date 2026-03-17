@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BarChart3, CalendarClock, FileText, Users } from "lucide-react";
+import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/today", label: "Today", icon: CalendarClock },
-  { href: "/employees", label: "Employees", icon: Users },
-  { href: "/payroll", label: "Payroll", icon: BarChart3 },
-  { href: "/reports", label: "Reports", icon: FileText },
-];
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { t } = useLocale();
+
+  const navItems = [
+    { href: "/today", label: t.nav.today, icon: CalendarClock },
+    { href: "/employees", label: t.nav.employees, icon: Users },
+    { href: "/payroll", label: t.nav.payroll, icon: BarChart3 },
+    { href: "/reports", label: t.nav.reports, icon: FileText },
+  ];
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">

@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
+import { useLocale } from "@/lib/i18n/context";
 import {
   DEFAULT_MANUAL_EXPENSE_EUR,
   formatBgnCurrencyFromEur,
@@ -82,6 +83,7 @@ export function TodayDashboard({
   dataMode,
 }: TodayDashboardProps) {
   const router = useRouter();
+  const { t } = useLocale();
   const [actionState, formAction, isPending] = useActionState(
     saveTodayReportAction,
     initialTodayActionState,
@@ -154,23 +156,23 @@ export function TodayDashboard({
 
   const summaryCards = [
     {
-      label: "Turnover",
+      label: t.today.turnover,
       amount: toNumber(reportForm.turnover),
       icon: CircleDollarSign,
     },
     {
-      label: "Profit",
+      label: t.today.profit,
       amount: toNumber(reportForm.profit),
       icon: Calculator,
     },
     {
-      label: "Checked in",
-      value: `${checkedInCount} team`,
-      helper: `${totalPayUnits.toFixed(1)} pay units`,
+      label: t.today.checkedIn,
+      value: `${checkedInCount} ${t.today.team}`,
+      helper: `${totalPayUnits.toFixed(1)} ${t.today.payUnitsHelper}`,
       icon: Users,
     },
     {
-      label: "Payroll",
+      label: t.today.payroll,
       amount: estimatedPayroll,
       icon: CircleDollarSign,
     },
@@ -198,24 +200,20 @@ export function TodayDashboard({
         <CardHeader>
           <div className="flex items-center justify-between gap-3">
             <div>
-              <CardTitle className="text-xl">Today&apos;s shift sheet</CardTitle>
+              <CardTitle className="text-xl">{t.today.shiftSheet}</CardTitle>
               <CardDescription className="mt-1 text-primary-foreground/80">
                 {formatDateLabel(initialReport.workDate)}
               </CardDescription>
             </div>
             <Badge className="bg-white/14 text-white" variant="default">
-              {dataMode === "demo" ? "Demo dataset" : "Supabase snapshot"}
+              {dataMode === "demo" ? t.today.demoDataset : t.today.supabaseSnapshot}
             </Badge>
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-primary-foreground/85">
+          <p>{t.today.fastInput}</p>
           <p>
-            Fast daily input for finance and attendance, with payroll units visible while
-            you record the shift.
-          </p>
-          <p>
-            Working currency is EUR, and every amount is shown with its BGN equivalent
-            at {formatExchangeRateLabel()}.
+            {t.today.currency} {formatExchangeRateLabel()}.
           </p>
         </CardContent>
       </Card>
@@ -255,15 +253,12 @@ export function TodayDashboard({
 
       <Card>
         <CardHeader>
-          <CardTitle>Daily report</CardTitle>
-          <CardDescription>
-            Manual expense starts from the EUR equivalent of 800 BGN and can be adjusted
-            only when needed.
-          </CardDescription>
+          <CardTitle>{t.today.dailyReport}</CardTitle>
+          <CardDescription>{t.today.dailyReportDesc}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="turnover">Turnover (EUR)</Label>
+            <Label htmlFor="turnover">{t.today.turnoverEur}</Label>
             <Input
               id="turnover"
               name="turnover"
@@ -277,11 +272,11 @@ export function TodayDashboard({
               }
             />
             <p className="text-xs text-muted-foreground">
-              BGN view: {formatBgnCurrencyFromEur(toNumber(reportForm.turnover))}
+              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.turnover))}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="profit">Profit (EUR)</Label>
+            <Label htmlFor="profit">{t.today.profitEur}</Label>
             <Input
               id="profit"
               name="profit"
@@ -295,11 +290,11 @@ export function TodayDashboard({
               }
             />
             <p className="text-xs text-muted-foreground">
-              BGN view: {formatBgnCurrencyFromEur(toNumber(reportForm.profit))}
+              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.profit))}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="cardAmount">Card amount (EUR)</Label>
+            <Label htmlFor="cardAmount">{t.today.cardAmountEur}</Label>
             <Input
               id="cardAmount"
               name="cardAmount"
@@ -313,11 +308,11 @@ export function TodayDashboard({
               }
             />
             <p className="text-xs text-muted-foreground">
-              BGN view: {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
+              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
             </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="manualExpense">Manual expense (EUR)</Label>
+            <Label htmlFor="manualExpense">{t.today.manualExpenseEur}</Label>
             <Input
               id="manualExpense"
               name="manualExpense"
@@ -331,14 +326,15 @@ export function TodayDashboard({
               }
             />
             <p className="text-xs text-muted-foreground">
-              BGN view: {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
+              {t.today.bgnView}{" "}
+              {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
             </p>
             <p className="text-xs text-muted-foreground">
-              Default: {formatBgnCurrencyFromEur(DEFAULT_MANUAL_EXPENSE_EUR)}
+              {t.today.default} {formatBgnCurrencyFromEur(DEFAULT_MANUAL_EXPENSE_EUR)}
             </p>
           </div>
           <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="reportNotes">Manager notes</Label>
+            <Label htmlFor="reportNotes">{t.today.managerNotes}</Label>
             <textarea
               id="reportNotes"
               name="reportNotes"
@@ -350,7 +346,7 @@ export function TodayDashboard({
                 }))
               }
               className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder="Optional notes for the day"
+              placeholder={t.today.notesPlaceholder}
             />
           </div>
         </CardContent>
@@ -359,10 +355,8 @@ export function TodayDashboard({
       <Card>
         <CardHeader className="flex-row items-center justify-between gap-3">
           <div>
-            <CardTitle>Attendance</CardTitle>
-            <CardDescription>
-              Track two shifts, then confirm payroll units as 1, 1.5, or 2.
-            </CardDescription>
+            <CardTitle>{t.today.attendance}</CardTitle>
+            <CardDescription>{t.today.attendanceDesc}</CardDescription>
           </div>
           <Button
             type="button"
@@ -382,7 +376,7 @@ export function TodayDashboard({
             }
           >
             <RotateCcw className="size-4" />
-            Reset
+            {t.today.reset}
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -428,8 +422,8 @@ export function TodayDashboard({
                     entry.shift2 ||
                     entry.payOverride.trim().length > 0 ||
                     entry.notes.trim().length > 0
-                      ? "Selected"
-                      : "Off"}
+                      ? t.today.selected
+                      : t.today.off}
                   </Badge>
                 </div>
                 <div className="mt-4 flex gap-2">
@@ -448,7 +442,7 @@ export function TodayDashboard({
                       )
                     }
                   >
-                    Shift 1
+                    {t.today.shift1}
                   </Button>
                   <Button
                     type="button"
@@ -465,12 +459,14 @@ export function TodayDashboard({
                       )
                     }
                   >
-                    Shift 2
+                    {t.today.shift2}
                   </Button>
                 </div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <Label htmlFor={`payUnits-${entry.employee.id}`}>Pay units</Label>
+                    <Label htmlFor={`payUnits-${entry.employee.id}`}>
+                      {t.today.payUnitsLabel}
+                    </Label>
                     <SelectField
                       id={`payUnits-${entry.employee.id}`}
                       value={String(entry.payUnits)}
@@ -493,11 +489,13 @@ export function TodayDashboard({
                     </SelectField>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor={`override-${entry.employee.id}`}>Pay override (EUR)</Label>
+                    <Label htmlFor={`override-${entry.employee.id}`}>
+                      {t.today.payOverrideEur}
+                    </Label>
                     <Input
                       id={`override-${entry.employee.id}`}
                       inputMode="decimal"
-                      placeholder="Optional"
+                      placeholder={t.today.overrideOptional}
                       value={entry.payOverride}
                       onChange={(event) =>
                         setAttendanceDrafts((current) =>
@@ -510,16 +508,19 @@ export function TodayDashboard({
                       }
                     />
                     <p className="text-xs text-muted-foreground">
-                      BGN view: {formatBgnCurrencyFromEur(toNumber(entry.payOverride))}
+                      {t.today.bgnView}{" "}
+                      {formatBgnCurrencyFromEur(toNumber(entry.payOverride))}
                     </p>
                   </div>
                 </div>
                 <div className="mt-4 space-y-2">
-                  <Label htmlFor={`notes-${entry.employee.id}`}>Shift notes</Label>
+                  <Label htmlFor={`notes-${entry.employee.id}`}>
+                    {t.today.shiftNotes}
+                  </Label>
                   <Input
                     id={`notes-${entry.employee.id}`}
                     value={entry.notes}
-                    placeholder="Optional employee note"
+                    placeholder={t.today.shiftNotesPlaceholder}
                     onChange={(event) =>
                       setAttendanceDrafts((current) =>
                         current.map((item) =>
@@ -533,7 +534,9 @@ export function TodayDashboard({
                 </div>
                 <div className="mt-4 flex items-center justify-between rounded-2xl bg-card px-3 py-2 text-sm">
                   <span className="text-muted-foreground">
-                    Units: {entry.payUnits} | Marked shifts: {Number(entry.shift1) + Number(entry.shift2)}
+                    {t.today.unitsPrefix} {entry.payUnits} |{" "}
+                    {t.today.markedShiftsPrefix}{" "}
+                    {Number(entry.shift1) + Number(entry.shift2)}
                   </span>
                   <MoneyDisplay amount={payout} align="end" />
                 </div>
@@ -545,10 +548,8 @@ export function TodayDashboard({
 
       <Card>
         <CardHeader>
-          <CardTitle>Save</CardTitle>
-          <CardDescription>
-            Save the report and attendance to Supabase, then refresh the operational pages.
-          </CardDescription>
+          <CardTitle>{t.today.save}</CardTitle>
+          <CardDescription>{t.today.saveDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {actionState.status !== "idle" ? (
@@ -564,13 +565,13 @@ export function TodayDashboard({
           ) : null}
           {dataMode === "demo" ? (
             <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
-              Demo mode stays interactive, but saving is disabled until Supabase env vars are configured.
+              {t.today.demoSaveNote}
             </div>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-secondary/40 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Card share
+                {t.today.cardShare}
               </p>
               <div className="mt-2">
                 <MoneyDisplay amount={toNumber(reportForm.cardAmount)} />
@@ -578,13 +579,13 @@ export function TodayDashboard({
             </div>
             <div className="rounded-2xl bg-secondary/40 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Pay units
+                {t.today.payUnitsLabel}
               </p>
               <p className="mt-2 text-xl font-semibold">{totalPayUnits.toFixed(1)}</p>
             </div>
             <div className="rounded-2xl bg-secondary/40 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Manual expense
+                {t.today.manualExpense}
               </p>
               <div className="mt-2">
                 <MoneyDisplay amount={toNumber(reportForm.manualExpense)} />
@@ -599,7 +600,7 @@ export function TodayDashboard({
             aria-busy={isPending}
           >
             <Save className="size-4" />
-            {isPending ? "Saving to Supabase..." : "Save today"}
+            {isPending ? t.today.savingSupabase : t.today.saveToday}
           </Button>
         </CardContent>
       </Card>
