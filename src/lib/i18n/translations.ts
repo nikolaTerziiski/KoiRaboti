@@ -54,6 +54,8 @@ const translations = {
         "Supabase keys are optional for first run. Any email and password will open demo mode.",
       redirectNote:
         "The app redirects to `/today` after sign-in and exposes the rest of the internal tools from the bottom navigation.",
+      noAccount: "New restaurant?",
+      register: "Create account",
       highlights: {
         attendance: {
           title: "Attendance first",
@@ -78,6 +80,26 @@ const translations = {
       signingIn: "Signing in...",
       signIn: "Sign in",
       continueDemo: "Continue in demo mode",
+    },
+    register: {
+      title: "Register your restaurant",
+      subtitle: "Create an account to start managing your team.",
+      restaurantName: "Restaurant name",
+      adminFullName: "Your full name",
+      email: "Email",
+      password: "Password",
+      confirmPassword: "Confirm password",
+      defaultExpenseEur: "Default daily expense (EUR)",
+      defaultExpenseDesc: "Used as the starting manual expense on the daily report.",
+      bgnView: "BGN view:",
+      create: "Create account",
+      creating: "Creating account...",
+      alreadyHaveAccount: "Already have an account?",
+      signIn: "Sign in",
+      passwordMismatch: "Passwords do not match.",
+      msgSuccess: "Account created successfully. Welcome!",
+      msgError: "Could not create account. Please try again.",
+      noSupabase: "Registration requires Supabase to be configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment, then restart the server.",
     },
     today: {
       shiftSheet: "Today's shift sheet",
@@ -135,8 +157,9 @@ const translations = {
       addEmployee: "Add employee",
       addEmployeeDesc:
         "Save the roster directly to Supabase. Demo mode keeps the form visible but disabled.",
-      fullName: "Full name",
-      role: "Role",
+      firstName: "First name",
+      lastName: "Last name",
+      phoneNumber: "Phone number",
       dailyRateEur: "Daily rate (EUR)",
       bgnView: "BGN view:",
       demoNote:
@@ -156,6 +179,12 @@ const translations = {
       reactivating: "Reactivating...",
       markInactive: "Mark inactive",
       reactivate: "Reactivate",
+      msgCreateSuccess: "Employee added to roster.",
+      msgUpdateSuccess: "Employee updated.",
+      msgDeactivated: "Employee deactivated.",
+      msgReactivated: "Employee reactivated.",
+      msgSaveError: "Could not save. Please try again.",
+      msgDuplicatePhone: "This phone number is already registered for your restaurant.",
     },
     payroll: {
       window: "Payroll window",
@@ -259,6 +288,8 @@ const translations = {
         "Supabase ключовете са незадължителни. Всеки имейл и парола отварят демо режим.",
       redirectNote:
         "Приложението пренасочва към `/today` след вход и показва останалите инструменти от долната навигация.",
+      noAccount: "Нов ресторант?",
+      register: "Създай акаунт",
       highlights: {
         attendance: {
           title: "Присъствие на първо място",
@@ -285,6 +316,26 @@ const translations = {
       signingIn: "Влизане...",
       signIn: "Вход",
       continueDemo: "Продължи в демо режим",
+    },
+    register: {
+      title: "Регистрирай ресторанта си",
+      subtitle: "Създай акаунт, за да започнеш да управляваш екипа си.",
+      restaurantName: "Име на ресторанта",
+      adminFullName: "Твоето пълно Име",
+      email: "Имейл",
+      password: "Парола",
+      confirmPassword: "Потвърди паролата",
+      defaultExpenseEur: "Стандартен дневен разход (EUR)",
+      defaultExpenseDesc: "Използва се като начален ръчен разход в дневния отчет.",
+      bgnView: "BGN:",
+      create: "Създай акаунт",
+      creating: "Създаване...",
+      alreadyHaveAccount: "Вече имаш акаунт?",
+      signIn: "Вход",
+      passwordMismatch: "Паролите не съвпадат.",
+      msgSuccess: "Акаунтът е създаден успешно. Добре дошъл!",
+      msgError: "Неуспешно създаване на акаунт. Моля, опитай отново.",
+      noSupabase: "Регистрацията изисква конфигуриран Supabase. Добави NEXT_PUBLIC_SUPABASE_URL и NEXT_PUBLIC_SUPABASE_ANON_KEY в средата си, след което рестартирай сървъра.",
     },
     today: {
       shiftSheet: "Днешна смяна",
@@ -343,8 +394,9 @@ const translations = {
       addEmployee: "Добави служител",
       addEmployeeDesc:
         "Запази директно в Supabase. В демо режим формата е видима, но изключена.",
-      fullName: "Пълно Име",
-      role: "Роля",
+      firstName: "Име",
+      lastName: "Фамилия",
+      phoneNumber: "Телефонен номер",
       dailyRateEur: "Дневна ставка (EUR)",
       bgnView: "BGN:",
       demoNote:
@@ -365,6 +417,12 @@ const translations = {
       reactivating: "Реактивиране...",
       markInactive: "Маркирай като неактивен",
       reactivate: "Реактивирай",
+      msgCreateSuccess: "Служителят е добавен в списъка.",
+      msgUpdateSuccess: "Служителят е обновен.",
+      msgDeactivated: "Служителят е деактивиран.",
+      msgReactivated: "Служителят е реактивиран.",
+      msgSaveError: "Запазването неуспешно. Моля, опитай отново.",
+      msgDuplicatePhone: "Този телефонен номер вече е регистриран за твоя ресторант.",
     },
     payroll: {
       window: "Период на заплащане",

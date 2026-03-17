@@ -167,7 +167,7 @@ export function PayrollPageClient({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold">{row.employee.fullName}</p>
-                  <p className="text-sm text-muted-foreground">{row.employee.role}</p>
+                  <p className="text-sm text-muted-foreground">{row.employee.phoneNumber}</p>
                 </div>
                 {row.overrideCount > 0 ? (
                   <Badge variant="warning">

@@ -3,10 +3,15 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator, CircleDollarSign, RotateCcw, Save, Users } from "lucide-react";
-import {
-  initialTodayActionState,
-  saveTodayReportAction,
-} from "@/actions/today";
+import type { TodayActionState } from "@/actions/today";
+import { saveTodayReportAction } from "@/actions/today";
+
+const initialTodayActionState: TodayActionState = {
+  status: "idle",
+  message: null,
+  messageKey: null,
+  refreshKey: null,
+};
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -403,7 +408,7 @@ export function TodayDashboard({
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{entry.employee.fullName}</p>
-                    <p className="text-sm text-muted-foreground">{entry.employee.role}</p>
+                    <p className="text-sm text-muted-foreground">{entry.employee.phoneNumber}</p>
                     <div className="mt-2">
                       <MoneyDisplay amount={entry.employee.dailyRate} />
                     </div>

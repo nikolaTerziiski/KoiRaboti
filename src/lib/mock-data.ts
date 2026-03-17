@@ -4,94 +4,122 @@ import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
-  PayUnits,
+  Restaurant,
   RestaurantSnapshot,
 } from "@/lib/types";
+
+const DEMO_RESTAURANT_ID = "demo-restaurant-1";
+
+export const demoRestaurant: Restaurant = {
+  id: DEMO_RESTAURANT_ID,
+  name: "Demo Restaurant",
+  defaultDailyExpense: DEFAULT_MANUAL_EXPENSE_EUR,
+};
 
 export const demoEmployees: Employee[] = [
   {
     id: "emp-1",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Ivan",
+    lastName: "Petrov",
     fullName: "Ivan Petrov",
-    role: "Kitchen Lead",
-    phone: "+359 888 100 001",
+    phoneNumber: "+359 888 100 001",
     dailyRate: bgnToEur(110),
     isActive: true,
   },
   {
     id: "emp-2",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Maria",
+    lastName: "Georgieva",
     fullName: "Maria Georgieva",
-    role: "Server",
-    phone: "+359 888 100 002",
+    phoneNumber: "+359 888 100 002",
     dailyRate: bgnToEur(90),
     isActive: true,
   },
   {
     id: "emp-3",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Nikolay",
+    lastName: "Dimitrov",
     fullName: "Nikolay Dimitrov",
-    role: "Grill Cook",
-    phone: "+359 888 100 003",
+    phoneNumber: "+359 888 100 003",
     dailyRate: bgnToEur(105),
     isActive: true,
   },
   {
     id: "emp-4",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Elena",
+    lastName: "Stoyanova",
     fullName: "Elena Stoyanova",
-    role: "Barista",
-    phone: "+359 888 100 004",
+    phoneNumber: "+359 888 100 004",
     dailyRate: bgnToEur(88),
     isActive: true,
   },
   {
     id: "emp-5",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Georgi",
+    lastName: "Iliev",
     fullName: "Georgi Iliev",
-    role: "Prep Cook",
-    phone: "+359 888 100 005",
+    phoneNumber: "+359 888 100 005",
     dailyRate: bgnToEur(92),
     isActive: true,
   },
   {
     id: "emp-6",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Petya",
+    lastName: "Ivanova",
     fullName: "Petya Ivanova",
-    role: "Host",
-    phone: "+359 888 100 006",
+    phoneNumber: "+359 888 100 006",
     dailyRate: bgnToEur(85),
     isActive: true,
   },
   {
     id: "emp-7",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Stoyan",
+    lastName: "Kolev",
     fullName: "Stoyan Kolev",
-    role: "Delivery Desk",
-    phone: "+359 888 100 007",
+    phoneNumber: "+359 888 100 007",
     dailyRate: bgnToEur(87),
     isActive: true,
   },
   {
     id: "emp-8",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Ralitsa",
+    lastName: "Hristova",
     fullName: "Ralitsa Hristova",
-    role: "Server",
-    phone: "+359 888 100 008",
+    phoneNumber: "+359 888 100 008",
     dailyRate: bgnToEur(90),
     isActive: true,
   },
   {
     id: "emp-9",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Dimitar",
+    lastName: "Yordanov",
     fullName: "Dimitar Yordanov",
-    role: "Dishwasher",
-    phone: "+359 888 100 009",
+    phoneNumber: "+359 888 100 009",
     dailyRate: bgnToEur(80),
     isActive: true,
   },
   {
     id: "emp-10",
+    restaurantId: DEMO_RESTAURANT_ID,
+    firstName: "Teodora",
+    lastName: "Marinova",
     fullName: "Teodora Marinova",
-    role: "Shift Supervisor",
-    phone: "+359 888 100 010",
+    phoneNumber: "+359 888 100 010",
     dailyRate: bgnToEur(120),
     isActive: true,
   },
 ];
 
-function resolvePayUnits(dayIndex: number, employeeIndex: number): PayUnits {
+function resolvePayUnits(dayIndex: number, employeeIndex: number): 1 | 1.5 | 2 {
   if ((dayIndex + employeeIndex) % 5 === 0) {
     return 2;
   }
@@ -114,8 +142,9 @@ function buildAttendanceEntries(
     .map((employee, employeeIndex) => {
       const payUnits = resolvePayUnits(dayIndex, employeeIndex);
       const shift2 = payUnits > 1;
+      // Highest-rate employee (emp-10) gets a pay override on day 1
       const payOverride =
-        employee.role === "Shift Supervisor" && dayIndex === 1
+        employee.id === "emp-10" && dayIndex === 1
           ? employee.dailyRate * 2.25
           : null;
 
@@ -127,7 +156,7 @@ function buildAttendanceEntries(
         shift2,
         payUnits,
         payOverride,
-        notes: dayIndex === 0 && employee.role === "Kitchen Lead" ? "Late prep delivery." : null,
+        notes: dayIndex === 0 && employee.id === "emp-1" ? "Late prep delivery." : null,
       };
     });
 }
@@ -162,6 +191,7 @@ function buildDemoReports(referenceDate = new Date()): DailyReportWithAttendance
 export function createDemoSnapshot(): RestaurantSnapshot {
   return {
     mode: "demo",
+    restaurant: demoRestaurant,
     employees: demoEmployees,
     reports: buildDemoReports(),
     errorMessage: null,

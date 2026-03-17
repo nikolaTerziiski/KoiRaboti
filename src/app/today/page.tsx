@@ -26,6 +26,8 @@ export default async function TodayPage() {
       : "demo";
 
   const todayKey = format(new Date(), "yyyy-MM-dd");
+  const defaultExpense =
+    snapshot.restaurant?.defaultDailyExpense ?? DEFAULT_MANUAL_EXPENSE_EUR;
   const initialReport =
     snapshot.reports.find((report) => report.workDate === todayKey) ?? {
       id: `report-${todayKey}`,
@@ -33,7 +35,7 @@ export default async function TodayPage() {
       turnover: 0,
       profit: 0,
       cardAmount: 0,
-      manualExpense: DEFAULT_MANUAL_EXPENSE_EUR,
+      manualExpense: defaultExpense,
       notes: null,
       attendanceEntries: [],
     };

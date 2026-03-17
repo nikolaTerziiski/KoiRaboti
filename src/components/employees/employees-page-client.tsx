@@ -34,7 +34,7 @@ export function EmployeesPageClient({
   const rosterVersion = initialEmployees
     .map(
       (employee) =>
-        `${employee.id}:${employee.fullName}:${employee.role}:${employee.dailyRate}:${employee.isActive}`,
+        `${employee.id}:${employee.fullName}:${employee.phoneNumber}:${employee.dailyRate}:${employee.isActive}`,
     )
     .join("|");
 
@@ -79,7 +79,7 @@ export function EmployeesPageClient({
           </div>
           {initialEmployees.map((employee) => (
             <EmployeeRowEditor
-              key={`${employee.id}:${employee.fullName}:${employee.role}:${employee.dailyRate}:${employee.isActive}`}
+              key={`${employee.id}:${employee.fullName}:${employee.phoneNumber}:${employee.dailyRate}:${employee.isActive}`}
               employee={employee}
               dataMode={dataMode}
             />

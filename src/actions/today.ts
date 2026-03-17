@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { getUserRestaurantId } from "@/lib/supabase/data";
 import type { PayUnits } from "@/lib/types";
 
 export type TodayActionState = {
@@ -12,12 +13,6 @@ export type TodayActionState = {
   refreshKey: string | null;
 };
 
-export const initialTodayActionState: TodayActionState = {
-  status: "idle",
-  message: null,
-  messageKey: null,
-  refreshKey: null,
-};
 
 type AttendancePayload = {
   employeeId: string;
@@ -127,6 +122,11 @@ export async function saveTodayReportAction(
       throw new Error("Work date is required.");
     }
 
+    const restaurantId = await getUserRestaurantId(supabase);
+    if (!restaurantId) {
+      throw new Error("No restaurant found for current user.");
+    }
+
     const turnover = parseNumber(formData.get("turnover"), "Turnover");
     const profit = parseNumber(formData.get("profit"), "Profit");
     const cardAmount = parseNumber(formData.get("cardAmount"), "Card amount");
@@ -138,6 +138,7 @@ export async function saveTodayReportAction(
       .from("daily_reports")
       .upsert(
         {
+          restaurant_id: restaurantId,
           work_date: workDate,
           turnover,
           profit,
@@ -146,7 +147,7 @@ export async function saveTodayReportAction(
           notes: reportNotes,
         },
         {
-          onConflict: "work_date",
+          onConflict: "restaurant_id,work_date",
         },
       )
       .select("id")

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, startTransition, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import translations, { type Locale, type Translations } from "./translations";
 
@@ -24,7 +24,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const stored = localStorage.getItem(LOCALE_KEY) as Locale | null;
     if (stored === "en" || stored === "bg") {
-      setLocaleState(stored);
+      startTransition(() => setLocaleState(stored));
     }
   }, []);
 

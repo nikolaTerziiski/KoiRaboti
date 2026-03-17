@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { ClipboardList, Leaf, Wallet } from "lucide-react";
 import type { loginAction } from "@/actions/auth";
 import { LoginForm } from "@/components/auth/login-form";
@@ -93,6 +94,15 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
             <div className="rounded-2xl bg-secondary/35 p-4 text-sm text-muted-foreground">
               {t.login.redirectNote}
             </div>
+            <p className="text-center text-sm text-muted-foreground">
+              {t.login.noAccount}{" "}
+              <Link
+                href="/register"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
+                {t.login.register}
+              </Link>
+            </p>
           </CardContent>
         </Card>
       </div>

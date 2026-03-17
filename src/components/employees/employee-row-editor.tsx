@@ -3,11 +3,18 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Wallet } from "lucide-react";
+import type { EmployeeActionState } from "@/actions/employees";
 import {
-  initialEmployeeActionState,
   setEmployeeActiveAction,
   updateEmployeeAction,
 } from "@/actions/employees";
+
+const initialEmployeeActionState: EmployeeActionState = {
+  status: "idle",
+  message: null,
+  messageKey: null,
+  refreshKey: null,
+};
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,8 +50,9 @@ export function EmployeeRowEditor({
   );
   const refreshRef = useRef<string | null>(null);
   const [draft, setDraft] = useState({
-    fullName: employee.fullName,
-    role: employee.role,
+    firstName: employee.firstName,
+    lastName: employee.lastName,
+    phoneNumber: employee.phoneNumber,
     dailyRate: employee.dailyRate.toString(),
   });
 
@@ -62,12 +70,15 @@ export function EmployeeRowEditor({
     }
   }, [router, toggleState, updateState]);
 
+  const updateFeedback =
+    updateState.messageKey ? t.employees[updateState.messageKey] : updateState.message;
+
   return (
     <div className="rounded-3xl border border-border/70 bg-secondary/25 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="font-semibold">{employee.fullName}</p>
-          <p className="text-sm text-muted-foreground">{employee.role}</p>
+          <p className="text-sm text-muted-foreground">{employee.phoneNumber}</p>
         </div>
         <Badge variant={employee.isActive ? "success" : "outline"}>
           {employee.isActive ? t.employees.active : t.employees.inactive}
@@ -86,25 +97,45 @@ export function EmployeeRowEditor({
 
       <form action={updateFormAction} className="mt-4 space-y-3">
         <input type="hidden" name="employeeId" value={employee.id} />
-        <div className="space-y-2">
-          <Label htmlFor={`employee-name-${employee.id}`}>{t.employees.name}</Label>
-          <Input
-            id={`employee-name-${employee.id}`}
-            name="fullName"
-            value={draft.fullName}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, fullName: event.target.value }))
-            }
-          />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor={`employee-firstName-${employee.id}`}>
+              {t.employees.firstName}
+            </Label>
+            <Input
+              id={`employee-firstName-${employee.id}`}
+              name="firstName"
+              value={draft.firstName}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, firstName: event.target.value }))
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`employee-lastName-${employee.id}`}>
+              {t.employees.lastName}
+            </Label>
+            <Input
+              id={`employee-lastName-${employee.id}`}
+              name="lastName"
+              value={draft.lastName}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, lastName: event.target.value }))
+              }
+            />
+          </div>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`employee-role-${employee.id}`}>{t.employees.role}</Label>
+          <Label htmlFor={`employee-phone-${employee.id}`}>
+            {t.employees.phoneNumber}
+          </Label>
           <Input
-            id={`employee-role-${employee.id}`}
-            name="role"
-            value={draft.role}
+            id={`employee-phone-${employee.id}`}
+            name="phoneNumber"
+            type="tel"
+            value={draft.phoneNumber}
             onChange={(event) =>
-              setDraft((current) => ({ ...current, role: event.target.value }))
+              setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
             }
           />
         </div>
@@ -133,7 +164,7 @@ export function EmployeeRowEditor({
                 : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
             }
           >
-            {updateState.message}
+            {updateFeedback}
           </div>
         ) : null}
         <Button
@@ -155,7 +186,9 @@ export function EmployeeRowEditor({
         />
         {toggleState.status === "error" ? (
           <div className="mb-3 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {toggleState.message}
+            {toggleState.messageKey
+              ? t.employees[toggleState.messageKey]
+              : toggleState.message}
           </div>
         ) : null}
         <Button

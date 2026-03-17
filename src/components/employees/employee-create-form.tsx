@@ -3,10 +3,15 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import {
-  createEmployeeAction,
-  initialEmployeeActionState,
-} from "@/actions/employees";
+import type { EmployeeActionState } from "@/actions/employees";
+import { createEmployeeAction } from "@/actions/employees";
+
+const initialEmployeeActionState: EmployeeActionState = {
+  status: "idle",
+  message: null,
+  messageKey: null,
+  refreshKey: null,
+};
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -39,8 +44,9 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
   );
   const refreshedKeyRef = useRef<string | null>(null);
   const [draft, setDraft] = useState({
-    fullName: "",
-    role: "",
+    firstName: "",
+    lastName: "",
+    phoneNumber: "",
     dailyRate: "",
   });
 
@@ -55,6 +61,9 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
     }
   }, [actionState, router]);
 
+  const feedbackMessage =
+    actionState.messageKey ? t.employees[actionState.messageKey] : actionState.message;
+
   return (
     <Card>
       <CardHeader>
@@ -63,25 +72,39 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="create-fullName">{t.employees.fullName}</Label>
-            <Input
-              id="create-fullName"
-              name="fullName"
-              value={draft.fullName}
-              onChange={(event) =>
-                setDraft((current) => ({ ...current, fullName: event.target.value }))
-              }
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="create-firstName">{t.employees.firstName}</Label>
+              <Input
+                id="create-firstName"
+                name="firstName"
+                value={draft.firstName}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, firstName: event.target.value }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="create-lastName">{t.employees.lastName}</Label>
+              <Input
+                id="create-lastName"
+                name="lastName"
+                value={draft.lastName}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, lastName: event.target.value }))
+                }
+              />
+            </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="create-role">{t.employees.role}</Label>
+            <Label htmlFor="create-phoneNumber">{t.employees.phoneNumber}</Label>
             <Input
-              id="create-role"
-              name="role"
-              value={draft.role}
+              id="create-phoneNumber"
+              name="phoneNumber"
+              type="tel"
+              value={draft.phoneNumber}
               onChange={(event) =>
-                setDraft((current) => ({ ...current, role: event.target.value }))
+                setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
               }
             />
           </div>
@@ -108,7 +131,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
                   : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               }
             >
-              {actionState.message}
+              {feedbackMessage}
             </div>
           ) : null}
           {dataMode === "demo" ? (

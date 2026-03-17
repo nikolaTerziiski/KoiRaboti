@@ -3,15 +3,24 @@ import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
+  Restaurant,
   RestaurantSnapshot,
 } from "@/lib/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+type SupabaseRestaurantRow = {
+  id: string;
+  name: string;
+  default_daily_expense: number | string;
+};
 
 type SupabaseEmployeeRow = {
   id: string;
-  full_name: string;
-  role: string;
-  phone: string | null;
+  restaurant_id: string;
+  first_name: string;
+  last_name: string;
+  phone_number: string;
   daily_rate: number | string;
   is_active: boolean;
 };
@@ -38,12 +47,22 @@ type SupabaseReportRow = {
   attendance_entries?: SupabaseAttendanceRow[];
 };
 
+function mapRestaurant(row: SupabaseRestaurantRow): Restaurant {
+  return {
+    id: row.id,
+    name: row.name,
+    defaultDailyExpense: Number(row.default_daily_expense),
+  };
+}
+
 function mapEmployee(row: SupabaseEmployeeRow): Employee {
   return {
     id: row.id,
-    fullName: row.full_name,
-    role: row.role,
-    phone: row.phone,
+    restaurantId: row.restaurant_id,
+    firstName: row.first_name,
+    lastName: row.last_name,
+    fullName: `${row.first_name} ${row.last_name}`,
+    phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
     isActive: row.is_active,
   };
@@ -78,10 +97,22 @@ function mapReport(row: SupabaseReportRow): DailyReportWithAttendance {
 function buildLiveErrorSnapshot(message: string): RestaurantSnapshot {
   return {
     mode: "supabase",
+    restaurant: null,
     employees: [],
     reports: [],
     errorMessage: message,
   };
+}
+
+/** Returns the restaurant_id for the currently authenticated user, or null. */
+export async function getUserRestaurantId(
+  supabase: SupabaseClient,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("restaurant_id")
+    .single();
+  return data?.restaurant_id ?? null;
 }
 
 export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
@@ -91,11 +122,16 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     return createDemoSnapshot();
   }
 
-  const [employeesResponse, reportsResponse] = await Promise.all([
+  const [restaurantResponse, employeesResponse, reportsResponse] = await Promise.all([
+    supabase
+      .from("restaurants")
+      .select("id, name, default_daily_expense")
+      .single(),
     supabase
       .from("employees")
-      .select("id, full_name, role, phone, daily_rate, is_active")
-      .order("full_name"),
+      .select("id, restaurant_id, first_name, last_name, phone_number, daily_rate, is_active")
+      .order("last_name")
+      .order("first_name"),
     supabase
       .from("daily_reports")
       .select(
@@ -114,8 +150,13 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     );
   }
 
+  const restaurant = restaurantResponse.data
+    ? mapRestaurant(restaurantResponse.data as SupabaseRestaurantRow)
+    : null;
+
   return {
     mode: "supabase",
+    restaurant,
     employees: ((employeesResponse.data ?? []) as SupabaseEmployeeRow[]).map(mapEmployee),
     reports: ((reportsResponse.data ?? []) as SupabaseReportRow[]).map(mapReport),
     errorMessage: null,

@@ -3,18 +3,27 @@ export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
 export type PayrollPeriod = "first_half" | "second_half";
 
+export interface Restaurant {
+  id: string;
+  name: string;
+  defaultDailyExpense: number;
+}
+
 export interface Profile {
   id: string;
+  restaurantId: string;
   fullName: string;
   email: string;
-  role: "admin";
 }
 
 export interface Employee {
   id: string;
+  restaurantId: string;
+  firstName: string;
+  lastName: string;
+  /** Computed as `firstName + ' ' + lastName` — used by all display components. */
   fullName: string;
-  role: string;
-  phone?: string | null;
+  phoneNumber: string;
   dailyRate: number;
   isActive: boolean;
 }
@@ -46,6 +55,7 @@ export interface DailyReportWithAttendance extends DailyReport {
 
 export interface RestaurantSnapshot {
   mode: SnapshotMode;
+  restaurant: Restaurant | null;
   employees: Employee[];
   reports: DailyReportWithAttendance[];
   errorMessage: string | null;
