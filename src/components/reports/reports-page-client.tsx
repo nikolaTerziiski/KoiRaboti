@@ -1,10 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
-import { formatCompactCurrency, formatCurrency, formatDateLabel, formatMonthLabel } from "@/lib/format";
+import {
+  formatDateLabel,
+  formatExchangeRateLabel,
+  formatMonthLabel,
+} from "@/lib/format";
 import type { DailyReportWithAttendance, SnapshotMode } from "@/lib/types";
 
 type ReportsPageClientProps = {
@@ -70,39 +80,42 @@ export function ReportsPageClient({
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Turnover
               </p>
-              <p className="mt-2 text-xl font-semibold">
-                {formatCompactCurrency(totals.turnover)}
-              </p>
+              <div className="mt-2">
+                <MoneyDisplay amount={totals.turnover} compact />
+              </div>
             </div>
             <div className="rounded-2xl bg-secondary/35 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Profit
               </p>
-              <p className="mt-2 text-xl font-semibold">
-                {formatCompactCurrency(totals.profit)}
-              </p>
+              <div className="mt-2">
+                <MoneyDisplay amount={totals.profit} compact />
+              </div>
             </div>
             <div className="rounded-2xl bg-secondary/35 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Card
               </p>
-              <p className="mt-2 text-xl font-semibold">
-                {formatCompactCurrency(totals.cardAmount)}
-              </p>
+              <div className="mt-2">
+                <MoneyDisplay amount={totals.cardAmount} compact />
+              </div>
             </div>
             <div className="rounded-2xl bg-secondary/35 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                 Manual
               </p>
-              <p className="mt-2 text-xl font-semibold">
-                {formatCompactCurrency(totals.manualExpense)}
-              </p>
+              <div className="mt-2">
+                <MoneyDisplay amount={totals.manualExpense} compact />
+              </div>
             </div>
           </div>
           <p className="text-sm text-muted-foreground">
             {dataMode === "demo"
               ? "These are seeded reports so the app is usable before live data exists."
               : "These reports are coming from Supabase."}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            BGN equivalents are shown using the fixed rate {formatExchangeRateLabel()}.
           </p>
         </CardContent>
       </Card>
@@ -133,20 +146,28 @@ export function ReportsPageClient({
                       {report.attendanceEntries.length} attendance entries
                     </p>
                   </div>
-                  <Badge variant="outline">{formatCurrency(report.turnover)}</Badge>
+                  <div className="rounded-2xl border border-border bg-card px-3 py-2">
+                    <MoneyDisplay amount={report.turnover} align="end" />
+                  </div>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
                   <div className="rounded-2xl bg-card px-3 py-2">
                     <p className="text-muted-foreground">Profit</p>
-                    <p className="mt-1 font-semibold">{formatCurrency(report.profit)}</p>
+                    <div className="mt-1">
+                      <MoneyDisplay amount={report.profit} />
+                    </div>
                   </div>
                   <div className="rounded-2xl bg-card px-3 py-2">
                     <p className="text-muted-foreground">Card</p>
-                    <p className="mt-1 font-semibold">{formatCurrency(report.cardAmount)}</p>
+                    <div className="mt-1">
+                      <MoneyDisplay amount={report.cardAmount} />
+                    </div>
                   </div>
                   <div className="rounded-2xl bg-card px-3 py-2">
                     <p className="text-muted-foreground">Expense</p>
-                    <p className="mt-1 font-semibold">{formatCurrency(report.manualExpense)}</p>
+                    <div className="mt-1">
+                      <MoneyDisplay amount={report.manualExpense} />
+                    </div>
                   </div>
                   <div className="rounded-2xl bg-card px-3 py-2">
                     <p className="text-muted-foreground">Margin</p>

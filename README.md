@@ -14,6 +14,8 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
 - Green design tokens and reusable cards, buttons, inputs, labels, and selects
 - Supabase client helpers, SQL schema, and sample seed data
 - Demo snapshot fallback so the app runs before a live Supabase project is connected
+- Real Supabase persistence for Today and Employees flows
+- EUR-first money handling with BGN display at a fixed rate of `1.95583`
 
 ## Stack
 
@@ -40,6 +42,13 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
 If these are omitted, the app runs in demo mode with seeded local snapshot data.
+If they are present but Supabase queries fail, the app shows a visible live data error instead of silently falling back to demo data.
+
+## Currency handling
+
+- Monetary values are treated primarily as EUR in the app and database.
+- The UI also shows the BGN equivalent using the fixed rate `1 EUR = 1.95583 BGN`.
+- The default `manual_expense` is the EUR equivalent of `800 BGN`.
 
 ## Local setup
 
@@ -65,6 +74,7 @@ Open `http://localhost:3000`.
 npm run lint
 npm run typecheck
 npm run build
+npm run test
 npm run dev
 ```
 
@@ -96,6 +106,8 @@ npm run dev
 
 ## Notes
 
-- `daily_reports.manual_expense` defaults to `800`.
+- `daily_reports.manual_expense` defaults to the EUR equivalent of `800 BGN`.
 - Payroll amount uses `pay_override` when present, otherwise `daily_rate * pay_units`.
+- `/today` saves `daily_reports` plus attendance upserts and removes deselected attendance rows for the same day.
+- `/employees` saves create, edit, and active/inactive changes with `is_active` soft status.
 - Weekly scheduling, bonuses/deductions, and POS integration are intentionally out of scope for this MVP.

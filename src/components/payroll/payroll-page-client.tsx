@@ -1,11 +1,24 @@
 "use client";
 
 import { useState } from "react";
+import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/format";
-import { buildPayrollRows, getPayrollPeriodLabel } from "@/lib/payroll";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { MoneyDisplay } from "@/components/ui/money-display";
+import { SelectField } from "@/components/ui/select-field";
+import { formatExchangeRateLabel, formatMonthLabel } from "@/lib/format";
+import {
+  buildPayrollRows,
+  getPayrollPeriodLabel,
+  summarizePayrollRows,
+} from "@/lib/payroll";
 import type {
   DailyReportWithAttendance,
   Employee,
@@ -24,11 +37,18 @@ export function PayrollPageClient({
   reports,
   dataMode,
 }: PayrollPageClientProps) {
+  const monthOptions = Array.from(
+    new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`)),
+  );
+  const fallbackMonth = format(new Date(), "yyyy-MM-01");
+  const [selectedMonth, setSelectedMonth] = useState(
+    monthOptions[0] ?? fallbackMonth,
+  );
   const [period, setPeriod] = useState<PayrollPeriod>("first_half");
-  const payrollRows = buildPayrollRows(reports, employees, period);
-  const totalPayroll = payrollRows.reduce((sum, row) => sum + row.totalAmount, 0);
-  const totalUnits = payrollRows.reduce((sum, row) => sum + row.totalUnits, 0);
-  const overrideDays = payrollRows.reduce((sum, row) => sum + row.overrideCount, 0);
+
+  const referenceDate = parseISO(selectedMonth);
+  const payrollRows = buildPayrollRows(reports, employees, period, referenceDate);
+  const summary = summarizePayrollRows(payrollRows);
 
   return (
     <div className="space-y-4">
@@ -40,6 +60,22 @@ export function PayrollPageClient({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium" htmlFor="payroll-month">
+              Month
+            </label>
+            <SelectField
+              id="payroll-month"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+            >
+              {(monthOptions.length > 0 ? monthOptions : [fallbackMonth]).map((month) => (
+                <option key={month} value={month}>
+                  {formatMonthLabel(month)}
+                </option>
+              ))}
+            </SelectField>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
@@ -60,11 +96,16 @@ export function PayrollPageClient({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Active range
             </p>
-            <p className="mt-2 text-lg font-semibold">{getPayrollPeriodLabel(period)}</p>
+            <p className="mt-2 text-lg font-semibold">
+              {getPayrollPeriodLabel(period, referenceDate)}
+            </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {dataMode === "demo"
                 ? "Using demo attendance seeded from recent days."
                 : "Using attendance pulled from Supabase."}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              BGN display uses the fixed rate {formatExchangeRateLabel()}.
             </p>
           </div>
         </CardContent>
@@ -76,7 +117,9 @@ export function PayrollPageClient({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Total payroll
             </p>
-            <p className="mt-2 text-xl font-semibold">{formatCurrency(totalPayroll)}</p>
+            <div className="mt-2">
+              <MoneyDisplay amount={summary.totalPayroll} />
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -84,7 +127,7 @@ export function PayrollPageClient({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Staff paid
             </p>
-            <p className="mt-2 text-xl font-semibold">{payrollRows.length}</p>
+            <p className="mt-2 text-xl font-semibold">{summary.employeeCount}</p>
           </CardContent>
         </Card>
         <Card>
@@ -92,7 +135,7 @@ export function PayrollPageClient({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Pay units
             </p>
-            <p className="mt-2 text-xl font-semibold">{totalUnits.toFixed(1)}</p>
+            <p className="mt-2 text-xl font-semibold">{summary.totalUnits.toFixed(1)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -100,7 +143,7 @@ export function PayrollPageClient({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
               Overrides
             </p>
-            <p className="mt-2 text-xl font-semibold">{overrideDays}</p>
+            <p className="mt-2 text-xl font-semibold">{summary.overrideDays}</p>
           </CardContent>
         </Card>
       </div>
@@ -109,13 +152,13 @@ export function PayrollPageClient({
         <CardHeader>
           <CardTitle>Payroll rows</CardTitle>
           <CardDescription>
-            Amount = pay override when present, otherwise daily rate × pay units.
+            Amount = pay override when present, otherwise daily rate x pay units.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {payrollRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              No attendance is available in this period yet.
+              No attendance is available in this month/period yet.
             </div>
           ) : null}
           {payrollRows.map((row) => (
@@ -145,7 +188,9 @@ export function PayrollPageClient({
                 </div>
                 <div className="rounded-2xl bg-card px-3 py-2">
                   <p className="text-muted-foreground">Amount</p>
-                  <p className="mt-1 font-semibold">{formatCurrency(row.totalAmount)}</p>
+                  <div className="mt-1">
+                    <MoneyDisplay amount={row.totalAmount} />
+                  </div>
                 </div>
               </div>
             </div>

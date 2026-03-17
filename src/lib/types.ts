@@ -26,6 +26,7 @@ export interface DailyReport {
   profit: number;
   cardAmount: number;
   manualExpense: number;
+  notes: string | null;
 }
 
 export interface AttendanceEntry {
@@ -36,6 +37,7 @@ export interface AttendanceEntry {
   shift2: boolean;
   payUnits: PayUnits;
   payOverride: number | null;
+  notes: string | null;
 }
 
 export interface DailyReportWithAttendance extends DailyReport {
@@ -46,4 +48,5 @@ export interface RestaurantSnapshot {
   mode: SnapshotMode;
   employees: Employee[];
   reports: DailyReportWithAttendance[];
+  errorMessage: string | null;
 }

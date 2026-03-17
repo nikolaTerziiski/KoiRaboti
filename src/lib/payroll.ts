@@ -13,6 +13,14 @@ import type {
   PayrollPeriod,
 } from "@/lib/types";
 
+export interface PayrollRow {
+  employee: Employee;
+  shiftsWorked: number;
+  totalUnits: number;
+  totalAmount: number;
+  overrideCount: number;
+}
+
 export function resolveAttendanceAmount(
   employee: Employee,
   entry: AttendanceEntry,
@@ -52,7 +60,7 @@ export function buildPayrollRows(
   employees: Employee[],
   period: PayrollPeriod,
   referenceDate = new Date(),
-) {
+): PayrollRow[] {
   const bounds = getPayrollPeriodBounds(period, referenceDate);
 
   return employees
@@ -95,4 +103,13 @@ export function buildPayrollRows(
     })
     .filter((row) => row.totalAmount > 0)
     .sort((left, right) => right.totalAmount - left.totalAmount);
+}
+
+export function summarizePayrollRows(rows: PayrollRow[]) {
+  return {
+    totalPayroll: rows.reduce((sum, row) => sum + row.totalAmount, 0),
+    totalUnits: rows.reduce((sum, row) => sum + row.totalUnits, 0),
+    employeeCount: rows.length,
+    overrideDays: rows.reduce((sum, row) => sum + row.overrideCount, 0),
+  };
 }
