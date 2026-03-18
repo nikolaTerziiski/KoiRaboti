@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserRestaurantId } from "@/lib/supabase/data";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { PayUnits } from "@/lib/types";
 
 export type TodayActionState = {
@@ -13,23 +13,10 @@ export type TodayActionState = {
   refreshKey: string | null;
 };
 
-
 type AttendancePayload = {
   employeeId: string;
-  shift1: boolean;
-  shift2: boolean;
+  isPresent: boolean;
   payUnits: PayUnits;
-  payOverride: string;
-  notes: string;
-};
-
-type ResolvedAttendancePayload = {
-  employeeId: string;
-  shift1: boolean;
-  shift2: boolean;
-  payUnits: PayUnits;
-  payOverride: number | null;
-  notes: string | null;
 };
 
 function normalizeText(value: FormDataEntryValue | string | null | undefined) {
@@ -69,22 +56,10 @@ function parseAttendancePayload(rawValue: FormDataEntryValue | null): Attendance
 
     return {
       employeeId: String(candidate.employeeId),
-      shift1: Boolean(candidate.shift1),
-      shift2: Boolean(candidate.shift2),
+      isPresent: Boolean(candidate.isPresent),
       payUnits,
-      payOverride: String(candidate.payOverride ?? ""),
-      notes: String(candidate.notes ?? ""),
     };
   });
-}
-
-function isSelectedAttendance(entry: ResolvedAttendancePayload) {
-  return (
-    entry.shift1 ||
-    entry.shift2 ||
-    entry.payOverride !== null ||
-    entry.notes !== null
-  );
 }
 
 function revalidateOperationalViews() {
@@ -101,7 +76,7 @@ export async function saveTodayReportAction(
     return {
       status: "error",
       message: "Supabase is not configured. Today data cannot be saved in demo mode.",
-      messageKey: "msgSaveError" as const,
+      messageKey: "msgSaveError",
       refreshKey: null,
     };
   }
@@ -111,7 +86,7 @@ export async function saveTodayReportAction(
     return {
       status: "error",
       message: "Supabase client is unavailable for saving.",
-      messageKey: "msgSaveError" as const,
+      messageKey: "msgSaveError",
       refreshKey: null,
     };
   }
@@ -166,24 +141,8 @@ export async function saveTodayReportAction(
       throw new Error(existingRowsError.message);
     }
 
-    const selectedRows: ResolvedAttendancePayload[] = attendancePayload
-      .map((entry) => {
-        const payOverride = normalizeText(entry.payOverride);
-        const parsedOverride = payOverride === null ? null : Number(payOverride);
-        if (parsedOverride !== null && !Number.isFinite(parsedOverride)) {
-          throw new Error("Pay override must be a valid number.");
-        }
-
-        return {
-          employeeId: entry.employeeId,
-          shift1: entry.shift1,
-          shift2: entry.shift2,
-          payUnits: entry.payUnits,
-          payOverride: parsedOverride,
-          notes: normalizeText(entry.notes),
-        };
-      })
-      .filter(isSelectedAttendance);
+    const selectedRows = attendancePayload.filter((entry) => entry.isPresent);
+    const selectedEmployeeIds = selectedRows.map((entry) => entry.employeeId);
 
     if (selectedRows.length > 0) {
       const { error: upsertAttendanceError } = await supabase
@@ -192,11 +151,9 @@ export async function saveTodayReportAction(
           selectedRows.map((entry) => ({
             daily_report_id: reportRow.id,
             employee_id: entry.employeeId,
-            shift_1: entry.shift1,
-            shift_2: entry.shift2,
             pay_units: entry.payUnits,
-            pay_override: entry.payOverride,
-            notes: entry.notes,
+            pay_override: null,
+            notes: null,
           })),
           {
             onConflict: "daily_report_id,employee_id",
@@ -209,7 +166,6 @@ export async function saveTodayReportAction(
     }
 
     const existingEmployeeIds = (existingRows ?? []).map((row) => row.employee_id);
-    const selectedEmployeeIds = selectedRows.map((entry) => entry.employeeId);
     const idsToDelete = existingEmployeeIds.filter(
       (employeeId) => !selectedEmployeeIds.includes(employeeId),
     );
@@ -240,7 +196,7 @@ export async function saveTodayReportAction(
     return {
       status: "success",
       message: "Today report and attendance were saved to Supabase.",
-      messageKey: "msgSaveSuccess" as const,
+      messageKey: "msgSaveSuccess",
       refreshKey: crypto.randomUUID(),
     };
   } catch (error) {
@@ -248,7 +204,7 @@ export async function saveTodayReportAction(
       status: "error",
       message:
         error instanceof Error ? error.message : "Today data could not be saved.",
-      messageKey: "msgSaveError" as const,
+      messageKey: "msgSaveError",
       refreshKey: null,
     };
   }

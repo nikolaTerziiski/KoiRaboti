@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -38,15 +37,54 @@ export function PayrollPageClient({
   reports,
   dataMode,
 }: PayrollPageClientProps) {
-  const { t } = useLocale();
+  const { locale } = useLocale();
   const monthOptions = Array.from(
     new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`)),
   );
   const fallbackMonth = format(new Date(), "yyyy-MM-01");
-  const [selectedMonth, setSelectedMonth] = useState(
-    monthOptions[0] ?? fallbackMonth,
-  );
+  const [selectedMonth, setSelectedMonth] = useState(monthOptions[0] ?? fallbackMonth);
   const [period, setPeriod] = useState<PayrollPeriod>("first_half");
+
+  const labels = useMemo(
+    () => ({
+      window: locale === "bg" ? "Период" : "Period",
+      windowDesc:
+        locale === "bg"
+          ? "Избери месец и половина от месеца за изчисление."
+          : "Choose a month and half-month payroll period.",
+      month: locale === "bg" ? "Месец" : "Month",
+      firstHalf: locale === "bg" ? "1-15" : "1-15",
+      secondHalf: locale === "bg" ? "16-край" : "16-end",
+      activeRange: locale === "bg" ? "Период" : "Range",
+      demoAttendance:
+        locale === "bg"
+          ? "Използват се демо данни за присъствие."
+          : "Using demo attendance data.",
+      supabaseAttendance:
+        locale === "bg"
+          ? "Използват се данни от Supabase."
+          : "Using Supabase attendance data.",
+      bgnRate:
+        locale === "bg"
+          ? "Сумите се показват и в BGN по фиксиран курс"
+          : "Amounts are also shown in BGN using the fixed rate",
+      totalPayroll: locale === "bg" ? "Общо" : "Total",
+      staffPaid: locale === "bg" ? "Служители" : "Employees",
+      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      overrides: locale === "bg" ? "Корекции" : "Overrides",
+      listTitle:
+        locale === "bg" ? "Заплати на служителите" : "Employee payroll",
+      listDesc:
+        locale === "bg"
+          ? "Компактен преглед на служител, брой смени и обща сума."
+          : "A compact view of employee, shifts, and total amount.",
+      noAttendance:
+        locale === "bg"
+          ? "Няма данни за този месец и период."
+          : "There is no attendance for this month and period.",
+    }),
+    [locale],
+  );
 
   const referenceDate = parseISO(selectedMonth);
   const payrollRows = buildPayrollRows(reports, employees, period, referenceDate);
@@ -56,13 +94,13 @@ export function PayrollPageClient({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{t.payroll.window}</CardTitle>
-          <CardDescription>{t.payroll.windowDesc}</CardDescription>
+          <CardTitle>{labels.window}</CardTitle>
+          <CardDescription>{labels.windowDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="payroll-month">
-              {t.payroll.month}
+              {labels.month}
             </label>
             <SelectField
               id="payroll-month"
@@ -71,7 +109,7 @@ export function PayrollPageClient({
             >
               {(monthOptions.length > 0 ? monthOptions : [fallbackMonth]).map((month) => (
                 <option key={month} value={month}>
-                  {formatMonthLabel(month)}
+                  {formatMonthLabel(month, locale)}
                 </option>
               ))}
             </SelectField>
@@ -82,30 +120,28 @@ export function PayrollPageClient({
               variant={period === "first_half" ? "default" : "outline"}
               onClick={() => setPeriod("first_half")}
             >
-              {t.payroll.firstHalf}
+              {labels.firstHalf}
             </Button>
             <Button
               type="button"
               variant={period === "second_half" ? "default" : "outline"}
               onClick={() => setPeriod("second_half")}
             >
-              {t.payroll.secondHalf}
+              {labels.secondHalf}
             </Button>
           </div>
           <div className="rounded-2xl bg-secondary/35 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.payroll.activeRange}
+              {labels.activeRange}
             </p>
             <p className="mt-2 text-lg font-semibold">
-              {getPayrollPeriodLabel(period, referenceDate)}
+              {getPayrollPeriodLabel(period, referenceDate, locale)}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {dataMode === "demo"
-                ? t.payroll.demoAttendance
-                : t.payroll.supabaseAttendance}
+              {dataMode === "demo" ? labels.demoAttendance : labels.supabaseAttendance}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {t.payroll.bgnRate} {formatExchangeRateLabel()}.
+              {labels.bgnRate} {formatExchangeRateLabel()}.
             </p>
           </div>
         </CardContent>
@@ -115,7 +151,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.payroll.totalPayroll}
+              {labels.totalPayroll}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={summary.totalPayroll} />
@@ -125,7 +161,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.payroll.staffPaid}
+              {labels.staffPaid}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.employeeCount}</p>
           </CardContent>
@@ -133,7 +169,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.payroll.payUnits}
+              {labels.shiftsCount}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.totalUnits.toFixed(1)}</p>
           </CardContent>
@@ -141,7 +177,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.payroll.overrides}
+              {labels.overrides}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.overrideDays}</p>
           </CardContent>
@@ -150,49 +186,27 @@ export function PayrollPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>{t.payroll.payrollRows}</CardTitle>
-          <CardDescription>{t.payroll.payrollRowsDesc}</CardDescription>
+          <CardTitle>{labels.listTitle}</CardTitle>
+          <CardDescription>{labels.listDesc}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2">
           {payrollRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              {t.payroll.noAttendance}
+              {labels.noAttendance}
             </div>
           ) : null}
           {payrollRows.map((row) => (
             <div
               key={row.employee.id}
-              className="rounded-3xl border border-border/70 bg-secondary/25 p-4"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-secondary/25 px-3 py-3"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{row.employee.fullName}</p>
-                  <p className="text-sm text-muted-foreground">{row.employee.phoneNumber}</p>
-                </div>
-                {row.overrideCount > 0 ? (
-                  <Badge variant="warning">
-                    {row.overrideCount} {t.payroll.overrideDays}
-                  </Badge>
-                ) : (
-                  <Badge variant="outline">{t.payroll.standardFormula}</Badge>
-                )}
+              <div className="min-w-0">
+                <p className="truncate font-medium">{row.employee.fullName}</p>
+                <p className="text-sm text-muted-foreground">
+                  {labels.shiftsCount}: {row.totalUnits.toFixed(1)}
+                </p>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
-                <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">{t.payroll.shifts}</p>
-                  <p className="mt-1 font-semibold">{row.shiftsWorked}</p>
-                </div>
-                <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">{t.payroll.units}</p>
-                  <p className="mt-1 font-semibold">{row.totalUnits.toFixed(1)}</p>
-                </div>
-                <div className="rounded-2xl bg-card px-3 py-2">
-                  <p className="text-muted-foreground">{t.payroll.amount}</p>
-                  <div className="mt-1">
-                    <MoneyDisplay amount={row.totalAmount} />
-                  </div>
-                </div>
-              </div>
+              <MoneyDisplay amount={row.totalAmount} align="end" />
             </div>
           ))}
         </CardContent>

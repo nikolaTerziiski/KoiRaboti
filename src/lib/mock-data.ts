@@ -73,7 +73,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Petya",
     lastName: "Ivanova",
     fullName: "Petya Ivanova",
-    phoneNumber: "+359 888 100 006",
+    phoneNumber: null,
     dailyRate: bgnToEur(85),
     isActive: true,
   },
@@ -83,7 +83,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Stoyan",
     lastName: "Kolev",
     fullName: "Stoyan Kolev",
-    phoneNumber: "+359 888 100 007",
+    phoneNumber: null,
     dailyRate: bgnToEur(87),
     isActive: true,
   },
@@ -103,7 +103,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Dimitar",
     lastName: "Yordanov",
     fullName: "Dimitar Yordanov",
-    phoneNumber: "+359 888 100 009",
+    phoneNumber: null,
     dailyRate: bgnToEur(80),
     isActive: true,
   },
@@ -141,8 +141,6 @@ function buildAttendanceEntries(
     )
     .map((employee, employeeIndex) => {
       const payUnits = resolvePayUnits(dayIndex, employeeIndex);
-      const shift2 = payUnits > 1;
-      // Highest-rate employee (emp-10) gets a pay override on day 1
       const payOverride =
         employee.id === "emp-10" && dayIndex === 1
           ? employee.dailyRate * 2.25
@@ -152,8 +150,6 @@ function buildAttendanceEntries(
         id: `${reportId}-${employee.id}`,
         dailyReportId: reportId,
         employeeId: employee.id,
-        shift1: true,
-        shift2,
         payUnits,
         payOverride,
         notes: dayIndex === 0 && employee.id === "emp-1" ? "Late prep delivery." : null,

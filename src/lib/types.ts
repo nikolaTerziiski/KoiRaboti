@@ -21,9 +21,8 @@ export interface Employee {
   restaurantId: string;
   firstName: string;
   lastName: string;
-  /** Computed as `firstName + ' ' + lastName` — used by all display components. */
   fullName: string;
-  phoneNumber: string;
+  phoneNumber: string | null;
   dailyRate: number;
   isActive: boolean;
 }
@@ -42,8 +41,6 @@ export interface AttendanceEntry {
   id: string;
   dailyReportId: string;
   employeeId: string;
-  shift1: boolean;
-  shift2: boolean;
   payUnits: PayUnits;
   payOverride: number | null;
   notes: string | null;

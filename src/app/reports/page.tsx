@@ -32,7 +32,11 @@ export default async function ReportsPage() {
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="reports" message={snapshot.errorMessage} />
       ) : (
-        <ReportsPageClient reports={snapshot.reports} dataMode={snapshot.mode} />
+        <ReportsPageClient
+          employees={snapshot.employees}
+          reports={snapshot.reports}
+          dataMode={snapshot.mode}
+        />
       )}
     </AppShell>
   );

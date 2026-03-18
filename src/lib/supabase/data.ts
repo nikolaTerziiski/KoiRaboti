@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createDemoSnapshot } from "@/lib/mock-data";
 import type {
   AttendanceEntry,
@@ -7,7 +8,6 @@ import type {
   RestaurantSnapshot,
 } from "@/lib/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 
 type SupabaseRestaurantRow = {
   id: string;
@@ -20,7 +20,7 @@ type SupabaseEmployeeRow = {
   restaurant_id: string;
   first_name: string;
   last_name: string;
-  phone_number: string;
+  phone_number: string | null;
   daily_rate: number | string;
   is_active: boolean;
 };
@@ -29,8 +29,6 @@ type SupabaseAttendanceRow = {
   id: string;
   daily_report_id: string;
   employee_id: string;
-  shift_1: boolean;
-  shift_2: boolean;
   pay_units: number | string;
   pay_override: number | string | null;
   notes: string | null;
@@ -56,12 +54,14 @@ function mapRestaurant(row: SupabaseRestaurantRow): Restaurant {
 }
 
 function mapEmployee(row: SupabaseEmployeeRow): Employee {
+  const fullName = `${row.first_name} ${row.last_name}`.trim();
+
   return {
     id: row.id,
     restaurantId: row.restaurant_id,
     firstName: row.first_name,
     lastName: row.last_name,
-    fullName: `${row.first_name} ${row.last_name}`,
+    fullName,
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
     isActive: row.is_active,
@@ -73,8 +73,6 @@ function mapAttendance(row: SupabaseAttendanceRow): AttendanceEntry {
     id: row.id,
     dailyReportId: row.daily_report_id,
     employeeId: row.employee_id,
-    shift1: row.shift_1,
-    shift2: row.shift_2,
     payUnits: Number(row.pay_units) as 1 | 1.5 | 2,
     payOverride: row.pay_override === null ? null : Number(row.pay_override),
     notes: row.notes,
@@ -104,7 +102,6 @@ function buildLiveErrorSnapshot(message: string): RestaurantSnapshot {
   };
 }
 
-/** Returns the restaurant_id for the currently authenticated user, or null. */
 export async function getUserRestaurantId(
   supabase: SupabaseClient,
 ): Promise<string | null> {
@@ -112,6 +109,7 @@ export async function getUserRestaurantId(
     .from("profiles")
     .select("restaurant_id")
     .single();
+
   return data?.restaurant_id ?? null;
 }
 
@@ -135,7 +133,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     supabase
       .from("daily_reports")
       .select(
-        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, shift_1, shift_2, pay_units, pay_override, notes)",
+        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, pay_units, pay_override, notes)",
       )
       .order("work_date", { ascending: false }),
   ]);

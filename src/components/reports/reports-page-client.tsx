@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { ReportActionState } from "@/actions/reports";
+import { saveReportCorrectionAction } from "@/actions/reports";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -8,6 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
@@ -16,191 +22,437 @@ import {
   formatExchangeRateLabel,
   formatMonthLabel,
 } from "@/lib/format";
-import type { DailyReportWithAttendance, SnapshotMode } from "@/lib/types";
+import type {
+  DailyReportWithAttendance,
+  Employee,
+  PayUnits,
+  SnapshotMode,
+} from "@/lib/types";
+
+const initialReportActionState: ReportActionState = {
+  status: "idle",
+  message: null,
+  messageKey: null,
+  refreshKey: null,
+};
 
 type ReportsPageClientProps = {
+  employees: Employee[];
   reports: DailyReportWithAttendance[];
   dataMode: SnapshotMode;
 };
 
+type AttendanceCorrectionDraft = {
+  employeeId: string;
+  employeeName: string;
+  payUnits: PayUnits;
+  payOverride: string;
+};
+
+type ReportCorrectionDraft = {
+  reportId: string;
+  workDate: string;
+  turnover: string;
+  profit: string;
+  cardAmount: string;
+  manualExpense: string;
+  attendanceEntries: AttendanceCorrectionDraft[];
+};
+
+function buildCorrectionDraft(
+  report: DailyReportWithAttendance,
+  employees: Employee[],
+): ReportCorrectionDraft {
+  return {
+    reportId: report.id,
+    workDate: report.workDate,
+    turnover: report.turnover.toString(),
+    profit: report.profit.toString(),
+    cardAmount: report.cardAmount.toString(),
+    manualExpense: report.manualExpense.toString(),
+    attendanceEntries: report.attendanceEntries.map((entry) => {
+      const employee = employees.find((item) => item.id === entry.employeeId);
+
+      return {
+        employeeId: entry.employeeId,
+        employeeName: employee?.fullName ?? entry.employeeId,
+        payUnits: entry.payUnits,
+        payOverride: entry.payOverride?.toString() ?? "",
+      };
+    }),
+  };
+}
+
 export function ReportsPageClient({
+  employees,
   reports,
   dataMode,
 }: ReportsPageClientProps) {
-  const { t } = useLocale();
+  const router = useRouter();
+  const { locale } = useLocale();
+  const refreshRef = useRef<string | null>(null);
+  const [actionState, formAction, isPending] = useActionState(
+    saveReportCorrectionAction,
+    initialReportActionState,
+  );
   const months = Array.from(
     new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`)),
   );
   const [selectedMonth, setSelectedMonth] = useState(months[0] ?? "");
-  const visibleReports = reports.filter((report) =>
-    selectedMonth ? report.workDate.startsWith(selectedMonth.slice(0, 7)) : true,
+  const [draft, setDraft] = useState<ReportCorrectionDraft | null>(null);
+
+  useEffect(() => {
+    if (
+      actionState.status === "success" &&
+      actionState.refreshKey &&
+      refreshRef.current !== actionState.refreshKey
+    ) {
+      refreshRef.current = actionState.refreshKey;
+      router.refresh();
+    }
+  }, [actionState, router]);
+
+  const labels = useMemo(
+    () => ({
+      history: locale === "bg" ? "Отчети" : "Reports",
+      historyDesc:
+        locale === "bg"
+          ? "Стегната таблица с дневните резултати и бърза поправка на минали дни."
+          : "A strict daily table with a quick correction flow for past days.",
+      month: locale === "bg" ? "Месец" : "Month",
+      date: locale === "bg" ? "Дата" : "Date",
+      turnover: locale === "bg" ? "Оборот" : "Turnover",
+      profit: locale === "bg" ? "Печалба" : "Profit",
+      card: locale === "bg" ? "Карта" : "Card",
+      expense: locale === "bg" ? "Разход" : "Expense",
+      netProfit: locale === "bg" ? "Чиста печалба" : "Net profit",
+      edit: locale === "bg" ? "Поправи" : "Edit",
+      close: locale === "bg" ? "Затвори" : "Close",
+      correctionTitle:
+        locale === "bg" ? "Поправка на отчета" : "Report correction",
+      correctionDesc:
+        locale === "bg"
+          ? "Можеш да коригираш дневните числа, броя смени или ръчното заплащане за конкретен служител."
+          : "You can correct the daily numbers, shift count, or manual pay override.",
+      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      payOverride: locale === "bg" ? "Ръчно заплащане (EUR)" : "Pay override (EUR)",
+      save: locale === "bg" ? "Запази поправката" : "Save correction",
+      saving: locale === "bg" ? "Запазване..." : "Saving...",
+      demoNote:
+        locale === "bg"
+          ? "В демо режим можеш да разглеждаш, но не и да записваш поправки."
+          : "Demo mode lets you review reports but not save corrections.",
+      saveSuccess:
+        locale === "bg" ? "Поправката е запазена." : "Correction saved.",
+      saveError:
+        locale === "bg"
+          ? "Поправката не може да бъде запазена."
+          : "The correction could not be saved.",
+      noReports:
+        locale === "bg"
+          ? "Няма отчети за избрания месец."
+          : "There are no reports for the selected month.",
+      bgnRate:
+        locale === "bg"
+          ? "Сумите се показват и в BGN по фиксиран курс"
+          : "Amounts are also shown in BGN using the fixed rate",
+    }),
+    [locale],
   );
 
-  const totals = visibleReports.reduce(
-    (summary, report) => ({
-      turnover: summary.turnover + report.turnover,
-      profit: summary.profit + report.profit,
-      cardAmount: summary.cardAmount + report.cardAmount,
-      manualExpense: summary.manualExpense + report.manualExpense,
-    }),
-    {
-      turnover: 0,
-      profit: 0,
-      cardAmount: 0,
-      manualExpense: 0,
-    },
+  const visibleReports = reports.filter((report) =>
+    selectedMonth ? report.workDate.startsWith(selectedMonth.slice(0, 7)) : true,
   );
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{t.reports.history}</CardTitle>
-          <CardDescription>{t.reports.historyDesc}</CardDescription>
+          <CardTitle>{labels.history}</CardTitle>
+          <CardDescription>{labels.historyDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="monthSelect">
-              {t.reports.month}
-            </label>
+            <Label htmlFor="reports-month">{labels.month}</Label>
             <SelectField
-              id="monthSelect"
+              id="reports-month"
               value={selectedMonth}
               onChange={(event) => setSelectedMonth(event.target.value)}
             >
               {months.map((month) => (
                 <option key={month} value={month}>
-                  {formatMonthLabel(month)}
+                  {formatMonthLabel(month, locale)}
                 </option>
               ))}
             </SelectField>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="rounded-2xl bg-secondary/35 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                {t.reports.turnover}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={totals.turnover} compact />
-              </div>
-            </div>
-            <div className="rounded-2xl bg-secondary/35 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                {t.reports.profit}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={totals.profit} compact />
-              </div>
-            </div>
-            <div className="rounded-2xl bg-secondary/35 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                {t.reports.card}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={totals.cardAmount} compact />
-              </div>
-            </div>
-            <div className="rounded-2xl bg-secondary/35 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                {t.reports.manual}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={totals.manualExpense} compact />
-              </div>
-            </div>
+          <p className="text-sm text-muted-foreground">
+            {labels.bgnRate} {formatExchangeRateLabel()}.
+          </p>
+          <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card">
+            <table className="min-w-full text-sm">
+              <thead className="bg-secondary/35 text-left">
+                <tr>
+                  <th className="px-3 py-3 font-medium">{labels.date}</th>
+                  <th className="px-3 py-3 font-medium">{labels.turnover}</th>
+                  <th className="px-3 py-3 font-medium">{labels.profit}</th>
+                  <th className="px-3 py-3 font-medium">{labels.card}</th>
+                  <th className="px-3 py-3 font-medium">{labels.expense}</th>
+                  <th className="px-3 py-3 font-medium">{labels.netProfit}</th>
+                  <th className="px-3 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {visibleReports.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={7}
+                      className="px-3 py-6 text-center text-muted-foreground"
+                    >
+                      {labels.noReports}
+                    </td>
+                  </tr>
+                ) : null}
+                {visibleReports.map((report) => {
+                  const netProfit = report.profit - report.manualExpense;
+                  const isEditing = draft?.reportId === report.id;
+
+                  return (
+                    <tr key={report.id} className="border-t border-border/70 align-top">
+                      <td className="px-3 py-3 font-medium">
+                        {formatDateLabel(report.workDate, locale)}
+                      </td>
+                      <td className="px-3 py-3">
+                        <MoneyDisplay amount={report.turnover} compact />
+                      </td>
+                      <td className="px-3 py-3">
+                        <MoneyDisplay amount={report.profit} compact />
+                      </td>
+                      <td className="px-3 py-3">
+                        <MoneyDisplay amount={report.cardAmount} compact />
+                      </td>
+                      <td className="px-3 py-3">
+                        <MoneyDisplay amount={report.manualExpense} compact />
+                      </td>
+                      <td className="px-3 py-3">
+                        <MoneyDisplay amount={netProfit} compact />
+                      </td>
+                      <td className="px-3 py-3">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant={isEditing ? "default" : "outline"}
+                          onClick={() =>
+                            setDraft((current) =>
+                              current?.reportId === report.id
+                                ? null
+                                : buildCorrectionDraft(report, employees),
+                            )
+                          }
+                        >
+                          {isEditing ? labels.close : labels.edit}
+                        </Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {dataMode === "demo" ? t.reports.demoNote : t.reports.supabaseNote}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {t.reports.bgnRate} {formatExchangeRateLabel()}.
-          </p>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.reports.dailyEntries}</CardTitle>
-          <CardDescription>{t.reports.dailyEntriesDesc}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {visibleReports.map((report) => {
-            const cardShare =
-              report.turnover === 0 ? 0 : (report.cardAmount / report.turnover) * 100;
-            const profitMargin =
-              report.turnover === 0 ? 0 : (report.profit / report.turnover) * 100;
+      {draft ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {labels.correctionTitle} {formatDateLabel(draft.workDate, locale)}
+            </CardTitle>
+            <CardDescription>{labels.correctionDesc}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form action={formAction} className="space-y-4">
+              <input type="hidden" name="reportId" value={draft.reportId} />
+              <input
+                type="hidden"
+                name="attendancePayload"
+                value={JSON.stringify(
+                  draft.attendanceEntries.map((entry) => ({
+                    employeeId: entry.employeeId,
+                    payUnits: entry.payUnits,
+                    payOverride: entry.payOverride,
+                  })),
+                )}
+              />
 
-            return (
-              <div
-                key={report.id}
-                className="rounded-3xl border border-border/70 bg-secondary/25 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{formatDateLabel(report.workDate)}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {report.attendanceEntries.length} {t.reports.attendanceEntries}
-                    </p>
-                  </div>
-                  <div className="rounded-2xl border border-border bg-card px-3 py-2">
-                    <MoneyDisplay amount={report.turnover} align="end" />
-                  </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-turnover">{labels.turnover}</Label>
+                  <Input
+                    id="edit-turnover"
+                    name="turnover"
+                    inputMode="decimal"
+                    value={draft.turnover}
+                    onChange={(event) =>
+                      setDraft((current) =>
+                        current
+                          ? { ...current, turnover: event.target.value }
+                          : current,
+                      )
+                    }
+                  />
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-                  <div className="rounded-2xl bg-card px-3 py-2">
-                    <p className="text-muted-foreground">{t.reports.profitLabel}</p>
-                    <div className="mt-1">
-                      <MoneyDisplay amount={report.profit} />
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-card px-3 py-2">
-                    <p className="text-muted-foreground">{t.reports.cardLabel}</p>
-                    <div className="mt-1">
-                      <MoneyDisplay amount={report.cardAmount} />
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-card px-3 py-2">
-                    <p className="text-muted-foreground">{t.reports.expenseLabel}</p>
-                    <div className="mt-1">
-                      <MoneyDisplay amount={report.manualExpense} />
-                    </div>
-                  </div>
-                  <div className="rounded-2xl bg-card px-3 py-2">
-                    <p className="text-muted-foreground">{t.reports.marginLabel}</p>
-                    <p className="mt-1 font-semibold">{profitMargin.toFixed(1)}%</p>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-profit">{labels.profit}</Label>
+                  <Input
+                    id="edit-profit"
+                    name="profit"
+                    inputMode="decimal"
+                    value={draft.profit}
+                    onChange={(event) =>
+                      setDraft((current) =>
+                        current ? { ...current, profit: event.target.value } : current,
+                      )
+                    }
+                  />
                 </div>
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                      <span>{t.reports.cardShare}</span>
-                      <span>{cardShare.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-card">
-                      <div
-                        className="h-2 rounded-full bg-primary"
-                        style={{ width: `${Math.min(cardShare, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <div className="mb-1 flex items-center justify-between text-xs font-medium text-muted-foreground">
-                      <span>{t.reports.profitMargin}</span>
-                      <span>{profitMargin.toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 rounded-full bg-card">
-                      <div
-                        className="h-2 rounded-full bg-success"
-                        style={{ width: `${Math.min(profitMargin, 100)}%` }}
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-card">{labels.card}</Label>
+                  <Input
+                    id="edit-card"
+                    name="cardAmount"
+                    inputMode="decimal"
+                    value={draft.cardAmount}
+                    onChange={(event) =>
+                      setDraft((current) =>
+                        current
+                          ? { ...current, cardAmount: event.target.value }
+                          : current,
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-expense">{labels.expense}</Label>
+                  <Input
+                    id="edit-expense"
+                    name="manualExpense"
+                    inputMode="decimal"
+                    value={draft.manualExpense}
+                    onChange={(event) =>
+                      setDraft((current) =>
+                        current
+                          ? { ...current, manualExpense: event.target.value }
+                          : current,
+                      )
+                    }
+                  />
                 </div>
               </div>
-            );
-          })}
-        </CardContent>
-      </Card>
+
+              <div className="space-y-3">
+                {draft.attendanceEntries.map((entry) => (
+                  <div
+                    key={entry.employeeId}
+                    className="rounded-2xl border border-border/70 bg-secondary/25 p-3"
+                  >
+                    <p className="font-medium">{entry.employeeName}</p>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label htmlFor={`units-${entry.employeeId}`}>
+                          {labels.shiftsCount}
+                        </Label>
+                        <SelectField
+                          id={`units-${entry.employeeId}`}
+                          value={String(entry.payUnits)}
+                          onChange={(event) =>
+                            setDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    attendanceEntries: current.attendanceEntries.map((item) =>
+                                      item.employeeId === entry.employeeId
+                                        ? {
+                                            ...item,
+                                            payUnits: Number(
+                                              event.target.value,
+                                            ) as PayUnits,
+                                          }
+                                        : item,
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                        >
+                          <option value="1">1</option>
+                          <option value="1.5">1.5</option>
+                          <option value="2">2</option>
+                        </SelectField>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor={`override-${entry.employeeId}`}>
+                          {labels.payOverride}
+                        </Label>
+                        <Input
+                          id={`override-${entry.employeeId}`}
+                          inputMode="decimal"
+                          value={entry.payOverride}
+                          onChange={(event) =>
+                            setDraft((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    attendanceEntries: current.attendanceEntries.map((item) =>
+                                      item.employeeId === entry.employeeId
+                                        ? { ...item, payOverride: event.target.value }
+                                        : item,
+                                    ),
+                                  }
+                                : current,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {actionState.status !== "idle" ? (
+                <div
+                  className={
+                    actionState.status === "success"
+                      ? "rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
+                      : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  }
+                >
+                  {actionState.messageKey === "msgSaveSuccess"
+                    ? labels.saveSuccess
+                    : actionState.messageKey === "msgSaveError"
+                      ? labels.saveError
+                      : actionState.message}
+                </div>
+              ) : null}
+
+              {dataMode === "demo" ? (
+                <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+                  {labels.demoNote}
+                </div>
+              ) : null}
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={isPending || dataMode === "demo"}
+                aria-busy={isPending}
+              >
+                {isPending ? labels.saving : labels.save}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

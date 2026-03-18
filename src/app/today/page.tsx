@@ -39,6 +39,7 @@ export default async function TodayPage() {
       notes: null,
       attendanceEntries: [],
     };
+
   const dashboardVersion = [
     initialReport.workDate,
     initialReport.turnover,
@@ -49,7 +50,7 @@ export default async function TodayPage() {
     initialReport.attendanceEntries
       .map(
         (entry) =>
-          `${entry.employeeId}:${entry.shift1}:${entry.shift2}:${entry.payUnits}:${entry.payOverride ?? ""}:${entry.notes ?? ""}`,
+          `${entry.employeeId}:${entry.payUnits}:${entry.payOverride ?? ""}:${entry.notes ?? ""}`,
       )
       .join("|"),
     snapshot.employees

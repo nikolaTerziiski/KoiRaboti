@@ -10,10 +10,9 @@ import {
 const employee = {
   id: "employee-1",
   fullName: "Test Employee",
-  role: "Server",
+  phoneNumber: null,
   dailyRate: 50,
   isActive: true,
-  phone: null,
 };
 
 function createAttendance(overrides = {}) {
@@ -21,8 +20,6 @@ function createAttendance(overrides = {}) {
     id: "attendance-1",
     dailyReportId: "report-1",
     employeeId: employee.id,
-    shift1: true,
-    shift2: false,
     payUnits: 1,
     payOverride: null,
     notes: null,

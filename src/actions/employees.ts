@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { getUserRestaurantId } from "@/lib/supabase/data";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 export type EmployeeActionState = {
   status: "idle" | "success" | "error";
@@ -19,13 +19,18 @@ export type EmployeeActionState = {
   refreshKey: string | null;
 };
 
-
 function requireText(value: FormDataEntryValue | null, fieldName: string) {
   const normalized = String(value ?? "").trim();
   if (!normalized) {
     throw new Error(`${fieldName} is required.`);
   }
+
   return normalized;
+}
+
+function normalizeOptionalText(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 function parseDailyRate(value: FormDataEntryValue | null) {
@@ -33,7 +38,19 @@ function parseDailyRate(value: FormDataEntryValue | null) {
   if (!Number.isFinite(parsed) || parsed < 0) {
     throw new Error("Daily rate must be a valid positive number.");
   }
+
   return parsed;
+}
+
+function splitFullName(fullName: string) {
+  const parts = fullName.split(/\s+/).filter(Boolean);
+  const firstName = parts.shift() ?? "";
+  const lastName = parts.join(" ");
+
+  return {
+    firstName,
+    lastName,
+  };
 }
 
 function revalidateEmployeeViews() {
@@ -50,7 +67,6 @@ function buildUnavailableState(
 }
 
 function isDuplicatePhoneError(code: string | undefined) {
-  // Postgres unique_violation = 23505
   return code === "23505";
 }
 
@@ -75,10 +91,10 @@ export async function createEmployeeAction(
       throw new Error("No restaurant found for current user.");
     }
 
-    const firstName = requireText(formData.get("firstName"), "First name");
-    const lastName = requireText(formData.get("lastName"), "Last name");
-    const phoneNumber = requireText(formData.get("phoneNumber"), "Phone number");
+    const fullName = requireText(formData.get("fullName"), "Full name");
+    const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
+    const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase.from("employees").insert({
       restaurant_id: restaurantId,
@@ -98,6 +114,7 @@ export async function createEmployeeAction(
           refreshKey: null,
         };
       }
+
       throw new Error(error.message);
     }
 
@@ -138,10 +155,10 @@ export async function updateEmployeeAction(
     }
 
     const employeeId = requireText(formData.get("employeeId"), "Employee id");
-    const firstName = requireText(formData.get("firstName"), "First name");
-    const lastName = requireText(formData.get("lastName"), "Last name");
-    const phoneNumber = requireText(formData.get("phoneNumber"), "Phone number");
+    const fullName = requireText(formData.get("fullName"), "Full name");
+    const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
+    const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase
       .from("employees")
@@ -163,6 +180,7 @@ export async function updateEmployeeAction(
           refreshKey: null,
         };
       }
+
       throw new Error(error.message);
     }
 

@@ -12,9 +12,10 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
   - 16th to end of month
 - `/reports` for daily report history
 - Green design tokens and reusable cards, buttons, inputs, labels, and selects
+- Bulgarian and English UI with a simple locale switcher
 - Supabase client helpers, SQL schema, and sample seed data
 - Demo snapshot fallback so the app runs before a live Supabase project is connected
-- Real Supabase persistence for Today and Employees flows
+- Real Supabase persistence for Today, Employees, and report corrections
 - EUR-first money handling with BGN display at a fixed rate of `1.95583`
 
 ## Stack
@@ -68,6 +69,10 @@ Open `http://localhost:3000`.
 5. Create one admin user in Supabase Auth.
 6. Start the app and sign in from `/login`.
 
+If you already have an older KoiRaboti database, run `supabase/patch_simplify_attendance_phone.sql`
+before using the updated UI. It makes employee phone numbers optional and removes the old
+`shift_1` / `shift_2` attendance columns.
+
 ## Validation commands
 
 ```bash
@@ -109,5 +114,7 @@ npm run dev
 - `daily_reports.manual_expense` defaults to the EUR equivalent of `800 BGN`.
 - Payroll amount uses `pay_override` when present, otherwise `daily_rate * pay_units`.
 - `/today` saves `daily_reports` plus attendance upserts and removes deselected attendance rows for the same day.
+- Attendance is now simplified to presence plus `pay_units` only. The fast daily flow no longer uses `shift_1` / `shift_2`.
 - `/employees` saves create, edit, and active/inactive changes with `is_active` soft status.
+- `/reports` can correct past financial numbers, `pay_units`, and optional `pay_override` values.
 - Weekly scheduling, bonuses/deductions, and POS integration are intentionally out of scope for this MVP.

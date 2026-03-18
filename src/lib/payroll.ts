@@ -6,6 +6,8 @@ import {
   setDate,
   startOfMonth,
 } from "date-fns";
+import { bg, enUS } from "date-fns/locale";
+import type { Locale } from "@/lib/i18n/translations";
 import type {
   AttendanceEntry,
   DailyReportWithAttendance,
@@ -15,10 +17,13 @@ import type {
 
 export interface PayrollRow {
   employee: Employee;
-  shiftsWorked: number;
   totalUnits: number;
   totalAmount: number;
   overrideCount: number;
+}
+
+function getDateLocale(locale: Locale) {
+  return locale === "bg" ? bg : enUS;
 }
 
 export function resolveAttendanceAmount(
@@ -50,9 +55,16 @@ export function getPayrollPeriodBounds(
 export function getPayrollPeriodLabel(
   period: PayrollPeriod,
   referenceDate = new Date(),
+  locale: Locale = "bg",
 ) {
   const bounds = getPayrollPeriodBounds(period, referenceDate);
-  return `${format(bounds.start, "d MMM")} to ${format(bounds.end, "d MMM")}`;
+  const dateLocale = getDateLocale(locale);
+
+  if (locale === "bg") {
+    return `${format(bounds.start, "d MMM", { locale: dateLocale })} - ${format(bounds.end, "d MMM", { locale: dateLocale })}`;
+  }
+
+  return `${format(bounds.start, "d MMM", { locale: dateLocale })} to ${format(bounds.end, "d MMM", { locale: dateLocale })}`;
 }
 
 export function buildPayrollRows(
@@ -66,7 +78,6 @@ export function buildPayrollRows(
   return employees
     .filter((employee) => employee.isActive)
     .map((employee) => {
-      let shiftsWorked = 0;
       let totalUnits = 0;
       let totalAmount = 0;
       let overrideCount = 0;
@@ -85,7 +96,6 @@ export function buildPayrollRows(
           continue;
         }
 
-        shiftsWorked += Number(entry.shift1) + Number(entry.shift2);
         totalUnits += entry.payUnits;
         totalAmount += resolveAttendanceAmount(employee, entry);
         if (entry.payOverride !== null) {
@@ -95,7 +105,6 @@ export function buildPayrollRows(
 
       return {
         employee,
-        shiftsWorked,
         totalUnits,
         totalAmount,
         overrideCount,

@@ -1,17 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, CircleDollarSign, RotateCcw, Save, Users } from "lucide-react";
+import { Calculator, CircleDollarSign, Save, Users } from "lucide-react";
 import type { TodayActionState } from "@/actions/today";
 import { saveTodayReportAction } from "@/actions/today";
-
-const initialTodayActionState: TodayActionState = {
-  status: "idle",
-  message: null,
-  messageKey: null,
-  refreshKey: null,
-};
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +25,7 @@ import {
   formatDateLabel,
   formatExchangeRateLabel,
 } from "@/lib/format";
-import { resolveAttendanceAmount } from "@/lib/payroll";
+import { cn } from "@/lib/utils";
 import type {
   DailyReportWithAttendance,
   Employee,
@@ -40,13 +33,17 @@ import type {
   SnapshotMode,
 } from "@/lib/types";
 
+const initialTodayActionState: TodayActionState = {
+  status: "idle",
+  message: null,
+  messageKey: null,
+  refreshKey: null,
+};
+
 type AttendanceDraft = {
   employee: Employee;
-  shift1: boolean;
-  shift2: boolean;
+  isPresent: boolean;
   payUnits: PayUnits;
-  payOverride: string;
-  notes: string;
 };
 
 type TodayDashboardProps = {
@@ -73,11 +70,8 @@ function buildAttendanceDrafts(
 
       return {
         employee,
-        shift1: entry?.shift1 ?? false,
-        shift2: entry?.shift2 ?? false,
+        isPresent: Boolean(entry),
         payUnits: entry?.payUnits ?? 1,
-        payOverride: entry?.payOverride?.toString() ?? "",
-        notes: entry?.notes ?? "",
       };
     });
 }
@@ -88,12 +82,12 @@ export function TodayDashboard({
   dataMode,
 }: TodayDashboardProps) {
   const router = useRouter();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const refreshedKeyRef = useRef<string | null>(null);
   const [actionState, formAction, isPending] = useActionState(
     saveTodayReportAction,
     initialTodayActionState,
   );
-  const refreshedKeyRef = useRef<string | null>(null);
   const [reportForm, setReportForm] = useState({
     turnover: String(initialReport.turnover),
     profit: String(initialReport.profit),
@@ -116,48 +110,36 @@ export function TodayDashboard({
     }
   }, [actionState, router]);
 
-  const checkedInCount = attendanceDrafts.filter(
-    (entry) =>
-      entry.shift1 ||
-      entry.shift2 ||
-      entry.payOverride.trim().length > 0 ||
-      entry.notes.trim().length > 0,
-  ).length;
+  const labels = useMemo(
+    () => ({
+      dailyRate: locale === "bg" ? "Дневна ставка" : "Daily rate",
+      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      tapHint:
+        locale === "bg"
+          ? "Докосни картата, за да отбележиш служителя като присъстващ."
+          : "Tap the card to mark the employee as at work.",
+      activeHint:
+        locale === "bg"
+          ? "Картата е зелена, когато служителят е на работа."
+          : "The card turns green when the employee is at work.",
+      atWork: locale === "bg" ? "На работа" : "At work",
+      notSelected: locale === "bg" ? "Не е избран" : "Not selected",
+      employeesCount: locale === "bg" ? "служители" : "employees",
+      saveSummary: locale === "bg" ? "Брой смени" : "Number of shifts",
+    }),
+    [locale],
+  );
+
+  const checkedInCount = attendanceDrafts.filter((entry) => entry.isPresent).length;
   const totalPayUnits = attendanceDrafts.reduce(
-    (sum, entry) =>
-      sum +
-      (entry.shift1 ||
-      entry.shift2 ||
-      entry.payOverride.trim().length > 0 ||
-      entry.notes.trim().length > 0
-        ? entry.payUnits
-        : 0),
+    (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
     0,
   );
-  const estimatedPayroll = attendanceDrafts.reduce((sum, entry) => {
-    if (
-      !entry.shift1 &&
-      !entry.shift2 &&
-      entry.payOverride.trim().length === 0 &&
-      entry.notes.trim().length === 0
-    ) {
-      return sum;
-    }
-
-    return (
-      sum +
-      resolveAttendanceAmount(entry.employee, {
-        id: `draft-${entry.employee.id}`,
-        dailyReportId: initialReport.id,
-        employeeId: entry.employee.id,
-        shift1: entry.shift1,
-        shift2: entry.shift2,
-        payUnits: entry.payUnits,
-        payOverride: entry.payOverride ? toNumber(entry.payOverride) : null,
-        notes: entry.notes || null,
-      })
-    );
-  }, 0);
+  const estimatedPayroll = attendanceDrafts.reduce(
+    (sum, entry) =>
+      sum + (entry.isPresent ? entry.employee.dailyRate * entry.payUnits : 0),
+    0,
+  );
 
   const summaryCards = [
     {
@@ -172,8 +154,8 @@ export function TodayDashboard({
     },
     {
       label: t.today.checkedIn,
-      value: `${checkedInCount} ${t.today.team}`,
-      helper: `${totalPayUnits.toFixed(1)} ${t.today.payUnitsHelper}`,
+      value: `${checkedInCount} ${labels.employeesCount}`,
+      helper: `${totalPayUnits.toFixed(1)} ${labels.shiftsCount.toLowerCase()}`,
       icon: Users,
     },
     {
@@ -192,11 +174,8 @@ export function TodayDashboard({
         value={JSON.stringify(
           attendanceDrafts.map((entry) => ({
             employeeId: entry.employee.id,
-            shift1: entry.shift1,
-            shift2: entry.shift2,
+            isPresent: entry.isPresent,
             payUnits: entry.payUnits,
-            payOverride: entry.payOverride,
-            notes: entry.notes,
           })),
         )}
       />
@@ -207,7 +186,7 @@ export function TodayDashboard({
             <div>
               <CardTitle className="text-xl">{t.today.shiftSheet}</CardTitle>
               <CardDescription className="mt-1 text-primary-foreground/80">
-                {formatDateLabel(initialReport.workDate)}
+                {formatDateLabel(initialReport.workDate, locale)}
               </CardDescription>
             </div>
             <Badge className="bg-white/14 text-white" variant="default">
@@ -216,9 +195,9 @@ export function TodayDashboard({
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-primary-foreground/85">
-          <p>{t.today.fastInput}</p>
+          <p>{labels.tapHint}</p>
           <p>
-            {t.today.currency} {formatExchangeRateLabel()}.
+            {labels.activeHint} {formatExchangeRateLabel()}.
           </p>
         </CardContent>
       </Card>
@@ -358,193 +337,130 @@ export function TodayDashboard({
       </Card>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between gap-3">
-          <div>
-            <CardTitle>{t.today.attendance}</CardTitle>
-            <CardDescription>{t.today.attendanceDesc}</CardDescription>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              setAttendanceDrafts((current) =>
-                current.map((entry) => ({
-                  ...entry,
-                  shift1: false,
-                  shift2: false,
-                  payUnits: 1,
-                  payOverride: "",
-                  notes: "",
-                })),
-              )
-            }
-          >
-            <RotateCcw className="size-4" />
-            {t.today.reset}
-          </Button>
+        <CardHeader>
+          <CardTitle>{t.today.attendance}</CardTitle>
+          <CardDescription>{labels.tapHint}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {attendanceDrafts.map((entry) => {
-            const payout =
-              entry.shift1 || entry.shift2 || entry.payOverride.trim() || entry.notes.trim()
-                ? resolveAttendanceAmount(entry.employee, {
-                    id: `draft-${entry.employee.id}`,
-                    dailyReportId: initialReport.id,
-                    employeeId: entry.employee.id,
-                    shift1: entry.shift1,
-                    shift2: entry.shift2,
-                    payUnits: entry.payUnits,
-                    payOverride: entry.payOverride ? toNumber(entry.payOverride) : null,
-                    notes: entry.notes || null,
-                  })
-                : 0;
+            const payout = entry.isPresent ? entry.employee.dailyRate * entry.payUnits : 0;
 
             return (
               <div
                 key={entry.employee.id}
-                className="rounded-3xl border border-border/70 bg-secondary/25 p-4"
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  setAttendanceDrafts((current) =>
+                    current.map((item) =>
+                      item.employee.id === entry.employee.id
+                        ? {
+                            ...item,
+                            isPresent: !item.isPresent,
+                            payUnits: item.isPresent ? 1 : item.payUnits,
+                          }
+                        : item,
+                    ),
+                  )
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setAttendanceDrafts((current) =>
+                      current.map((item) =>
+                        item.employee.id === entry.employee.id
+                          ? {
+                              ...item,
+                              isPresent: !item.isPresent,
+                              payUnits: item.isPresent ? 1 : item.payUnits,
+                            }
+                          : item,
+                      ),
+                    );
+                  }
+                }}
+                className={cn(
+                  "rounded-3xl border p-4 transition-colors",
+                  entry.isPresent
+                    ? "border-primary/30 bg-primary text-primary-foreground"
+                    : "border-border/70 bg-secondary/25",
+                )}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="font-semibold">{entry.employee.fullName}</p>
-                    <p className="text-sm text-muted-foreground">{entry.employee.phoneNumber}</p>
+                    <p
+                      className={cn(
+                        "mt-1 text-sm",
+                        entry.isPresent
+                          ? "text-primary-foreground/80"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {labels.dailyRate}
+                    </p>
                     <div className="mt-2">
-                      <MoneyDisplay amount={entry.employee.dailyRate} />
+                      <MoneyDisplay
+                        amount={entry.employee.dailyRate}
+                        secondaryClassName={
+                          entry.isPresent ? "text-primary-foreground/70" : undefined
+                        }
+                      />
                     </div>
                   </div>
-                  <Badge
-                    variant={
-                      entry.shift1 ||
-                      entry.shift2 ||
-                      entry.payOverride.trim().length > 0 ||
-                      entry.notes.trim().length > 0
-                        ? "success"
-                        : "outline"
-                    }
+                  <p
+                    className={cn(
+                      "text-sm font-medium",
+                      entry.isPresent
+                        ? "text-primary-foreground"
+                        : "text-muted-foreground",
+                    )}
                   >
-                    {entry.shift1 ||
-                    entry.shift2 ||
-                    entry.payOverride.trim().length > 0 ||
-                    entry.notes.trim().length > 0
-                      ? t.today.selected
-                      : t.today.off}
-                  </Badge>
+                    {entry.isPresent ? labels.atWork : labels.notSelected}
+                  </p>
                 </div>
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={entry.shift1 ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() =>
-                      setAttendanceDrafts((current) =>
-                        current.map((item) =>
-                          item.employee.id === entry.employee.id
-                            ? { ...item, shift1: !item.shift1 }
-                            : item,
-                        ),
-                      )
-                    }
+
+                {entry.isPresent ? (
+                  <div
+                    className="mt-4 rounded-2xl bg-white/14 p-3"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    {t.today.shift1}
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant={entry.shift2 ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() =>
-                      setAttendanceDrafts((current) =>
-                        current.map((item) =>
-                          item.employee.id === entry.employee.id
-                            ? { ...item, shift2: !item.shift2 }
-                            : item,
-                        ),
-                      )
-                    }
-                  >
-                    {t.today.shift2}
-                  </Button>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor={`payUnits-${entry.employee.id}`}>
-                      {t.today.payUnitsLabel}
-                    </Label>
-                    <SelectField
-                      id={`payUnits-${entry.employee.id}`}
-                      value={String(entry.payUnits)}
-                      onChange={(event) =>
-                        setAttendanceDrafts((current) =>
-                          current.map((item) =>
-                            item.employee.id === entry.employee.id
-                              ? {
-                                  ...item,
-                                  payUnits: Number(event.target.value) as PayUnits,
-                                }
-                              : item,
-                          ),
-                        )
-                      }
-                    >
-                      <option value="1">1</option>
-                      <option value="1.5">1.5</option>
-                      <option value="2">2</option>
-                    </SelectField>
+                    <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor={`payUnits-${entry.employee.id}`}
+                          className="text-primary-foreground"
+                        >
+                          {labels.shiftsCount}
+                        </Label>
+                        <SelectField
+                          id={`payUnits-${entry.employee.id}`}
+                          value={String(entry.payUnits)}
+                          className="border-white/20 bg-white text-foreground"
+                          onChange={(event) =>
+                            setAttendanceDrafts((current) =>
+                              current.map((item) =>
+                                item.employee.id === entry.employee.id
+                                  ? {
+                                      ...item,
+                                      payUnits: Number(event.target.value) as PayUnits,
+                                    }
+                                  : item,
+                              ),
+                            )
+                          }
+                        >
+                          <option value="1">1</option>
+                          <option value="1.5">1.5</option>
+                          <option value="2">2</option>
+                        </SelectField>
+                      </div>
+                      <div className="rounded-2xl bg-white px-3 py-2 text-right text-foreground">
+                        <MoneyDisplay amount={payout} align="end" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor={`override-${entry.employee.id}`}>
-                      {t.today.payOverrideEur}
-                    </Label>
-                    <Input
-                      id={`override-${entry.employee.id}`}
-                      inputMode="decimal"
-                      placeholder={t.today.overrideOptional}
-                      value={entry.payOverride}
-                      onChange={(event) =>
-                        setAttendanceDrafts((current) =>
-                          current.map((item) =>
-                            item.employee.id === entry.employee.id
-                              ? { ...item, payOverride: event.target.value }
-                              : item,
-                          ),
-                        )
-                      }
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t.today.bgnView}{" "}
-                      {formatBgnCurrencyFromEur(toNumber(entry.payOverride))}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                  <Label htmlFor={`notes-${entry.employee.id}`}>
-                    {t.today.shiftNotes}
-                  </Label>
-                  <Input
-                    id={`notes-${entry.employee.id}`}
-                    value={entry.notes}
-                    placeholder={t.today.shiftNotesPlaceholder}
-                    onChange={(event) =>
-                      setAttendanceDrafts((current) =>
-                        current.map((item) =>
-                          item.employee.id === entry.employee.id
-                            ? { ...item, notes: event.target.value }
-                            : item,
-                        ),
-                      )
-                    }
-                  />
-                </div>
-                <div className="mt-4 flex items-center justify-between rounded-2xl bg-card px-3 py-2 text-sm">
-                  <span className="text-muted-foreground">
-                    {t.today.unitsPrefix} {entry.payUnits} |{" "}
-                    {t.today.markedShiftsPrefix}{" "}
-                    {Number(entry.shift1) + Number(entry.shift2)}
-                  </span>
-                  <MoneyDisplay amount={payout} align="end" />
-                </div>
+                ) : null}
               </div>
             );
           })}
@@ -559,15 +475,14 @@ export function TodayDashboard({
         <CardContent className="space-y-4">
           {actionState.status !== "idle" ? (
             <div
-              className={
+              className={cn(
+                "rounded-2xl px-4 py-3 text-sm",
                 actionState.status === "success"
-                  ? "rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
-                  : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              }
+                  ? "border border-success/20 bg-success/10 text-success"
+                  : "border border-destructive/20 bg-destructive/10 text-destructive",
+              )}
             >
-              {actionState.messageKey
-                ? t.today[actionState.messageKey]
-                : actionState.message}
+              {actionState.messageKey ? t.today[actionState.messageKey] : actionState.message}
             </div>
           ) : null}
           {dataMode === "demo" ? (
@@ -586,7 +501,7 @@ export function TodayDashboard({
             </div>
             <div className="rounded-2xl bg-secondary/40 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                {t.today.payUnitsLabel}
+                {labels.saveSummary}
               </p>
               <p className="mt-2 text-xl font-semibold">{totalPayUnits.toFixed(1)}</p>
             </div>

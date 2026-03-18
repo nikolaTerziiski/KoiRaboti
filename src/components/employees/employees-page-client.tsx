@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { EmployeeCreateForm } from "@/components/employees/employee-create-form";
 import { EmployeeRowEditor } from "@/components/employees/employee-row-editor";
 import {
@@ -22,7 +23,7 @@ export function EmployeesPageClient({
   initialEmployees,
   dataMode,
 }: EmployeesPageClientProps) {
-  const { t } = useLocale();
+  const { locale } = useLocale();
   const activeEmployees = initialEmployees.filter((employee) => employee.isActive);
   const averageRate =
     activeEmployees.reduce((sum, employee) => sum + employee.dailyRate, 0) /
@@ -34,9 +35,23 @@ export function EmployeesPageClient({
   const rosterVersion = initialEmployees
     .map(
       (employee) =>
-        `${employee.id}:${employee.fullName}:${employee.phoneNumber}:${employee.dailyRate}:${employee.isActive}`,
+        `${employee.id}:${employee.fullName}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`,
     )
     .join("|");
+
+  const labels = useMemo(
+    () => ({
+      activeTeam: locale === "bg" ? "Активен екип" : "Active team",
+      averageRate: locale === "bg" ? "Средна дневна ставка" : "Average daily rate",
+      roster: locale === "bg" ? "Служители" : "Employees",
+      rosterDesc:
+        locale === "bg"
+          ? "Минимални профили за бърза редакция на име, телефон и дневна ставка."
+          : "Minimal profiles for quick editing of name, phone, and daily rate.",
+      highestRate: locale === "bg" ? "Най-висока дневна ставка" : "Highest daily rate",
+    }),
+    [locale],
+  );
 
   return (
     <div className="space-y-4">
@@ -44,7 +59,7 @@ export function EmployeesPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.employees.activeTeam}
+              {labels.activeTeam}
             </p>
             <p className="mt-2 text-2xl font-semibold">{activeEmployees.length}</p>
           </CardContent>
@@ -52,7 +67,7 @@ export function EmployeesPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.employees.avgDailyRate}
+              {labels.averageRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={averageRate} />
@@ -65,13 +80,13 @@ export function EmployeesPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>{t.employees.employeeRoster}</CardTitle>
-          <CardDescription>{t.employees.rosterDesc}</CardDescription>
+          <CardTitle>{labels.roster}</CardTitle>
+          <CardDescription>{labels.rosterDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-2xl bg-secondary/35 p-4">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              {t.employees.highestRate}
+              {labels.highestRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={highestRate} />
@@ -79,7 +94,7 @@ export function EmployeesPageClient({
           </div>
           {initialEmployees.map((employee) => (
             <EmployeeRowEditor
-              key={`${employee.id}:${employee.fullName}:${employee.phoneNumber}:${employee.dailyRate}:${employee.isActive}`}
+              key={`${employee.id}:${employee.fullName}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`}
               employee={employee}
               dataMode={dataMode}
             />
