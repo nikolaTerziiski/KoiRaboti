@@ -1,24 +1,12 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import test from "node:test";
-import { buildMonthlyStats } from "../src/lib/profile-stats.ts";
-
-const employee = {
-  id: "employee-1",
-  restaurantId: "restaurant-1",
-  firstName: "Test",
-  lastName: "Employee",
-  fullName: "Test Employee",
-  role: "service",
-  phoneNumber: null,
-  dailyRate: 100,
-  isActive: true,
-};
+import { calculateMonthStats } from "../src/lib/profile-stats.ts";
 
 function createAttendance(overrides = {}) {
   return {
     id: "attendance-1",
     dailyReportId: "report-1",
-    employeeId: employee.id,
+    employeeId: "employee-1",
     dailyRate: 50,
     payUnits: 1,
     payOverride: null,
@@ -41,41 +29,43 @@ function createReport(workDate, overrides = {}) {
   };
 }
 
-test("buildMonthlyStats returns zeros when there are no reports", () => {
-  const stats = buildMonthlyStats([], [employee], new Date("2026-03-10"));
+test("calculateMonthStats returns zeros when there are no reports", () => {
+  const stats = calculateMonthStats([]);
 
   assert.equal(stats.recordedDays, 0);
+  assert.equal(stats.totalTurnover, 0);
+  assert.equal(stats.totalProfit, 0);
+  assert.equal(stats.totalExpense, 0);
+  assert.equal(stats.netProfit, 0);
   assert.equal(stats.averageDailyTurnover, 0);
   assert.equal(stats.averageDailyProfit, 0);
-  assert.equal(stats.totalTurnover, 0);
-  assert.equal(stats.totalNetProfit, 0);
   assert.equal(stats.totalLaborCost, 0);
+  assert.equal(stats.laborCostPercentage, 0);
 });
 
-test("buildMonthlyStats aggregates only the current month", () => {
-  const stats = buildMonthlyStats(
-    [
-      createReport("2026-03-05", {
-        turnover: 120,
-        profit: 90,
-        manualExpense: 20,
-        attendanceEntries: [createAttendance({ payUnits: 2 })],
-      }),
-      createReport("2026-02-28", {
-        turnover: 999,
-        profit: 999,
-        manualExpense: 999,
-        attendanceEntries: [createAttendance({ payUnits: 1.5 })],
-      }),
-    ],
-    [employee],
-    new Date("2026-03-10"),
-  );
+test("calculateMonthStats aggregates KPIs for a month", () => {
+  const stats = calculateMonthStats([
+    createReport("2026-03-05", {
+      turnover: 120,
+      profit: 90,
+      manualExpense: 20,
+      attendanceEntries: [createAttendance({ payUnits: 2 })],
+    }),
+    createReport("2026-03-07", {
+      turnover: 80,
+      profit: 60,
+      manualExpense: 10,
+      attendanceEntries: [createAttendance({ payUnits: 1.5, dailyRate: 40 })],
+    }),
+  ]);
 
-  assert.equal(stats.recordedDays, 1);
-  assert.equal(stats.totalTurnover, 120);
-  assert.equal(stats.totalNetProfit, 70);
-  assert.equal(stats.averageDailyTurnover, 120);
-  assert.equal(stats.averageDailyProfit, 70);
-  assert.equal(stats.totalLaborCost, 100);
+  assert.equal(stats.recordedDays, 2);
+  assert.equal(stats.totalTurnover, 200);
+  assert.equal(stats.totalProfit, 150);
+  assert.equal(stats.totalExpense, 30);
+  assert.equal(stats.netProfit, 120);
+  assert.equal(stats.averageDailyTurnover, 100);
+  assert.equal(stats.averageDailyProfit, 60);
+  assert.equal(stats.totalLaborCost, 160);
+  assert.equal(stats.laborCostPercentage, 80);
 });

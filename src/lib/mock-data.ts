@@ -4,6 +4,7 @@ import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
+  Profile,
   Restaurant,
   RestaurantSnapshot,
 } from "@/lib/types";
@@ -129,6 +130,13 @@ export const demoEmployees: Employee[] = [
   },
 ];
 
+export const demoProfile: Profile = {
+  id: "demo-profile-1",
+  restaurantId: DEMO_RESTAURANT_ID,
+  fullName: "Restaurant Owner",
+  email: "owner@demo.local",
+};
+
 function resolvePayUnits(dayIndex: number, employeeIndex: number): 1 | 1.5 | 2 {
   if ((dayIndex + employeeIndex) % 5 === 0) {
     return 2;
@@ -199,6 +207,7 @@ export function createDemoSnapshot(): RestaurantSnapshot {
   return {
     mode: "demo",
     restaurant: demoRestaurant,
+    profile: demoProfile,
     employees: demoEmployees,
     reports: buildDemoReports(),
     errorMessage: null,

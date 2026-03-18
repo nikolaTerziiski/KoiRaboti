@@ -1,38 +1,73 @@
-﻿"use client";
+"use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { format, startOfMonth } from "date-fns";
 import { LogOut } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
+import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
+import { calculateMonthStats, type MonthStats } from "@/lib/profile-stats";
 import { formatMonthLabel } from "@/lib/format";
-import type { MonthlyStats } from "@/lib/profile-stats";
-import type { SnapshotMode } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { DailyReportWithAttendance, Profile, Restaurant, SnapshotMode } from "@/lib/types";
 
 type ProfilePageClientProps = {
-  stats: MonthlyStats;
+  reports: DailyReportWithAttendance[];
+  profile: Profile | null;
+  restaurant: Restaurant | null;
   dataMode: SnapshotMode;
 };
 
-export function ProfilePageClient({ stats, dataMode }: ProfilePageClientProps) {
+function getCurrentMonthKey() {
+  return format(startOfMonth(new Date()), "yyyy-MM-01");
+}
+
+export function ProfilePageClient({
+  reports,
+  profile,
+  restaurant,
+  dataMode,
+}: ProfilePageClientProps) {
   const { locale } = useLocale();
+  const currentMonthKey = getCurrentMonthKey();
+  const monthOptions = useMemo(() => {
+    const months = new Set(
+      reports.map((report) => `${report.workDate.slice(0, 7)}-01`),
+    );
+    months.add(currentMonthKey);
+
+    return Array.from(months).sort((left, right) => right.localeCompare(left));
+  }, [currentMonthKey, reports]);
+  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
 
   const labels = useMemo(
     () => ({
-      monthTitle: locale === "bg" ? "Текущ месец" : "Current month",
-      monthDesc:
+      title: locale === "bg" ? "Профил и статистики" : "Profile and stats",
+      subtitle:
         locale === "bg"
-          ? "Сумирани дневни отчети, присъствие и разход за заплати за избрания месец."
-          : "Summed daily reports, attendance, and labor cost for the current month.",
-      recordedDays: locale === "bg" ? "Отчетени дни" : "Recorded days",
-      averageTurnover: locale === "bg" ? "Среден оборот" : "Average daily turnover",
-      averageProfit: locale === "bg" ? "Средна печалба" : "Average daily profit",
+          ? "Избери месец и виж основните KPI на ресторанта."
+          : "Pick a month and review the restaurant KPI snapshot.",
+      month: locale === "bg" ? "Месец" : "Month",
       totalTurnover: locale === "bg" ? "Общ оборот" : "Total turnover",
-      totalNetProfit: locale === "bg" ? "Обща чиста печалба" : "Total net profit",
-      laborCost: locale === "bg" ? "Разход за заплати" : "Total labor cost",
-      logout: locale === "bg" ? "Изход" : "Log out",
+      netProfit: locale === "bg" ? "Чиста печалба" : "Net profit",
+      averageDailyTurnover:
+        locale === "bg" ? "Среден дневен оборот" : "Average daily turnover",
+      laborCost: locale === "bg" ? "Разход за труд" : "Total labor cost",
+      laborCostPercentage: locale === "bg" ? "% Труд от оборота" : "Labor cost %",
+      profileTitle: locale === "bg" ? "Потребителски профил" : "User profile",
+      profileDesc:
+        locale === "bg"
+          ? "Информацията за акаунта и изходът са най-долу, както поиска."
+          : "Account details and sign out stay at the very bottom.",
+      restaurant: locale === "bg" ? "Ресторант" : "Restaurant",
+      email: locale === "bg" ? "Имейл" : "Email",
+      reportsSummary: locale === "bg" ? "дни с отчет" : "recorded day(s)",
+      noReports:
+        locale === "bg" ? "Няма отчети за този месец." : "No reports recorded for this month.",
       dataMode:
         dataMode === "demo"
           ? locale === "bg"
@@ -41,34 +76,85 @@ export function ProfilePageClient({ stats, dataMode }: ProfilePageClientProps) {
           : locale === "bg"
             ? "Supabase данни"
             : "Supabase data",
+      noProfile:
+        locale === "bg" ? "Няма профилна информация." : "No profile information available.",
+      logout: locale === "bg" ? "Изход" : "Sign out",
+      laborCostWarning:
+        locale === "bg"
+          ? "Висок дял на трудовите разходи"
+          : "Labor cost share is high",
     }),
     [dataMode, locale],
   );
 
-  const monthLabel = formatMonthLabel(stats.monthKey, locale);
+  const selectedMonthReports = useMemo(
+    () =>
+      reports.filter((report) =>
+        selectedMonth ? report.workDate.startsWith(selectedMonth.slice(0, 7)) : true,
+      ),
+    [reports, selectedMonth],
+  );
+
+  const stats: MonthStats = useMemo(
+    () => calculateMonthStats(selectedMonthReports),
+    [selectedMonthReports],
+  );
+
+  const monthLabel = formatMonthLabel(selectedMonth, locale);
+  const laborCostRisk = stats.laborCostPercentage > 30;
+
   const metrics = [
-    { label: labels.averageTurnover, value: stats.averageDailyTurnover },
-    { label: labels.averageProfit, value: stats.averageDailyProfit },
-    { label: labels.totalTurnover, value: stats.totalTurnover },
-    { label: labels.totalNetProfit, value: stats.totalNetProfit },
-    { label: labels.laborCost, value: stats.totalLaborCost },
+    {
+      label: labels.totalTurnover,
+      value: stats.totalTurnover,
+    },
+    {
+      label: labels.netProfit,
+      value: stats.netProfit,
+    },
+    {
+      label: labels.averageDailyTurnover,
+      value: stats.averageDailyTurnover,
+    },
+    {
+      label: labels.laborCost,
+      value: stats.totalLaborCost,
+    },
   ];
 
   return (
     <div className="space-y-4">
-      <Card className="bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-xl">{labels.monthTitle}</CardTitle>
-          <CardDescription className="mt-1 text-primary-foreground/80">
-            {monthLabel}
-          </CardDescription>
+          <CardTitle>{labels.title}</CardTitle>
+          <CardDescription>{labels.subtitle}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-primary-foreground/85">
-          <p>{labels.monthDesc}</p>
-          <p>
-            {labels.recordedDays}: {stats.recordedDays}
-          </p>
-          <p>{labels.dataMode}</p>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="profile-month">{labels.month}</Label>
+            <SelectField
+              id="profile-month"
+              value={selectedMonth}
+              onChange={(event) => setSelectedMonth(event.target.value)}
+            >
+              {monthOptions.map((month) => (
+                <option key={month} value={month}>
+                  {formatMonthLabel(month, locale)}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+          <div className="rounded-2xl bg-secondary/35 p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+              {monthLabel}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {selectedMonthReports.length > 0
+                ? `${selectedMonthReports.length} ${labels.reportsSummary}`
+                : labels.noReports}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{labels.dataMode}</p>
+          </div>
         </CardContent>
       </Card>
 
@@ -83,10 +169,56 @@ export function ProfilePageClient({ stats, dataMode }: ProfilePageClientProps) {
             </CardContent>
           </Card>
         ))}
+        <Card
+          className={cn(
+            laborCostRisk ? "border-destructive/30 bg-destructive/5" : undefined,
+          )}
+        >
+          <CardHeader className="pb-2">
+            <CardDescription>{labels.laborCostPercentage}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p
+              className={cn(
+                "text-3xl font-semibold",
+                laborCostRisk ? "text-destructive" : "text-foreground",
+              )}
+            >
+              {stats.laborCostPercentage.toFixed(1)}%
+            </p>
+            {laborCostRisk ? (
+              <p className="mt-1 text-xs text-destructive">{labels.laborCostWarning}</p>
+            ) : null}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
+        <CardHeader>
+          <CardTitle>{labels.profileTitle}</CardTitle>
+          <CardDescription>{labels.profileDesc}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {profile ? (
+            <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/25 p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  {profile.fullName}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {labels.email}: {profile.email}
+                </p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {labels.restaurant}: {restaurant?.name ?? "KoiRaboti"}
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border/70 bg-secondary/25 p-4 text-sm text-muted-foreground">
+              {labels.noProfile}
+            </div>
+          )}
+
           <form action={logoutAction}>
             <Button type="submit" variant="outline" className="w-full">
               <LogOut className="size-4" />

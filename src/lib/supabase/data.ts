@@ -5,6 +5,7 @@ import type {
   DailyReportWithAttendance,
   Employee,
   EmployeeRole,
+  Profile,
   Restaurant,
   RestaurantSnapshot,
 } from "@/lib/types";
@@ -25,6 +26,13 @@ type SupabaseEmployeeRow = {
   phone_number: string | null;
   daily_rate: number | string;
   is_active: boolean;
+};
+
+type SupabaseProfileRow = {
+  id: string;
+  restaurant_id: string;
+  full_name: string;
+  email: string;
 };
 
 type SupabaseAttendanceRow = {
@@ -73,6 +81,15 @@ function mapEmployee(row: SupabaseEmployeeRow): Employee {
   };
 }
 
+function mapProfile(row: SupabaseProfileRow): Profile {
+  return {
+    id: row.id,
+    restaurantId: row.restaurant_id,
+    fullName: row.full_name,
+    email: row.email,
+  };
+}
+
 function mapAttendance(row: SupabaseAttendanceRow): AttendanceEntry {
   return {
     id: row.id,
@@ -102,6 +119,7 @@ function buildLiveErrorSnapshot(message: string): RestaurantSnapshot {
   return {
     mode: "supabase",
     restaurant: null,
+    profile: null,
     employees: [],
     reports: [],
     errorMessage: message,
@@ -126,11 +144,12 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     return createDemoSnapshot();
   }
 
-  const [restaurantResponse, employeesResponse, reportsResponse] = await Promise.all([
+  const [restaurantResponse, profileResponse, employeesResponse, reportsResponse] = await Promise.all([
     supabase
       .from("restaurants")
       .select("id, name, default_daily_expense")
       .single(),
+    supabase.from("profiles").select("id, restaurant_id, full_name, email").single(),
     supabase
       .from("employees")
       .select("id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active")
@@ -144,8 +163,18 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
       .order("work_date", { ascending: false }),
   ]);
 
-  if (employeesResponse.error || reportsResponse.error) {
-    const messages = [employeesResponse.error?.message, reportsResponse.error?.message]
+  if (
+    restaurantResponse.error ||
+    profileResponse.error ||
+    employeesResponse.error ||
+    reportsResponse.error
+  ) {
+    const messages = [
+      restaurantResponse.error?.message,
+      profileResponse.error?.message,
+      employeesResponse.error?.message,
+      reportsResponse.error?.message,
+    ]
       .filter(Boolean)
       .join(" | ");
 
@@ -161,6 +190,9 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
   return {
     mode: "supabase",
     restaurant,
+    profile: profileResponse.data
+      ? mapProfile(profileResponse.data as SupabaseProfileRow)
+      : null,
     employees: ((employeesResponse.data ?? []) as SupabaseEmployeeRow[]).map(mapEmployee),
     reports: ((reportsResponse.data ?? []) as SupabaseReportRow[]).map(mapReport),
     errorMessage: null,

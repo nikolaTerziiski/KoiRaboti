@@ -67,6 +67,7 @@ export interface DailyReportWithAttendance extends DailyReport {
 export interface RestaurantSnapshot {
   mode: SnapshotMode;
   restaurant: Restaurant | null;
+  profile: Profile | null;
   employees: Employee[];
   reports: DailyReportWithAttendance[];
   errorMessage: string | null;
