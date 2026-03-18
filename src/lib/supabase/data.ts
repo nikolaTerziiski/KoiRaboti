@@ -31,6 +31,7 @@ type SupabaseAttendanceRow = {
   id: string;
   daily_report_id: string;
   employee_id: string;
+  daily_rate: number | string;
   pay_units: number | string;
   pay_override: number | string | null;
   notes: string | null;
@@ -77,6 +78,7 @@ function mapAttendance(row: SupabaseAttendanceRow): AttendanceEntry {
     id: row.id,
     dailyReportId: row.daily_report_id,
     employeeId: row.employee_id,
+    dailyRate: Number(row.daily_rate),
     payUnits: Number(row.pay_units) as 1 | 1.5 | 2,
     payOverride: row.pay_override === null ? null : Number(row.pay_override),
     notes: row.notes,
@@ -137,7 +139,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     supabase
       .from("daily_reports")
       .select(
-        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, pay_units, pay_override, notes)",
+        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes)",
       )
       .order("work_date", { ascending: false }),
   ]);

@@ -12,7 +12,7 @@ const employee = {
   fullName: "Test Employee",
   role: "service",
   phoneNumber: null,
-  dailyRate: 50,
+  dailyRate: 100,
   isActive: true,
 };
 
@@ -21,6 +21,7 @@ function createAttendance(overrides = {}) {
     id: "attendance-1",
     dailyReportId: "report-1",
     employeeId: employee.id,
+    dailyRate: 50,
     payUnits: 1,
     payOverride: null,
     notes: null,
@@ -63,8 +64,8 @@ test("resolveAttendanceAmount prefers pay override when present", () => {
     payOverride: 140,
   });
 
-  assert.equal(resolveAttendanceAmount(employee, standardEntry), 75);
-  assert.equal(resolveAttendanceAmount(employee, overriddenEntry), 140);
+  assert.equal(resolveAttendanceAmount(standardEntry), 75);
+  assert.equal(resolveAttendanceAmount(overriddenEntry), 140);
 });
 
 test("buildPayrollRows aggregates only the selected month and period", () => {

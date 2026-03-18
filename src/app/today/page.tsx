@@ -50,7 +50,7 @@ export default async function TodayPage() {
     initialReport.attendanceEntries
       .map(
         (entry) =>
-          `${entry.employeeId}:${entry.payUnits}:${entry.payOverride ?? ""}:${entry.notes ?? ""}`,
+          `${entry.employeeId}:${entry.dailyRate}:${entry.payUnits}:${entry.payOverride ?? ""}:${entry.notes ?? ""}`,
       )
       .join("|"),
     snapshot.employees

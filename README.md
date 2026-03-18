@@ -76,8 +76,9 @@ If you already have an older KoiRaboti database, run these patches before using 
 - `supabase/patch_add_employee_role.sql`
 - `supabase/patch_simplify_attendance_phone.sql`
 - `supabase/patch_add_payroll_payments.sql`
+- `supabase/patch_add_historical_rate.sql`
 
-These patches add the role column, keep phone numbers optional, remove the old `shift_1` / `shift_2` attendance columns, and add payroll payment tracking.
+These patches add the role column, keep phone numbers optional, remove the old `shift_1` / `shift_2` attendance columns, snapshot employee daily rates on attendance rows, and add payroll payment tracking.
 
 ## Validation commands
 
@@ -119,6 +120,7 @@ npm run dev
 
 - `daily_reports.manual_expense` defaults to the EUR equivalent of `800 BGN`.
 - Payroll amount uses `pay_override` when present, otherwise `daily_rate * pay_units`.
+- Attendance rows store the employee daily rate at save time so past payroll calculations stay immutable after later wage changes.
 - `/today` saves `daily_reports` plus attendance upserts and removes deselected attendance rows for the same day.
 - Attendance is now simplified to presence plus `pay_units` only. The fast daily flow no longer uses `shift_1` / `shift_2`.
 - `/employees` saves create, edit, and active/inactive changes with `is_active` soft status.

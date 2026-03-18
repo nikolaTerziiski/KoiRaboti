@@ -47,6 +47,7 @@ type AttendanceDraft = {
   employee: Employee;
   isPresent: boolean;
   payUnits: PayUnits;
+  dailyRate: number;
 };
 
 type TodayDashboardProps = {
@@ -75,6 +76,7 @@ function buildAttendanceDrafts(
         employee,
         isPresent: Boolean(entry),
         payUnits: entry?.payUnits ?? 1,
+        dailyRate: entry?.dailyRate ?? employee.dailyRate,
       };
     });
 }
@@ -141,8 +143,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
     0,
   );
   const estimatedPayroll = attendanceDrafts.reduce(
-    (sum, entry) =>
-      sum + (entry.isPresent ? entry.employee.dailyRate * entry.payUnits : 0),
+    (sum, entry) => sum + (entry.isPresent ? entry.dailyRate * entry.payUnits : 0),
     0,
   );
 

@@ -160,6 +160,7 @@ function buildAttendanceEntries(
         id: `${reportId}-${employee.id}`,
         dailyReportId: reportId,
         employeeId: employee.id,
+        dailyRate: employee.dailyRate,
         payUnits,
         payOverride,
         notes: dayIndex === 0 && employee.id === "emp-1" ? "Late prep delivery." : null,

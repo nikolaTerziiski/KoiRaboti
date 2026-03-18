@@ -44,6 +44,7 @@ export interface AttendanceEntry {
   id: string;
   dailyReportId: string;
   employeeId: string;
+  dailyRate: number;
   payUnits: PayUnits;
   payOverride: number | null;
   notes: string | null;

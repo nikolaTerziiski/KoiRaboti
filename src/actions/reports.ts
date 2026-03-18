@@ -19,6 +19,17 @@ type AttendanceCorrectionPayload = {
   payOverride: string;
 };
 
+type ExistingAttendanceRow = {
+  employee_id: string;
+  daily_rate: number | string | null;
+  notes: string | null;
+};
+
+type EmployeeRateRow = {
+  id: string;
+  daily_rate: number | string;
+};
+
 function parseNumber(value: FormDataEntryValue | null, fieldName: string) {
   const parsed = Number(value ?? "");
   if (!Number.isFinite(parsed)) {
@@ -69,6 +80,7 @@ function revalidateReportViews() {
   revalidatePath("/reports");
   revalidatePath("/today");
   revalidatePath("/payroll");
+  revalidatePath("/profile");
 }
 
 export async function saveReportCorrectionAction(
@@ -127,15 +139,69 @@ export async function saveReportCorrectionAction(
     }
 
     if (attendancePayload.length > 0) {
+      const { data: existingAttendanceRows, error: existingAttendanceError } = await supabase
+        .from("attendance_entries")
+        .select("employee_id, daily_rate, notes")
+        .eq("daily_report_id", reportId);
+
+      if (existingAttendanceError) {
+        throw new Error(existingAttendanceError.message);
+      }
+
+      const attendanceEmployeeIds = [...new Set(attendancePayload.map((entry) => entry.employeeId))];
+      const { data: employeeRows, error: employeeRatesError } = await supabase
+        .from("employees")
+        .select("id, daily_rate")
+        .eq("restaurant_id", restaurantId)
+        .in("id", attendanceEmployeeIds);
+
+      if (employeeRatesError) {
+        throw new Error(employeeRatesError.message);
+      }
+
+      const existingAttendanceByEmployeeId = new Map(
+        ((existingAttendanceRows ?? []) as ExistingAttendanceRow[]).map((row) => [
+          row.employee_id,
+          row,
+        ]),
+      );
+      const employeeDailyRates = new Map(
+        ((employeeRows ?? []) as EmployeeRateRow[]).map((row) => [row.id, Number(row.daily_rate)]),
+      );
+
+      const missingEmployeeIds = attendanceEmployeeIds.filter(
+        (employeeId) =>
+          !existingAttendanceByEmployeeId.has(employeeId) && !employeeDailyRates.has(employeeId),
+      );
+
+      if (missingEmployeeIds.length > 0) {
+        throw new Error(
+          `Missing daily rate for employee(s): ${missingEmployeeIds.join(", ")}.`,
+        );
+      }
+
       const { error: attendanceError } = await supabase
         .from("attendance_entries")
         .upsert(
-          attendancePayload.map((entry) => ({
-            daily_report_id: reportId,
-            employee_id: entry.employeeId,
-            pay_units: entry.payUnits,
-            pay_override: normalizeText(entry.payOverride),
-          })),
+          attendancePayload.map((entry) => {
+            const existingRow = existingAttendanceByEmployeeId.get(entry.employeeId);
+            const currentDailyRate = employeeDailyRates.get(entry.employeeId);
+            const dailyRate =
+              existingRow?.daily_rate == null ? currentDailyRate : Number(existingRow.daily_rate);
+
+            if (dailyRate === undefined || !Number.isFinite(dailyRate)) {
+              throw new Error(`Missing daily rate for employee ${entry.employeeId}.`);
+            }
+
+            return {
+              daily_report_id: reportId,
+              employee_id: entry.employeeId,
+              daily_rate: dailyRate,
+              pay_units: entry.payUnits,
+              pay_override: normalizeText(entry.payOverride),
+              notes: existingRow?.notes ?? null,
+            };
+          }),
           {
             onConflict: "daily_report_id,employee_id",
           },

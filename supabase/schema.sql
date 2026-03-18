@@ -61,6 +61,7 @@ create table if not exists public.attendance_entries (
   id uuid primary key default gen_random_uuid(),
   daily_report_id uuid not null references public.daily_reports (id) on delete cascade,
   employee_id uuid not null references public.employees (id) on delete restrict,
+  daily_rate numeric(10, 4) not null check (daily_rate >= 0),
   pay_units numeric(3, 1) not null check (pay_units in (1, 1.5, 2)),
   pay_override numeric(10, 4),
   notes text,
@@ -89,6 +90,7 @@ comment on column public.daily_reports.card_amount is 'Stored in EUR.';
 comment on column public.daily_reports.manual_expense is 'Stored in EUR. Default equals 800 BGN at the fixed rate 1.95583.';
 comment on column public.daily_reports.notes is 'Optional manager notes for the day.';
 comment on column public.attendance_entries.pay_units is 'Number of paid shifts for the day: 1, 1.5, or 2.';
+comment on column public.attendance_entries.daily_rate is 'Stored in EUR snapshot of the employee daily_rate at the time the attendance entry is saved.';
 comment on column public.attendance_entries.pay_override is 'Optional custom EUR override for that day.';
 comment on column public.attendance_entries.notes is 'Optional attendance note for the employee on that work date.';
 comment on column public.payroll_payments.amount is 'Stored in EUR. Used for payroll advances and payroll settlement records.';

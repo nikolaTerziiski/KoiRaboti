@@ -32,10 +32,9 @@ function getDateLocale(locale: Locale) {
 }
 
 export function resolveAttendanceAmount(
-  employee: Employee,
   entry: AttendanceEntry,
 ) {
-  return entry.payOverride ?? employee.dailyRate * entry.payUnits;
+  return entry.payOverride ?? entry.dailyRate * entry.payUnits;
 }
 
 export function getPayrollPeriodBounds(
@@ -130,7 +129,7 @@ export function buildPayrollRows(
         }
 
         totalUnits += entry.payUnits;
-        totalAmount += resolveAttendanceAmount(employee, entry);
+        totalAmount += resolveAttendanceAmount(entry);
         if (entry.payOverride !== null) {
           overrideCount += 1;
         }

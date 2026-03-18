@@ -20,7 +20,7 @@ export function buildMonthlyStats(
   const start = startOfMonth(referenceDate);
   const end = endOfMonth(referenceDate);
   const monthKey = format(start, "yyyy-MM-01");
-  const employeeMap = new Map(employees.map((employee) => [employee.id, employee]));
+  const employeeIds = new Set(employees.map((employee) => employee.id));
 
   const monthReports = reports.filter((report) =>
     isWithinInterval(parseISO(report.workDate), { start, end }),
@@ -35,12 +35,11 @@ export function buildMonthlyStats(
     totalNetProfit += report.profit - report.manualExpense;
 
     for (const entry of report.attendanceEntries) {
-      const employee = employeeMap.get(entry.employeeId);
-      if (!employee) {
+      if (!employeeIds.has(entry.employeeId)) {
         continue;
       }
 
-      totalLaborCost += resolveAttendanceAmount(employee, entry);
+      totalLaborCost += resolveAttendanceAmount(entry);
     }
   }
 
