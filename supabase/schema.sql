@@ -69,6 +69,16 @@ create table if not exists public.attendance_entries (
   unique (daily_report_id, employee_id)
 );
 
+create table if not exists public.payroll_payments (
+  id uuid primary key default gen_random_uuid(),
+  employee_id uuid not null references public.employees (id) on delete cascade,
+  amount numeric(10, 4) not null check (amount >= 0),
+  payment_type text not null check (payment_type in ('advance', 'payroll')),
+  payroll_month date not null,
+  payroll_period text not null check (payroll_period in ('first_half', 'second_half')),
+  created_at timestamptz not null default timezone('utc', now())
+);
+
 comment on column public.restaurants.default_daily_expense is 'Stored in EUR. Used as the initial manual_expense on daily reports.';
 comment on column public.employees.daily_rate is 'Stored in EUR. The UI also shows BGN using the fixed rate 1.95583.';
 comment on column public.employees.role is 'Employee role used for grouping and color-coding in the UI. Allowed values: kitchen or service.';
@@ -81,6 +91,10 @@ comment on column public.daily_reports.notes is 'Optional manager notes for the 
 comment on column public.attendance_entries.pay_units is 'Number of paid shifts for the day: 1, 1.5, or 2.';
 comment on column public.attendance_entries.pay_override is 'Optional custom EUR override for that day.';
 comment on column public.attendance_entries.notes is 'Optional attendance note for the employee on that work date.';
+comment on column public.payroll_payments.amount is 'Stored in EUR. Used for payroll advances and payroll settlement records.';
+comment on column public.payroll_payments.payment_type is 'Advance or payroll settlement.';
+comment on column public.payroll_payments.payroll_month is 'Month key for the payroll period, stored as the first day of the month.';
+comment on column public.payroll_payments.payroll_period is 'Payroll half-month period: first_half or second_half.';
 
 drop trigger if exists restaurants_set_updated_at on public.restaurants;
 create trigger restaurants_set_updated_at
@@ -111,6 +125,13 @@ create trigger attendance_entries_set_updated_at
 before update on public.attendance_entries
 for each row
 execute procedure public.set_updated_at();
+
+create index if not exists payroll_payments_employee_period_idx
+  on public.payroll_payments (employee_id, payroll_month, payroll_period);
+
+create unique index if not exists payroll_payments_unique_payroll
+  on public.payroll_payments (employee_id, payroll_month, payroll_period)
+  where payment_type = 'payroll';
 
 create or replace function public.get_user_restaurant_id()
 returns uuid
@@ -156,6 +177,7 @@ alter table public.profiles enable row level security;
 alter table public.employees enable row level security;
 alter table public.daily_reports enable row level security;
 alter table public.attendance_entries enable row level security;
+alter table public.payroll_payments enable row level security;
 
 drop policy if exists "users see own restaurant" on public.restaurants;
 create policy "users see own restaurant"
@@ -214,6 +236,28 @@ create policy "restaurant members manage attendance"
       from public.daily_reports dr
       where dr.id = daily_report_id
         and dr.restaurant_id = get_user_restaurant_id()
+    )
+  );
+
+drop policy if exists "restaurant members manage payroll payments" on public.payroll_payments;
+create policy "restaurant members manage payroll payments"
+  on public.payroll_payments
+  for all
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.employees e
+      where e.id = payroll_payments.employee_id
+        and e.restaurant_id = get_user_restaurant_id()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.employees e
+      where e.id = payroll_payments.employee_id
+        and e.restaurant_id = get_user_restaurant_id()
     )
   );
 

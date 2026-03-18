@@ -17,6 +17,7 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
 - Supabase client helpers, SQL schema, and sample seed data
 - Demo snapshot fallback so the app runs before a live Supabase project is connected
 - Real Supabase persistence for Today, Employees, and report corrections
+- Real Supabase persistence for payroll advances and payroll-period paid status
 - EUR-first money handling with BGN display at a fixed rate of `1.95583`
 
 ## Stack
@@ -70,11 +71,13 @@ Open `http://localhost:3000`.
 5. Create one admin user in Supabase Auth.
 6. Start the app and sign in from `/login`.
 
-If you already have an older KoiRaboti database, run `supabase/patch_add_employee_role.sql` and `supabase/patch_simplify_attendance_phone.sql` before using the updated UI. These patches add the role column and keep phone numbers optional.
+If you already have an older KoiRaboti database, run these patches before using the updated UI:
 
-If you already have an older KoiRaboti database, run `supabase/patch_simplify_attendance_phone.sql`
-before using the updated UI. It makes employee phone numbers optional and removes the old
-`shift_1` / `shift_2` attendance columns.
+- `supabase/patch_add_employee_role.sql`
+- `supabase/patch_simplify_attendance_phone.sql`
+- `supabase/patch_add_payroll_payments.sql`
+
+These patches add the role column, keep phone numbers optional, remove the old `shift_1` / `shift_2` attendance columns, and add payroll payment tracking.
 
 ## Validation commands
 

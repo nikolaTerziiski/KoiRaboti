@@ -12,6 +12,7 @@ import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
+  PayrollPayment,
   PayrollPeriod,
 } from "@/lib/types";
 
@@ -21,6 +22,9 @@ export interface PayrollRow {
   totalAmount: number;
   overrideCount: number;
   workedDates: number[];
+  advancesTotal: number;
+  isPaid: boolean;
+  netAmountToPay: number;
 }
 
 function getDateLocale(locale: Locale) {
@@ -72,9 +76,34 @@ export function buildPayrollRows(
   reports: DailyReportWithAttendance[],
   employees: Employee[],
   period: PayrollPeriod,
+  referenceDate?: Date,
+): PayrollRow[];
+export function buildPayrollRows(
+  reports: DailyReportWithAttendance[],
+  employees: Employee[],
+  payments: PayrollPayment[],
+  period: PayrollPeriod,
+  referenceDate?: Date,
+): PayrollRow[];
+export function buildPayrollRows(
+  reports: DailyReportWithAttendance[],
+  employees: Employee[],
+  paymentsOrPeriod: PayrollPayment[] | PayrollPeriod,
+  periodOrReferenceDate?: PayrollPeriod | Date,
   referenceDate = new Date(),
 ): PayrollRow[] {
-  const bounds = getPayrollPeriodBounds(period, referenceDate);
+  const hasPayments = Array.isArray(paymentsOrPeriod);
+  const payments = hasPayments ? paymentsOrPeriod : [];
+  const period = hasPayments
+    ? (periodOrReferenceDate as PayrollPeriod)
+    : (paymentsOrPeriod as PayrollPeriod);
+  const effectiveReferenceDate = hasPayments
+    ? referenceDate
+    : periodOrReferenceDate instanceof Date
+      ? periodOrReferenceDate
+      : new Date();
+  const bounds = getPayrollPeriodBounds(period, effectiveReferenceDate);
+  const payrollMonthKey = format(effectiveReferenceDate, "yyyy-MM-01");
 
   return employees
     .filter((employee) => employee.isActive)
@@ -83,6 +112,8 @@ export function buildPayrollRows(
       let totalAmount = 0;
       let overrideCount = 0;
       const workedDates: number[] = [];
+      let advancesTotal = 0;
+      let isPaid = false;
 
       for (const report of reports) {
         const reportDate = parseISO(report.workDate);
@@ -106,15 +137,36 @@ export function buildPayrollRows(
         workedDates.push(reportDate.getDate());
       }
 
+      for (const payment of payments) {
+        if (
+          payment.employeeId !== employee.id ||
+          payment.payrollMonth !== payrollMonthKey ||
+          payment.payrollPeriod !== period
+        ) {
+          continue;
+        }
+
+        if (payment.paymentType === "advance") {
+          advancesTotal += payment.amount;
+        }
+
+        if (payment.paymentType === "payroll") {
+          isPaid = true;
+        }
+      }
+
       return {
         employee,
         totalUnits,
         totalAmount,
         overrideCount,
         workedDates: workedDates.sort((left, right) => left - right),
+        advancesTotal,
+        isPaid,
+        netAmountToPay: totalAmount - advancesTotal,
       };
     })
-    .filter((row) => row.totalAmount > 0)
+    .filter((row) => row.totalAmount > 0 || row.advancesTotal > 0 || row.isPaid)
     .sort((left, right) => right.totalAmount - left.totalAmount);
 }
 

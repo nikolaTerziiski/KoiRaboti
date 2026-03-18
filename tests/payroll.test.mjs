@@ -41,6 +41,19 @@ function createReport(workDate, attendanceEntries) {
   };
 }
 
+function createPayment(overrides = {}) {
+  return {
+    id: "payment-1",
+    employeeId: employee.id,
+    amount: 10,
+    paymentType: "advance",
+    payrollMonth: "2026-03-01",
+    payrollPeriod: "first_half",
+    createdAt: "2026-03-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
 test("resolveAttendanceAmount prefers pay override when present", () => {
   const standardEntry = createAttendance({
     payUnits: 1.5,
@@ -64,12 +77,14 @@ test("buildPayrollRows aggregates only the selected month and period", () => {
   const firstHalfRows = buildPayrollRows(
     reports,
     [employee],
+    [],
     "first_half",
     new Date("2026-03-20"),
   );
   const secondHalfRows = buildPayrollRows(
     reports,
     [employee],
+    [],
     "second_half",
     new Date("2026-03-20"),
   );
@@ -90,11 +105,36 @@ test("buildPayrollRows collects worked dates in ascending order", () => {
   const rows = buildPayrollRows(
     reports,
     [employee],
+    [],
     "first_half",
     new Date("2026-03-10"),
   );
 
   assert.deepEqual(rows[0]?.workedDates, [1, 3, 5]);
+});
+
+test("buildPayrollRows calculates advances, payment status, and net amount", () => {
+  const reports = [createReport("2026-03-05", [createAttendance({ payUnits: 1 })])];
+  const payments = [
+    createPayment({ amount: 20, paymentType: "advance" }),
+    createPayment({
+      id: "payment-2",
+      amount: 30,
+      paymentType: "payroll",
+    }),
+  ];
+
+  const rows = buildPayrollRows(
+    reports,
+    [employee],
+    payments,
+    "first_half",
+    new Date("2026-03-10"),
+  );
+
+  assert.equal(rows[0]?.advancesTotal, 20);
+  assert.equal(rows[0]?.isPaid, true);
+  assert.equal(rows[0]?.netAmountToPay, 30);
 });
 
 test("summarizePayrollRows returns totals for payroll cards", () => {
@@ -107,6 +147,7 @@ test("summarizePayrollRows returns totals for payroll cards", () => {
       ),
     ],
     [employee],
+    [],
     "first_half",
     new Date("2026-03-10"),
   );

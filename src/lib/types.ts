@@ -3,6 +3,7 @@ export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
 export type PayrollPeriod = "first_half" | "second_half";
 export type EmployeeRole = "kitchen" | "service";
+export type PayrollPaymentType = "advance" | "payroll";
 
 export interface Restaurant {
   id: string;
@@ -46,6 +47,16 @@ export interface AttendanceEntry {
   payUnits: PayUnits;
   payOverride: number | null;
   notes: string | null;
+}
+
+export interface PayrollPayment {
+  id: string;
+  employeeId: string;
+  amount: number;
+  paymentType: PayrollPaymentType;
+  payrollMonth: string;
+  payrollPeriod: PayrollPeriod;
+  createdAt: string;
 }
 
 export interface DailyReportWithAttendance extends DailyReport {

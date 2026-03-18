@@ -21,17 +21,20 @@ import {
   getPayrollPeriodLabel,
   summarizePayrollRows,
 } from "@/lib/payroll";
+import { PayrollEmployeeCard } from "@/components/payroll/payroll-employee-card";
 import type {
   DailyReportWithAttendance,
   Employee,
   EmployeeRole,
   PayrollPeriod,
+  PayrollPayment,
   SnapshotMode,
 } from "@/lib/types";
 
 type PayrollPageClientProps = {
   employees: Employee[];
   reports: DailyReportWithAttendance[];
+  payments: PayrollPayment[];
   dataMode: SnapshotMode;
 };
 
@@ -40,6 +43,7 @@ const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
 export function PayrollPageClient({
   employees,
   reports,
+  payments,
   dataMode,
 }: PayrollPageClientProps) {
   const { locale } = useLocale();
@@ -74,14 +78,13 @@ export function PayrollPageClient({
       totalPayroll: locale === "bg" ? "Общо" : "Total",
       staffPaid: locale === "bg" ? "Служители" : "Employees",
       shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
-      dates: locale === "bg" ? "Дати" : "Dates",
       overrides: locale === "bg" ? "Корекции" : "Overrides",
       listTitle:
         locale === "bg" ? "Заплати на служителите" : "Employee payroll",
       listDesc:
         locale === "bg"
-          ? "Компактен преглед по роли, брой смени и обща сума."
-          : "A compact view grouped by role with shift count and total amount.",
+          ? "Компактен преглед по роли, брой смени, аванси и платени периоди."
+          : "A compact view grouped by role with shifts, advances, and payment status.",
       noAttendance:
         locale === "bg"
           ? "Няма данни за този месец и период."
@@ -95,7 +98,7 @@ export function PayrollPageClient({
   );
 
   const referenceDate = parseISO(selectedMonth);
-  const payrollRows = buildPayrollRows(reports, employees, period, referenceDate);
+  const payrollRows = buildPayrollRows(reports, employees, payments, period, referenceDate);
   const summary = summarizePayrollRows(payrollRows);
 
   const roleSections = ROLE_ORDER.map((role) => {
@@ -234,21 +237,13 @@ export function PayrollPageClient({
               </div>
               <div className="space-y-2">
                 {section.rows.map((row) => (
-                  <div
+                  <PayrollEmployeeCard
                     key={row.employee.id}
-                    className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-secondary/25 px-3 py-3"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{row.employee.fullName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {labels.shiftsCount}: {row.totalUnits.toFixed(1)}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {labels.dates}: {row.workedDates.join(", ")}
-                      </p>
-                    </div>
-                    <MoneyDisplay amount={row.totalAmount} align="end" />
-                  </div>
+                    row={row}
+                    payrollMonth={selectedMonth}
+                    payrollPeriod={period}
+                    dataMode={dataMode}
+                  />
                 ))}
                 {section.rows.length === 0 ? (
                   <p className="text-sm text-muted-foreground">{labels.noRows}</p>
