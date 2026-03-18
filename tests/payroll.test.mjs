@@ -80,6 +80,23 @@ test("buildPayrollRows aggregates only the selected month and period", () => {
   assert.equal(secondHalfRows[0]?.totalAmount, 100);
 });
 
+test("buildPayrollRows collects worked dates in ascending order", () => {
+  const reports = [
+    createReport("2026-03-05", [createAttendance({ payUnits: 1 })]),
+    createReport("2026-03-01", [createAttendance({ payUnits: 1 })]),
+    createReport("2026-03-03", [createAttendance({ payUnits: 1 })]),
+  ];
+
+  const rows = buildPayrollRows(
+    reports,
+    [employee],
+    "first_half",
+    new Date("2026-03-10"),
+  );
+
+  assert.deepEqual(rows[0]?.workedDates, [1, 3, 5]);
+});
+
 test("summarizePayrollRows returns totals for payroll cards", () => {
   const rows = buildPayrollRows(
     [

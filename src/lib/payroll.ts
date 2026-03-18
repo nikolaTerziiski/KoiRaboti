@@ -20,6 +20,7 @@ export interface PayrollRow {
   totalUnits: number;
   totalAmount: number;
   overrideCount: number;
+  workedDates: number[];
 }
 
 function getDateLocale(locale: Locale) {
@@ -81,6 +82,7 @@ export function buildPayrollRows(
       let totalUnits = 0;
       let totalAmount = 0;
       let overrideCount = 0;
+      const workedDates: number[] = [];
 
       for (const report of reports) {
         const reportDate = parseISO(report.workDate);
@@ -101,6 +103,7 @@ export function buildPayrollRows(
         if (entry.payOverride !== null) {
           overrideCount += 1;
         }
+        workedDates.push(reportDate.getDate());
       }
 
       return {
@@ -108,6 +111,7 @@ export function buildPayrollRows(
         totalUnits,
         totalAmount,
         overrideCount,
+        workedDates: workedDates.sort((left, right) => left - right),
       };
     })
     .filter((row) => row.totalAmount > 0)

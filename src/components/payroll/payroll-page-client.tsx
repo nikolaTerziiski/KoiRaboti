@@ -74,6 +74,7 @@ export function PayrollPageClient({
       totalPayroll: locale === "bg" ? "Общо" : "Total",
       staffPaid: locale === "bg" ? "Служители" : "Employees",
       shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      dates: locale === "bg" ? "Дати" : "Dates",
       overrides: locale === "bg" ? "Корекции" : "Overrides",
       listTitle:
         locale === "bg" ? "Заплати на служителите" : "Employee payroll",
@@ -241,6 +242,9 @@ export function PayrollPageClient({
                       <p className="truncate font-medium">{row.employee.fullName}</p>
                       <p className="text-sm text-muted-foreground">
                         {labels.shiftsCount}: {row.totalUnits.toFixed(1)}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {labels.dates}: {row.workedDates.join(", ")}
                       </p>
                     </div>
                     <MoneyDisplay amount={row.totalAmount} align="end" />
