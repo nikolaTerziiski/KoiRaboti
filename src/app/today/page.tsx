@@ -1,4 +1,4 @@
-import { format } from "date-fns";
+﻿import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
@@ -54,7 +54,7 @@ export default async function TodayPage() {
       )
       .join("|"),
     snapshot.employees
-      .map((employee) => `${employee.id}:${employee.dailyRate}:${employee.isActive}`)
+      .map((employee) => `${employee.id}:${employee.role}:${employee.dailyRate}:${employee.isActive}`)
       .join("|"),
   ].join("::");
 
@@ -77,3 +77,4 @@ export default async function TodayPage() {
     </AppShell>
   );
 }
+

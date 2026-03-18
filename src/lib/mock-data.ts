@@ -1,4 +1,4 @@
-import { format, startOfDay, subDays } from "date-fns";
+﻿import { format, startOfDay, subDays } from "date-fns";
 import { bgnToEur, DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import type {
   AttendanceEntry,
@@ -23,6 +23,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Ivan",
     lastName: "Petrov",
     fullName: "Ivan Petrov",
+    role: "kitchen",
     phoneNumber: "+359 888 100 001",
     dailyRate: bgnToEur(110),
     isActive: true,
@@ -33,6 +34,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Maria",
     lastName: "Georgieva",
     fullName: "Maria Georgieva",
+    role: "service",
     phoneNumber: "+359 888 100 002",
     dailyRate: bgnToEur(90),
     isActive: true,
@@ -43,6 +45,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Nikolay",
     lastName: "Dimitrov",
     fullName: "Nikolay Dimitrov",
+    role: "kitchen",
     phoneNumber: "+359 888 100 003",
     dailyRate: bgnToEur(105),
     isActive: true,
@@ -53,6 +56,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Elena",
     lastName: "Stoyanova",
     fullName: "Elena Stoyanova",
+    role: "service",
     phoneNumber: "+359 888 100 004",
     dailyRate: bgnToEur(88),
     isActive: true,
@@ -63,6 +67,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Georgi",
     lastName: "Iliev",
     fullName: "Georgi Iliev",
+    role: "kitchen",
     phoneNumber: "+359 888 100 005",
     dailyRate: bgnToEur(92),
     isActive: true,
@@ -73,6 +78,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Petya",
     lastName: "Ivanova",
     fullName: "Petya Ivanova",
+    role: "service",
     phoneNumber: null,
     dailyRate: bgnToEur(85),
     isActive: true,
@@ -83,6 +89,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Stoyan",
     lastName: "Kolev",
     fullName: "Stoyan Kolev",
+    role: "kitchen",
     phoneNumber: null,
     dailyRate: bgnToEur(87),
     isActive: true,
@@ -93,6 +100,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Ralitsa",
     lastName: "Hristova",
     fullName: "Ralitsa Hristova",
+    role: "service",
     phoneNumber: "+359 888 100 008",
     dailyRate: bgnToEur(90),
     isActive: true,
@@ -103,6 +111,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Dimitar",
     lastName: "Yordanov",
     fullName: "Dimitar Yordanov",
+    role: "service",
     phoneNumber: null,
     dailyRate: bgnToEur(80),
     isActive: true,
@@ -113,6 +122,7 @@ export const demoEmployees: Employee[] = [
     firstName: "Teodora",
     lastName: "Marinova",
     fullName: "Teodora Marinova",
+    role: "kitchen",
     phoneNumber: "+359 888 100 010",
     dailyRate: bgnToEur(120),
     isActive: true,
@@ -193,3 +203,4 @@ export function createDemoSnapshot(): RestaurantSnapshot {
     errorMessage: null,
   };
 }
+

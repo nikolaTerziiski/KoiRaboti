@@ -1,4 +1,4 @@
-# KoiRaboti
+﻿# KoiRaboti
 
 KoiRaboti is a mobile-first internal restaurant app built with Next.js App Router, TypeScript, Tailwind CSS, shadcn-style UI primitives, and Supabase-ready data access.
 
@@ -11,6 +11,7 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
   - 1st to 15th
   - 16th to end of month
 - `/reports` for daily report history
+- `/profile` for monthly stats and labor cost overview
 - Green design tokens and reusable cards, buttons, inputs, labels, and selects
 - Bulgarian and English UI with a simple locale switcher
 - Supabase client helpers, SQL schema, and sample seed data
@@ -69,6 +70,8 @@ Open `http://localhost:3000`.
 5. Create one admin user in Supabase Auth.
 6. Start the app and sign in from `/login`.
 
+If you already have an older KoiRaboti database, run `supabase/patch_add_employee_role.sql` and `supabase/patch_simplify_attendance_phone.sql` before using the updated UI. These patches add the role column and keep phone numbers optional.
+
 If you already have an older KoiRaboti database, run `supabase/patch_simplify_attendance_phone.sql`
 before using the updated UI. It makes employee phone numbers optional and removes the old
 `shift_1` / `shift_2` attendance columns.
@@ -116,5 +119,10 @@ npm run dev
 - `/today` saves `daily_reports` plus attendance upserts and removes deselected attendance rows for the same day.
 - Attendance is now simplified to presence plus `pay_units` only. The fast daily flow no longer uses `shift_1` / `shift_2`.
 - `/employees` saves create, edit, and active/inactive changes with `is_active` soft status.
+- `/employees` now stores a `role` for Kitchen or Service so the UI can group staff clearly.
 - `/reports` can correct past financial numbers, `pay_units`, and optional `pay_override` values.
+- `/profile` shows current-month averages, totals, and labor cost.
 - Weekly scheduling, bonuses/deductions, and POS integration are intentionally out of scope for this MVP.
+
+
+

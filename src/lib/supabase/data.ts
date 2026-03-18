@@ -1,9 +1,10 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+﻿import type { SupabaseClient } from "@supabase/supabase-js";
 import { createDemoSnapshot } from "@/lib/mock-data";
 import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
+  EmployeeRole,
   Restaurant,
   RestaurantSnapshot,
 } from "@/lib/types";
@@ -20,6 +21,7 @@ type SupabaseEmployeeRow = {
   restaurant_id: string;
   first_name: string;
   last_name: string;
+  role: string;
   phone_number: string | null;
   daily_rate: number | string;
   is_active: boolean;
@@ -55,6 +57,7 @@ function mapRestaurant(row: SupabaseRestaurantRow): Restaurant {
 
 function mapEmployee(row: SupabaseEmployeeRow): Employee {
   const fullName = `${row.first_name} ${row.last_name}`.trim();
+  const role: EmployeeRole = row.role === "kitchen" ? "kitchen" : "service";
 
   return {
     id: row.id,
@@ -62,6 +65,7 @@ function mapEmployee(row: SupabaseEmployeeRow): Employee {
     firstName: row.first_name,
     lastName: row.last_name,
     fullName,
+    role,
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
     isActive: row.is_active,
@@ -127,7 +131,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
       .single(),
     supabase
       .from("employees")
-      .select("id, restaurant_id, first_name, last_name, phone_number, daily_rate, is_active")
+      .select("id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active")
       .order("last_name")
       .order("first_name"),
     supabase
@@ -160,3 +164,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     errorMessage: null,
   };
 }
+
+
+
+

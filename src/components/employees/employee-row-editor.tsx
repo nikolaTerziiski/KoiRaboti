@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
+import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
 import type { Employee, SnapshotMode } from "@/lib/types";
@@ -34,10 +35,7 @@ function toNumber(value: string) {
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
-export function EmployeeRowEditor({
-  employee,
-  dataMode,
-}: EmployeeRowEditorProps) {
+export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps) {
   const router = useRouter();
   const { locale } = useLocale();
   const refreshRef = useRef<string | null>(null);
@@ -52,6 +50,7 @@ export function EmployeeRowEditor({
   );
   const [draft, setDraft] = useState({
     fullName: employee.fullName,
+    role: employee.role,
     phoneNumber: employee.phoneNumber ?? "",
     dailyRate: employee.dailyRate.toString(),
   });
@@ -72,6 +71,9 @@ export function EmployeeRowEditor({
 
   const labels = useMemo(
     () => ({
+      role: locale === "bg" ? "Роля" : "Role",
+      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
+      service: locale === "bg" ? "Сервиз" : "Service",
       dailyRate: locale === "bg" ? "Дневна ставка" : "Daily rate",
       editProfile: locale === "bg" ? "Редактирай профил" : "Edit profile",
       name: locale === "bg" ? "Име" : "Name",
@@ -87,8 +89,7 @@ export function EmployeeRowEditor({
       reactivate: locale === "bg" ? "Активирай отново" : "Reactivate",
       deactivating: locale === "bg" ? "Деактивиране..." : "Deactivating...",
       reactivating: locale === "bg" ? "Активиране..." : "Reactivating...",
-      saveSuccess:
-        locale === "bg" ? "Профилът е обновен." : "Profile updated.",
+      saveSuccess: locale === "bg" ? "Профилът е обновен." : "Profile updated.",
       saveError:
         locale === "bg"
           ? "Профилът не може да бъде обновен."
@@ -113,13 +114,23 @@ export function EmployeeRowEditor({
   const toggleFeedback =
     toggleState.messageKey === "msgSaveError" ? labels.saveError : toggleState.message;
 
+  const roleBadgeClass =
+    employee.role === "kitchen"
+      ? "border-purple-500/30 bg-purple-500/10 text-purple-700"
+      : "border-green-500/30 bg-green-500/10 text-green-700";
+
   return (
     <div className="rounded-3xl border border-border/70 bg-secondary/25 p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="font-semibold">{employee.fullName}</p>
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-semibold">{employee.fullName}</p>
+            <Badge className={roleBadgeClass} variant="outline">
+              {employee.role === "kitchen" ? labels.kitchen : labels.service}
+            </Badge>
+          </div>
           {employee.phoneNumber ? (
-            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Phone className="size-4" />
               <span>{employee.phoneNumber}</span>
             </div>
@@ -194,6 +205,23 @@ export function EmployeeRowEditor({
                 setDraft((current) => ({ ...current, fullName: event.target.value }))
               }
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor={`employee-role-${employee.id}`}>{labels.role}</Label>
+            <SelectField
+              id={`employee-role-${employee.id}`}
+              name="role"
+              value={draft.role}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  role: event.target.value === "kitchen" ? "kitchen" : "service",
+                }))
+              }
+            >
+              <option value="service">{labels.service}</option>
+              <option value="kitchen">{labels.kitchen}</option>
+            </SelectField>
           </div>
           <div className="space-y-2">
             <Label htmlFor={`employee-phone-${employee.id}`}>{labels.phone}</Label>

@@ -1,4 +1,4 @@
-create extension if not exists "pgcrypto";
+﻿create extension if not exists "pgcrypto";
 
 create or replace function public.set_updated_at()
 returns trigger
@@ -32,6 +32,7 @@ create table if not exists public.employees (
   restaurant_id uuid not null references public.restaurants (id) on delete cascade,
   first_name text not null,
   last_name text not null,
+  role text not null default 'service' check (role in ('kitchen', 'service')),
   phone_number text,
   daily_rate numeric(10, 4) not null check (daily_rate >= 0),
   is_active boolean not null default true,
@@ -70,6 +71,7 @@ create table if not exists public.attendance_entries (
 
 comment on column public.restaurants.default_daily_expense is 'Stored in EUR. Used as the initial manual_expense on daily reports.';
 comment on column public.employees.daily_rate is 'Stored in EUR. The UI also shows BGN using the fixed rate 1.95583.';
+comment on column public.employees.role is 'Employee role used for grouping and color-coding in the UI. Allowed values: kitchen or service.';
 comment on column public.employees.phone_number is 'Optional. Stored as entered. Uniqueness is enforced on the normalised digits-only form per restaurant.';
 comment on column public.daily_reports.turnover is 'Stored in EUR.';
 comment on column public.daily_reports.profit is 'Stored in EUR.';
@@ -214,3 +216,5 @@ create policy "restaurant members manage attendance"
         and dr.restaurant_id = get_user_restaurant_id()
     )
   );
+
+

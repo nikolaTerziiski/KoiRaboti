@@ -1,7 +1,8 @@
-export type PayUnits = 1 | 1.5 | 2;
+﻿export type PayUnits = 1 | 1.5 | 2;
 export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
 export type PayrollPeriod = "first_half" | "second_half";
+export type EmployeeRole = "kitchen" | "service";
 
 export interface Restaurant {
   id: string;
@@ -22,6 +23,7 @@ export interface Employee {
   firstName: string;
   lastName: string;
   fullName: string;
+  role: EmployeeRole;
   phoneNumber: string | null;
   dailyRate: number;
   isActive: boolean;
@@ -57,3 +59,5 @@ export interface RestaurantSnapshot {
   reports: DailyReportWithAttendance[];
   errorMessage: string | null;
 }
+
+

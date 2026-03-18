@@ -1,9 +1,10 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
+import type { EmployeeRole } from "@/lib/types";
 
 export type EmployeeActionState = {
   status: "idle" | "success" | "error";
@@ -40,6 +41,11 @@ function parseDailyRate(value: FormDataEntryValue | null) {
   }
 
   return parsed;
+}
+
+function parseEmployeeRole(value: FormDataEntryValue | null): EmployeeRole {
+  const normalized = String(value ?? "").trim();
+  return normalized === "kitchen" ? "kitchen" : "service";
 }
 
 function splitFullName(fullName: string) {
@@ -94,12 +100,14 @@ export async function createEmployeeAction(
     const fullName = requireText(formData.get("fullName"), "Full name");
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
+    const role = parseEmployeeRole(formData.get("role"));
     const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase.from("employees").insert({
       restaurant_id: restaurantId,
       first_name: firstName,
       last_name: lastName,
+      role,
       phone_number: phoneNumber,
       daily_rate: dailyRate,
       is_active: true,
@@ -158,6 +166,7 @@ export async function updateEmployeeAction(
     const fullName = requireText(formData.get("fullName"), "Full name");
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
+    const role = parseEmployeeRole(formData.get("role"));
     const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase
@@ -165,6 +174,7 @@ export async function updateEmployeeAction(
       .update({
         first_name: firstName,
         last_name: lastName,
+        role,
         phone_number: phoneNumber,
         daily_rate: dailyRate,
       })
@@ -249,3 +259,8 @@ export async function setEmployeeActiveAction(
     );
   }
 }
+
+
+
+
+

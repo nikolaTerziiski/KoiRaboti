@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -9,23 +9,28 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { useLocale } from "@/lib/i18n/context";
-import type { PageKey } from "@/lib/i18n/translations";
+
+type AppPageKey = "today" | "employees" | "payroll" | "reports" | "profile";
 
 type AppShellProps = {
-  pageKey: PageKey;
+  pageKey: AppPageKey;
   sessionMode: "supabase" | "demo";
   dataMode: "supabase" | "demo" | "error";
   children: ReactNode;
 };
 
-export function AppShell({
-  pageKey,
-  sessionMode,
-  dataMode,
-  children,
-}: AppShellProps) {
-  const { t } = useLocale();
-  const page = t.pages[pageKey];
+export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellProps) {
+  const { locale, t } = useLocale();
+  const page =
+    pageKey === "profile"
+      ? {
+          title: locale === "bg" ? "Профил" : "Profile",
+          description:
+            locale === "bg"
+              ? "Месечни статистики и разход за заплати."
+              : "Monthly statistics and labor cost summary.",
+        }
+      : t.pages[pageKey as keyof typeof t.pages];
 
   const sessionLabel =
     sessionMode === "supabase" ? t.shell.sessionSupabase : t.shell.sessionDemo;

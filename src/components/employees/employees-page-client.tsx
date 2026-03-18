@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import { EmployeeCreateForm } from "@/components/employees/employee-create-form";
@@ -35,7 +35,7 @@ export function EmployeesPageClient({
   const rosterVersion = initialEmployees
     .map(
       (employee) =>
-        `${employee.id}:${employee.fullName}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`,
+        `${employee.id}:${employee.fullName}:${employee.role}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`,
     )
     .join("|");
 
@@ -94,7 +94,7 @@ export function EmployeesPageClient({
           </div>
           {initialEmployees.map((employee) => (
             <EmployeeRowEditor
-              key={`${employee.id}:${employee.fullName}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`}
+              key={`${employee.id}:${employee.fullName}:${employee.role}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`}
               employee={employee}
               dataMode={dataMode}
             />
@@ -104,3 +104,6 @@ export function EmployeesPageClient({
     </div>
   );
 }
+
+
+

@@ -1,23 +1,25 @@
-"use client";
+﻿"use client";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocale } from "@/lib/i18n/context";
-import type { PageKey } from "@/lib/i18n/translations";
 
 type ErrorCardProps = {
-  pageKey: PageKey;
+  pageKey: "today" | "employees" | "payroll" | "reports" | "profile";
   message: string;
 };
 
 export function ErrorCard({ pageKey, message }: ErrorCardProps) {
-  const { t } = useLocale();
-  const page = t.pages[pageKey];
+  const { locale, t } = useLocale();
+  const page =
+    pageKey === "profile"
+      ? {
+          errorTitle: locale === "bg" ? "Живите данни не могат да се заредят" : "Live data could not be loaded",
+          errorDescription:
+            locale === "bg"
+              ? "Supabase env vars са налични, затова демо fallback-ът е изключен."
+              : "Supabase env vars are present, so demo fallback is intentionally disabled.",
+        }
+      : t.pages[pageKey as keyof typeof t.pages];
 
   return (
     <Card>

@@ -1,20 +1,22 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarClock, FileText, Users } from "lucide-react";
+import { BarChart3, CalendarClock, FileText, UserRound, Users } from "lucide-react";
 import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const profileLabel = locale === "bg" ? "Профил" : "Profile";
 
   const navItems = [
     { href: "/today", label: t.nav.today, icon: CalendarClock },
     { href: "/employees", label: t.nav.employees, icon: Users },
     { href: "/payroll", label: t.nav.payroll, icon: BarChart3 },
     { href: "/reports", label: t.nav.reports, icon: FileText },
+    { href: "/profile", label: profileLabel, icon: UserRound },
   ];
 
   return (

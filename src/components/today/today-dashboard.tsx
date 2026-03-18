@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import type {
   DailyReportWithAttendance,
   Employee,
+  EmployeeRole,
   PayUnits,
   SnapshotMode,
 } from "@/lib/types";
@@ -39,6 +40,8 @@ const initialTodayActionState: TodayActionState = {
   messageKey: null,
   refreshKey: null,
 };
+
+const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
 
 type AttendanceDraft = {
   employee: Employee;
@@ -76,11 +79,7 @@ function buildAttendanceDrafts(
     });
 }
 
-export function TodayDashboard({
-  employees,
-  initialReport,
-  dataMode,
-}: TodayDashboardProps) {
+export function TodayDashboard({ employees, initialReport, dataMode }: TodayDashboardProps) {
   const router = useRouter();
   const { locale, t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
@@ -112,19 +111,25 @@ export function TodayDashboard({
 
   const labels = useMemo(
     () => ({
-      dailyRate: locale === "bg" ? "Дневна ставка" : "Daily rate",
-      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
+      service: locale === "bg" ? "Сервиз" : "Service",
+      roleHint:
+        locale === "bg"
+          ? "Сервиз = зелено. Кухня = лилаво. Докосни картата, за да отбележиш служителя като на работа."
+          : "Service is green. Kitchen is purple. Tap the card to mark someone as at work.",
       tapHint:
         locale === "bg"
-          ? "Докосни картата, за да отбележиш служителя като присъстващ."
-          : "Tap the card to mark the employee as at work.",
-      activeHint:
-        locale === "bg"
-          ? "Картата е зелена, когато служителят е на работа."
-          : "The card turns green when the employee is at work.",
+          ? "Докосни картата, за да го включиш или изключиш от днешния ден."
+          : "Tap the card to toggle this employee for today.",
       atWork: locale === "bg" ? "На работа" : "At work",
       notSelected: locale === "bg" ? "Не е избран" : "Not selected",
       employeesCount: locale === "bg" ? "служители" : "employees",
+      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      attendanceDesc:
+        locale === "bg"
+          ? "Карти по роли с единствен контрол за броя смени. Всичко останало се пази в дневния отчет."
+          : "Role-grouped cards with a single shift-count selector. Everything else stays in the daily report.",
+      noEmployees: locale === "bg" ? "Няма служители в тази роля." : "No employees in this role.",
       saveSummary: locale === "bg" ? "Брой смени" : "Number of shifts",
     }),
     [locale],
@@ -140,6 +145,31 @@ export function TodayDashboard({
       sum + (entry.isPresent ? entry.employee.dailyRate * entry.payUnits : 0),
     0,
   );
+
+  const roleSections = ROLE_ORDER.map((role) => {
+    const entries = attendanceDrafts.filter((entry) => entry.employee.role === role);
+    const sectionClass =
+      role === "kitchen"
+        ? "border-purple-500/20 bg-purple-500/5"
+        : "border-green-500/20 bg-green-500/5";
+    const activeClass =
+      role === "kitchen"
+        ? "border-purple-500/30 bg-purple-600 text-white shadow-[0_18px_35px_-20px_rgba(124,58,237,0.45)]"
+        : "border-green-500/30 bg-green-500 text-white shadow-[0_18px_35px_-20px_rgba(34,197,94,0.45)]";
+    const badgeClass =
+      role === "kitchen"
+        ? "border-purple-500/20 bg-purple-500/10 text-purple-700"
+        : "border-green-500/20 bg-green-500/10 text-green-700";
+
+    return {
+      role,
+      title: role === "kitchen" ? labels.kitchen : labels.service,
+      entries,
+      sectionClass,
+      activeClass,
+      badgeClass,
+    };
+  });
 
   const summaryCards = [
     {
@@ -165,6 +195,28 @@ export function TodayDashboard({
     },
   ];
 
+  function toggleAttendance(employeeId: string) {
+    setAttendanceDrafts((current) =>
+      current.map((item) =>
+        item.employee.id === employeeId
+          ? {
+              ...item,
+              isPresent: !item.isPresent,
+              payUnits: item.isPresent ? 1 : item.payUnits,
+            }
+          : item,
+      ),
+    );
+  }
+
+  function updatePayUnits(employeeId: string, payUnits: PayUnits) {
+    setAttendanceDrafts((current) =>
+      current.map((item) =>
+        item.employee.id === employeeId ? { ...item, payUnits } : item,
+      ),
+    );
+  }
+
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="workDate" value={initialReport.workDate} />
@@ -182,7 +234,7 @@ export function TodayDashboard({
 
       <Card className="bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground">
         <CardHeader>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-start justify-between gap-3">
             <div>
               <CardTitle className="text-xl">{t.today.shiftSheet}</CardTitle>
               <CardDescription className="mt-1 text-primary-foreground/80">
@@ -195,9 +247,9 @@ export function TodayDashboard({
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-primary-foreground/85">
-          <p>{labels.tapHint}</p>
+          <p>{labels.roleHint}</p>
           <p>
-            {labels.activeHint} {formatExchangeRateLabel()}.
+            {t.today.currency} {formatExchangeRateLabel()}.
           </p>
         </CardContent>
       </Card>
@@ -310,8 +362,7 @@ export function TodayDashboard({
               }
             />
             <p className="text-xs text-muted-foreground">
-              {t.today.bgnView}{" "}
-              {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
+              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
             </p>
             <p className="text-xs text-muted-foreground">
               {t.today.default} {formatBgnCurrencyFromEur(DEFAULT_MANUAL_EXPENSE_EUR)}
@@ -339,131 +390,94 @@ export function TodayDashboard({
       <Card>
         <CardHeader>
           <CardTitle>{t.today.attendance}</CardTitle>
-          <CardDescription>{labels.tapHint}</CardDescription>
+          <CardDescription>{labels.attendanceDesc}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
-          {attendanceDrafts.map((entry) => {
-            const payout = entry.isPresent ? entry.employee.dailyRate * entry.payUnits : 0;
-
-            return (
-              <div
-                key={entry.employee.id}
-                role="button"
-                tabIndex={0}
-                onClick={() =>
-                  setAttendanceDrafts((current) =>
-                    current.map((item) =>
-                      item.employee.id === entry.employee.id
-                        ? {
-                            ...item,
-                            isPresent: !item.isPresent,
-                            payUnits: item.isPresent ? 1 : item.payUnits,
-                          }
-                        : item,
-                    ),
-                  )
-                }
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    setAttendanceDrafts((current) =>
-                      current.map((item) =>
-                        item.employee.id === entry.employee.id
-                          ? {
-                              ...item,
-                              isPresent: !item.isPresent,
-                              payUnits: item.isPresent ? 1 : item.payUnits,
-                            }
-                          : item,
-                      ),
-                    );
-                  }
-                }}
-                className={cn(
-                  "rounded-3xl border p-4 transition-colors",
-                  entry.isPresent
-                    ? "border-primary/30 bg-primary text-primary-foreground"
-                    : "border-border/70 bg-secondary/25",
-                )}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{entry.employee.fullName}</p>
-                    <p
+        <CardContent className="space-y-4">
+          <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+            {labels.roleHint}
+          </div>
+          <div className="space-y-4">
+            {roleSections.map((section) => (
+              <div key={section.role} className={cn("rounded-3xl border p-4", section.sectionClass)}>
+                <div className="flex items-center justify-between gap-3 pb-3">
+                  <h3 className="text-lg font-semibold">{section.title}</h3>
+                  <Badge className={section.badgeClass} variant="outline">
+                    {section.entries.length}
+                  </Badge>
+                </div>
+                <div className="space-y-3">
+                  {section.entries.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">{labels.noEmployees}</p>
+                  ) : null}
+                  {section.entries.map((entry) => (
+                    <div
+                      key={entry.employee.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => toggleAttendance(entry.employee.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          toggleAttendance(entry.employee.id);
+                        }
+                      }}
                       className={cn(
-                        "mt-1 text-sm",
-                        entry.isPresent
-                          ? "text-primary-foreground/80"
-                          : "text-muted-foreground",
+                        "rounded-3xl border p-4 transition-colors",
+                        entry.isPresent ? section.activeClass : "border-border/70 bg-secondary/25",
                       )}
                     >
-                      {labels.dailyRate}
-                    </p>
-                    <div className="mt-2">
-                      <MoneyDisplay
-                        amount={entry.employee.dailyRate}
-                        secondaryClassName={
-                          entry.isPresent ? "text-primary-foreground/70" : undefined
-                        }
-                      />
-                    </div>
-                  </div>
-                  <p
-                    className={cn(
-                      "text-sm font-medium",
-                      entry.isPresent
-                        ? "text-primary-foreground"
-                        : "text-muted-foreground",
-                    )}
-                  >
-                    {entry.isPresent ? labels.atWork : labels.notSelected}
-                  </p>
-                </div>
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className={cn("font-semibold", entry.isPresent && "text-white")}>
+                            {entry.employee.fullName}
+                          </p>
+                          <p
+                            className={cn(
+                              "mt-1 text-sm",
+                              entry.isPresent ? "text-white/80" : "text-muted-foreground",
+                            )}
+                          >
+                            {entry.isPresent ? labels.atWork : labels.notSelected}
+                          </p>
+                        </div>
+                      </div>
 
-                {entry.isPresent ? (
-                  <div
-                    className="mt-4 rounded-2xl bg-white/14 p-3"
-                    onClick={(event) => event.stopPropagation()}
-                  >
-                    <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor={`payUnits-${entry.employee.id}`}
-                          className="text-primary-foreground"
+                      {entry.isPresent ? (
+                        <div
+                          className="mt-4"
+                          onClick={(event) => event.stopPropagation()}
                         >
-                          {labels.shiftsCount}
-                        </Label>
-                        <SelectField
-                          id={`payUnits-${entry.employee.id}`}
-                          value={String(entry.payUnits)}
-                          className="border-white/20 bg-white text-foreground"
-                          onChange={(event) =>
-                            setAttendanceDrafts((current) =>
-                              current.map((item) =>
-                                item.employee.id === entry.employee.id
-                                  ? {
-                                      ...item,
-                                      payUnits: Number(event.target.value) as PayUnits,
-                                    }
-                                  : item,
-                              ),
-                            )
-                          }
-                        >
-                          <option value="1">1</option>
-                          <option value="1.5">1.5</option>
-                          <option value="2">2</option>
-                        </SelectField>
-                      </div>
-                      <div className="rounded-2xl bg-white px-3 py-2 text-right text-foreground">
-                        <MoneyDisplay amount={payout} align="end" />
-                      </div>
+                          <Label
+                            htmlFor={`payUnits-${entry.employee.id}`}
+                            className={cn("text-sm", "text-white/80")}
+                          >
+                            {labels.shiftsCount}
+                          </Label>
+                          <SelectField
+                            id={`payUnits-${entry.employee.id}`}
+                            value={String(entry.payUnits)}
+                            className="mt-1 border-white/20 bg-white text-foreground"
+                            onChange={(event) =>
+                              updatePayUnits(
+                                entry.employee.id,
+                                Number(event.target.value) as PayUnits,
+                              )
+                            }
+                          >
+                            <option value="1">1</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2">2</option>
+                          </SelectField>
+                        </div>
+                      ) : (
+                        <p className="mt-3 text-sm text-muted-foreground">{labels.tapHint}</p>
+                      )}
                     </div>
-                  </div>
-                ) : null}
+                  ))}
+                </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -482,7 +496,11 @@ export function TodayDashboard({
                   : "border border-destructive/20 bg-destructive/10 text-destructive",
               )}
             >
-              {actionState.messageKey ? t.today[actionState.messageKey] : actionState.message}
+              {actionState.messageKey === "msgSaveSuccess"
+                ? t.today.msgSaveSuccess
+                : actionState.messageKey === "msgSaveError"
+                  ? t.today.msgSaveError
+                  : actionState.message}
             </div>
           ) : null}
           {dataMode === "demo" ? (

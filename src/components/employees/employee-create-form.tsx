@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
 import type { SnapshotMode } from "@/lib/types";
@@ -45,6 +46,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
   );
   const [draft, setDraft] = useState({
     fullName: "",
+    role: "service" as "kitchen" | "service",
     phoneNumber: "",
     dailyRate: "",
   });
@@ -65,12 +67,14 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
       title: locale === "bg" ? "Добави служител" : "Add employee",
       description:
         locale === "bg"
-          ? "Минимална форма за име, телефон и дневна ставка."
-          : "A minimal form for name, phone, and daily rate.",
+          ? "Минимална форма за име, роля, телефон и дневна ставка."
+          : "A minimal form for name, role, phone, and daily rate.",
       fullName: locale === "bg" ? "Име" : "Name",
+      role: locale === "bg" ? "Роля" : "Role",
+      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
+      service: locale === "bg" ? "Сервиз" : "Service",
       phone: locale === "bg" ? "Телефон" : "Phone",
-      phonePlaceholder:
-        locale === "bg" ? "По желание" : "Optional",
+      phonePlaceholder: locale === "bg" ? "По желание" : "Optional",
       dailyRate: locale === "bg" ? "Дневна ставка (EUR)" : "Daily rate (EUR)",
       bgnView: locale === "bg" ? "BGN:" : "BGN:",
       demoNote:
@@ -79,14 +83,8 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           : "In demo mode the form stays visible, but saving is disabled.",
       saving: locale === "bg" ? "Запазване..." : "Saving...",
       add: locale === "bg" ? "Добави" : "Add",
-      saveError:
-        locale === "bg"
-          ? "Запазването е неуспешно."
-          : "Saving failed.",
-      saveSuccess:
-        locale === "bg"
-          ? "Служителят е добавен."
-          : "Employee added.",
+      saveError: locale === "bg" ? "Запазването е неуспешно." : "Saving failed.",
+      saveSuccess: locale === "bg" ? "Служителят е добавен." : "Employee added.",
       duplicatePhone:
         locale === "bg"
           ? "Този телефон вече е използван."
@@ -123,6 +121,25 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               }
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="create-role">{labels.role}</Label>
+            <SelectField
+              id="create-role"
+              name="role"
+              value={draft.role}
+              onChange={(event) =>
+                setDraft((current) => ({
+                  ...current,
+                  role: event.target.value === "kitchen" ? "kitchen" : "service",
+                }))
+              }
+            >
+              <option value="service">{labels.service}</option>
+              <option value="kitchen">{labels.kitchen}</option>
+            </SelectField>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-phoneNumber">{labels.phone}</Label>
             <Input
@@ -136,6 +153,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               }
             />
           </div>
+
           <div className="space-y-2">
             <Label htmlFor="create-dailyRate">{labels.dailyRate}</Label>
             <Input
@@ -151,6 +169,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               {labels.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
           </div>
+
           {actionState.status !== "idle" ? (
             <div
               className={
@@ -162,11 +181,13 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               {feedbackMessage}
             </div>
           ) : null}
+
           {dataMode === "demo" ? (
             <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
               {labels.demoNote}
             </div>
           ) : null}
+
           <Button
             type="submit"
             className="w-full"

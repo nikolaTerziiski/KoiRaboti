@@ -1,7 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -22,6 +24,7 @@ import {
 import type {
   DailyReportWithAttendance,
   Employee,
+  EmployeeRole,
   PayrollPeriod,
   SnapshotMode,
 } from "@/lib/types";
@@ -31,6 +34,8 @@ type PayrollPageClientProps = {
   reports: DailyReportWithAttendance[];
   dataMode: SnapshotMode;
 };
+
+const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
 
 export function PayrollPageClient({
   employees,
@@ -47,23 +52,21 @@ export function PayrollPageClient({
 
   const labels = useMemo(
     () => ({
-      window: locale === "bg" ? "Период" : "Period",
+      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
+      service: locale === "bg" ? "Сервиз" : "Service",
+      window: locale === "bg" ? "Период на заплащане" : "Payroll window",
       windowDesc:
         locale === "bg"
-          ? "Избери месец и половина от месеца за изчисление."
+          ? "Избери месец и половина от месеца за изчислението."
           : "Choose a month and half-month payroll period.",
       month: locale === "bg" ? "Месец" : "Month",
       firstHalf: locale === "bg" ? "1-15" : "1-15",
       secondHalf: locale === "bg" ? "16-край" : "16-end",
       activeRange: locale === "bg" ? "Период" : "Range",
       demoAttendance:
-        locale === "bg"
-          ? "Използват се демо данни за присъствие."
-          : "Using demo attendance data.",
+        locale === "bg" ? "Използват се демо данни за присъствие." : "Using demo attendance data.",
       supabaseAttendance:
-        locale === "bg"
-          ? "Използват се данни от Supabase."
-          : "Using Supabase attendance data.",
+        locale === "bg" ? "Използват се данни за присъствие от Supabase." : "Using Supabase attendance data.",
       bgnRate:
         locale === "bg"
           ? "Сумите се показват и в BGN по фиксиран курс"
@@ -76,12 +79,16 @@ export function PayrollPageClient({
         locale === "bg" ? "Заплати на служителите" : "Employee payroll",
       listDesc:
         locale === "bg"
-          ? "Компактен преглед на служител, брой смени и обща сума."
-          : "A compact view of employee, shifts, and total amount.",
+          ? "Компактен преглед по роли, брой смени и обща сума."
+          : "A compact view grouped by role with shift count and total amount.",
       noAttendance:
         locale === "bg"
           ? "Няма данни за този месец и период."
           : "There is no attendance for this month and period.",
+      noRows:
+        locale === "bg"
+          ? "Няма служители с отчетено присъствие в тази роля."
+          : "No employees with attendance in this role.",
     }),
     [locale],
   );
@@ -89,6 +96,26 @@ export function PayrollPageClient({
   const referenceDate = parseISO(selectedMonth);
   const payrollRows = buildPayrollRows(reports, employees, period, referenceDate);
   const summary = summarizePayrollRows(payrollRows);
+
+  const roleSections = ROLE_ORDER.map((role) => {
+    const rows = payrollRows.filter((row) => row.employee.role === role);
+    const sectionClass =
+      role === "kitchen"
+        ? "border-purple-500/20 bg-purple-500/5"
+        : "border-green-500/20 bg-green-500/5";
+    const badgeClass =
+      role === "kitchen"
+        ? "border-purple-500/20 bg-purple-500/10 text-purple-700"
+        : "border-green-500/20 bg-green-500/10 text-green-700";
+
+    return {
+      role,
+      title: role === "kitchen" ? labels.kitchen : labels.service,
+      rows,
+      sectionClass,
+      badgeClass,
+    };
+  }).filter((section) => section.rows.length > 0);
 
   return (
     <div className="space-y-4">
@@ -189,24 +216,40 @@ export function PayrollPageClient({
           <CardTitle>{labels.listTitle}</CardTitle>
           <CardDescription>{labels.listDesc}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-4">
           {payrollRows.length === 0 ? (
             <div className="rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               {labels.noAttendance}
             </div>
           ) : null}
-          {payrollRows.map((row) => (
-            <div
-              key={row.employee.id}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-secondary/25 px-3 py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{row.employee.fullName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {labels.shiftsCount}: {row.totalUnits.toFixed(1)}
-                </p>
+
+          {roleSections.map((section) => (
+            <div key={section.role} className={cn("rounded-3xl border p-4", section.sectionClass)}>
+              <div className="flex items-center justify-between gap-3 pb-3">
+                <h3 className="text-lg font-semibold">{section.title}</h3>
+                <Badge className={section.badgeClass} variant="outline">
+                  {section.rows.length}
+                </Badge>
               </div>
-              <MoneyDisplay amount={row.totalAmount} align="end" />
+              <div className="space-y-2">
+                {section.rows.map((row) => (
+                  <div
+                    key={row.employee.id}
+                    className="flex items-center justify-between gap-3 rounded-2xl border border-border/70 bg-secondary/25 px-3 py-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{row.employee.fullName}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {labels.shiftsCount}: {row.totalUnits.toFixed(1)}
+                      </p>
+                    </div>
+                    <MoneyDisplay amount={row.totalAmount} align="end" />
+                  </div>
+                ))}
+                {section.rows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">{labels.noRows}</p>
+                ) : null}
+              </div>
             </div>
           ))}
         </CardContent>
@@ -214,3 +257,4 @@ export function PayrollPageClient({
     </div>
   );
 }
+

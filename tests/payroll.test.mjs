@@ -1,4 +1,4 @@
-import assert from "node:assert/strict";
+﻿import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildPayrollRows,
@@ -10,6 +10,7 @@ import {
 const employee = {
   id: "employee-1",
   fullName: "Test Employee",
+  role: "service",
   phoneNumber: null,
   dailyRate: 50,
   isActive: true,
@@ -118,3 +119,5 @@ test("getPayrollPeriodBounds splits month into first and second half", () => {
   assert.equal(secondHalf.end.getMonth(), 3);
   assert.equal(secondHalf.end.getDate(), 30);
 });
+
+
