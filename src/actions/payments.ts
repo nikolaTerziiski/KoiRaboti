@@ -60,7 +60,7 @@ export async function addPayrollAdvanceAction(
   if (!hasSupabaseCredentials()) {
     return {
       status: "error",
-      message: "Supabase is not configured. Payroll advances cannot be saved in demo mode.",
+      message: "Payroll advances cannot be saved in demo mode.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -70,7 +70,7 @@ export async function addPayrollAdvanceAction(
   if (!supabase) {
     return {
       status: "error",
-      message: "Supabase client is unavailable for payroll advances.",
+      message: "Live data connection is unavailable for payroll advances.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -128,7 +128,7 @@ export async function togglePayrollPaymentAction(
   if (!hasSupabaseCredentials()) {
     return {
       status: "error",
-      message: "Supabase is not configured. Payroll payments cannot be updated in demo mode.",
+      message: "Payroll payments cannot be updated in demo mode.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -138,7 +138,7 @@ export async function togglePayrollPaymentAction(
   if (!supabase) {
     return {
       status: "error",
-      message: "Supabase client is unavailable for payroll payments.",
+      message: "Live data connection is unavailable for payroll payments.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };

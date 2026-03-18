@@ -34,7 +34,7 @@ type RegisterContentProps = {
 };
 
 export function RegisterContent({ hasSupabase }: RegisterContentProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [actionState, formAction, isPending] = useActionState(
     registerAction,
     initialRegisterActionState,
@@ -44,7 +44,7 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
   );
 
   // Show the translated message for known client-side errors (e.g. password mismatch),
-  // but show the raw server message for "msgError" so Supabase errors are visible.
+  // but keep the raw server message for generic live-data failures.
   const errorMessage =
     actionState.messageKey === "passwordMismatch"
       ? t.register.passwordMismatch
@@ -65,7 +65,9 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
           {!hasSupabase ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {t.register.noSupabase}
+                {locale === "bg"
+                  ? "Регистрацията е временно недостъпна, докато приложението не бъде конфигурирано."
+                  : "Registration is temporarily unavailable until the app is configured."}
               </div>
               <p className="text-center text-sm text-muted-foreground">
                 {t.register.alreadyHaveAccount}{" "}

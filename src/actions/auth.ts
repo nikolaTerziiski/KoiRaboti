@@ -67,7 +67,7 @@ export async function loginAction(
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
     return {
-      error: "Supabase is not configured yet. Add your keys or use demo mode.",
+      error: "Live sign-in is not available yet. Use demo mode or configure the app.",
     };
   }
 
@@ -126,7 +126,7 @@ export async function registerAction(
     return {
       status: "error",
       messageKey: "msgError",
-      message: "Supabase client is unavailable.",
+      message: "Live data connection is unavailable.",
     };
   }
 

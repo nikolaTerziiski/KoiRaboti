@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Download } from "lucide-react";
 import type { ReportActionState } from "@/actions/reports";
 import { saveReportCorrectionAction } from "@/actions/reports";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
+import { exportReportsToCSV } from "@/lib/csv-export";
 import {
   formatDateLabel,
   formatExchangeRateLabel,
@@ -120,6 +122,7 @@ export function ReportsPageClient({
           ? "Стегната таблица с дневните резултати и бърза поправка на минали дни."
           : "A strict daily table with a quick correction flow for past days.",
       month: locale === "bg" ? "Месец" : "Month",
+      exportCsv: locale === "bg" ? "Експорт (CSV)" : "Export (CSV)",
       date: locale === "bg" ? "Дата" : "Date",
       turnover: locale === "bg" ? "Оборот" : "Turnover",
       profit: locale === "bg" ? "Печалба" : "Profit",
@@ -172,19 +175,31 @@ export function ReportsPageClient({
           <CardDescription>{labels.historyDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="reports-month">{labels.month}</Label>
-            <SelectField
-              id="reports-month"
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="reports-month">{labels.month}</Label>
+              <SelectField
+                id="reports-month"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(event.target.value)}
+              >
+                {months.map((month) => (
+                  <option key={month} value={month}>
+                    {formatMonthLabel(month, locale)}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="sm:w-fit"
+              disabled={visibleReports.length === 0}
+              onClick={() => exportReportsToCSV(visibleReports, selectedMonth)}
             >
-              {months.map((month) => (
-                <option key={month} value={month}>
-                  {formatMonthLabel(month, locale)}
-                </option>
-              ))}
-            </SelectField>
+              <Download className="size-4" />
+              {labels.exportCsv}
+            </Button>
           </div>
           <p className="text-sm text-muted-foreground">
             {labels.bgnRate} {formatExchangeRateLabel()}.
@@ -295,9 +310,7 @@ export function ReportsPageClient({
                     value={draft.turnover}
                     onChange={(event) =>
                       setDraft((current) =>
-                        current
-                          ? { ...current, turnover: event.target.value }
-                          : current,
+                        current ? { ...current, turnover: event.target.value } : current,
                       )
                     }
                   />
@@ -325,9 +338,7 @@ export function ReportsPageClient({
                     value={draft.cardAmount}
                     onChange={(event) =>
                       setDraft((current) =>
-                        current
-                          ? { ...current, cardAmount: event.target.value }
-                          : current,
+                        current ? { ...current, cardAmount: event.target.value } : current,
                       )
                     }
                   />

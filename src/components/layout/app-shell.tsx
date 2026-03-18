@@ -33,12 +33,20 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
       : t.pages[pageKey as keyof typeof t.pages];
 
   const sessionLabel =
-    sessionMode === "supabase" ? t.shell.sessionSupabase : t.shell.sessionDemo;
+    sessionMode === "supabase"
+      ? locale === "bg"
+        ? "Активна сесия"
+        : "Active session"
+      : t.shell.sessionDemo;
   const dataLabel =
     dataMode === "error"
-      ? t.shell.dataError
+      ? locale === "bg"
+        ? "Данните не са достъпни"
+        : "Data unavailable"
       : dataMode === "supabase"
-        ? t.shell.dataSupabase
+        ? locale === "bg"
+          ? "Реални данни"
+          : "Live data"
         : t.shell.dataDemo;
 
   return (

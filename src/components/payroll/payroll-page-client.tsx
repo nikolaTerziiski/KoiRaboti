@@ -70,7 +70,7 @@ export function PayrollPageClient({
       demoAttendance:
         locale === "bg" ? "Използват се демо данни за присъствие." : "Using demo attendance data.",
       supabaseAttendance:
-        locale === "bg" ? "Използват се данни за присъствие от Supabase." : "Using Supabase attendance data.",
+        locale === "bg" ? "Данните са синхронизирани." : "Data is synchronized.",
       bgnRate:
         locale === "bg"
           ? "Сумите се показват и в BGN по фиксиран курс"

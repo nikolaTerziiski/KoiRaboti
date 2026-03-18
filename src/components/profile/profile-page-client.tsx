@@ -35,9 +35,7 @@ export function ProfilePageClient({
   const { locale } = useLocale();
   const currentMonthKey = getCurrentMonthKey();
   const monthOptions = useMemo(() => {
-    const months = new Set(
-      reports.map((report) => `${report.workDate.slice(0, 7)}-01`),
-    );
+    const months = new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`));
     months.add(currentMonthKey);
 
     return Array.from(months).sort((left, right) => right.localeCompare(left));
@@ -61,8 +59,8 @@ export function ProfilePageClient({
       profileTitle: locale === "bg" ? "Потребителски профил" : "User profile",
       profileDesc:
         locale === "bg"
-          ? "Информацията за акаунта и изходът са най-долу, както поиска."
-          : "Account details and sign out stay at the very bottom.",
+          ? "Управление на акаунта и сесията."
+          : "Account and session management.",
       restaurant: locale === "bg" ? "Ресторант" : "Restaurant",
       email: locale === "bg" ? "Имейл" : "Email",
       reportsSummary: locale === "bg" ? "дни с отчет" : "recorded day(s)",
@@ -74,8 +72,8 @@ export function ProfilePageClient({
             ? "Демо данни"
             : "Demo data"
           : locale === "bg"
-            ? "Supabase данни"
-            : "Supabase data",
+            ? "Реални данни"
+            : "Live data",
       noProfile:
         locale === "bg" ? "Няма профилна информация." : "No profile information available.",
       logout: locale === "bg" ? "Изход" : "Sign out",
@@ -169,11 +167,7 @@ export function ProfilePageClient({
             </CardContent>
           </Card>
         ))}
-        <Card
-          className={cn(
-            laborCostRisk ? "border-destructive/30 bg-destructive/5" : undefined,
-          )}
-        >
+        <Card className={cn(laborCostRisk ? "border-destructive/30 bg-destructive/5" : undefined)}>
           <CardHeader className="pb-2">
             <CardDescription>{labels.laborCostPercentage}</CardDescription>
           </CardHeader>

@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/payroll.test.mjs tests/profile-stats.test.mjs"
+    "test": "node --experimental-strip-types --test tests/payroll.test.mjs tests/profile-stats.test.mjs tests/reports-csv.test.mjs"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.8",

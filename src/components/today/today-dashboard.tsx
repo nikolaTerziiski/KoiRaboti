@@ -127,6 +127,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
       notSelected: locale === "bg" ? "Не е избран" : "Not selected",
       employeesCount: locale === "bg" ? "служители" : "employees",
       shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
+      saving: locale === "bg" ? "Запазване..." : "Saving...",
       attendanceDesc:
         locale === "bg"
           ? "Карти по роли с единствен контрол за броя смени. Всичко останало се пази в дневния отчет."
@@ -242,9 +243,11 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                 {formatDateLabel(initialReport.workDate, locale)}
               </CardDescription>
             </div>
-            <Badge className="bg-white/14 text-white" variant="default">
-              {dataMode === "demo" ? t.today.demoDataset : t.today.supabaseSnapshot}
-            </Badge>
+            {dataMode === "demo" ? (
+              <Badge className="bg-white/14 text-white" variant="default">
+                {t.today.demoDataset}
+              </Badge>
+            ) : null}
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-primary-foreground/85">
@@ -541,7 +544,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
             aria-busy={isPending}
           >
             <Save className="size-4" />
-            {isPending ? t.today.savingSupabase : t.today.saveToday}
+            {isPending ? labels.saving : t.today.saveToday}
           </Button>
         </CardContent>
       </Card>

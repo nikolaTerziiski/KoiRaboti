@@ -126,6 +126,10 @@ function buildLiveErrorSnapshot(message: string): RestaurantSnapshot {
   };
 }
 
+function sanitizeVisibleErrorMessage(message: string) {
+  return message.replace(/Supabase/gi, "live data");
+}
+
 export async function getUserRestaurantId(
   supabase: SupabaseClient,
 ): Promise<string | null> {
@@ -179,7 +183,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
       .join(" | ");
 
     return buildLiveErrorSnapshot(
-      messages || "Supabase data could not be loaded in live mode.",
+      sanitizeVisibleErrorMessage(messages || "Live data could not be loaded."),
     );
   }
 

@@ -82,13 +82,13 @@ export async function createEmployeeAction(
 ): Promise<EmployeeActionState> {
   if (!hasSupabaseCredentials()) {
     return buildUnavailableState(
-      "Supabase is not configured. Employees cannot be saved in demo mode.",
+      "Employees cannot be saved in demo mode.",
     );
   }
 
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
-    return buildUnavailableState("Supabase client is unavailable for employee creation.");
+    return buildUnavailableState("Live data connection is unavailable for employee creation.");
   }
 
   try {
@@ -147,13 +147,13 @@ export async function updateEmployeeAction(
 ): Promise<EmployeeActionState> {
   if (!hasSupabaseCredentials()) {
     return buildUnavailableState(
-      "Supabase is not configured. Employees cannot be saved in demo mode.",
+      "Employees cannot be saved in demo mode.",
     );
   }
 
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
-    return buildUnavailableState("Supabase client is unavailable for employee updates.");
+    return buildUnavailableState("Live data connection is unavailable for employee updates.");
   }
 
   try {
@@ -215,14 +215,14 @@ export async function setEmployeeActiveAction(
 ): Promise<EmployeeActionState> {
   if (!hasSupabaseCredentials()) {
     return buildUnavailableState(
-      "Supabase is not configured. Employees cannot be updated in demo mode.",
+      "Employees cannot be updated in demo mode.",
     );
   }
 
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
     return buildUnavailableState(
-      "Supabase client is unavailable for employee status updates.",
+      "Live data connection is unavailable for employee status updates.",
     );
   }
 

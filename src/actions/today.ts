@@ -87,7 +87,7 @@ export async function saveTodayReportAction(
   if (!hasSupabaseCredentials()) {
     return {
       status: "error",
-      message: "Supabase is not configured. Today data cannot be saved in demo mode.",
+      message: "Today data cannot be saved in demo mode.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -97,7 +97,7 @@ export async function saveTodayReportAction(
   if (!supabase) {
     return {
       status: "error",
-      message: "Supabase client is unavailable for saving.",
+      message: "Live data connection is unavailable for saving.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -249,7 +249,7 @@ export async function saveTodayReportAction(
 
     return {
       status: "success",
-      message: "Today report and attendance were saved to Supabase.",
+      message: "Today report and attendance were saved.",
       messageKey: "msgSaveSuccess",
       refreshKey: crypto.randomUUID(),
     };

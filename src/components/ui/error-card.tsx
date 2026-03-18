@@ -13,19 +13,22 @@ export function ErrorCard({ pageKey, message }: ErrorCardProps) {
   const page =
     pageKey === "profile"
       ? {
-          errorTitle: locale === "bg" ? "Живите данни не могат да се заредят" : "Live data could not be loaded",
-          errorDescription:
+          errorTitle:
             locale === "bg"
-              ? "Supabase env vars са налични, затова демо fallback-ът е изключен."
-              : "Supabase env vars are present, so demo fallback is intentionally disabled.",
+              ? "Живите данни не могат да се заредят"
+              : "Live data could not be loaded",
         }
       : t.pages[pageKey as keyof typeof t.pages];
+  const errorDescription =
+    locale === "bg"
+      ? "Реалните данни не могат да се заредят в момента. Моля, опитай отново."
+      : "Live data could not be loaded right now. Please try again.";
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{page.errorTitle}</CardTitle>
-        <CardDescription>{page.errorDescription}</CardDescription>
+        <CardDescription>{errorDescription}</CardDescription>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">{message}</CardContent>
     </Card>

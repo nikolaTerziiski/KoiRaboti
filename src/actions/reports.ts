@@ -90,7 +90,7 @@ export async function saveReportCorrectionAction(
   if (!hasSupabaseCredentials()) {
     return {
       status: "error",
-      message: "Supabase is not configured. Report corrections cannot be saved in demo mode.",
+      message: "Report corrections cannot be saved in demo mode.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };
@@ -100,7 +100,7 @@ export async function saveReportCorrectionAction(
   if (!supabase) {
     return {
       status: "error",
-      message: "Supabase client is unavailable for report corrections.",
+      message: "Live data connection is unavailable for report corrections.",
       messageKey: "msgSaveError",
       refreshKey: null,
     };

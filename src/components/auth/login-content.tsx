@@ -20,7 +20,15 @@ type LoginContentProps = {
 };
 
 export function LoginContent({ action, usesSupabase }: LoginContentProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
+  const credentialsText =
+    usesSupabase
+      ? locale === "bg"
+        ? "Влез с администраторските си данни."
+        : "Use your admin credentials."
+      : locale === "bg"
+        ? "Можеш да продължиш в демо режим с произволен имейл и парола."
+        : "You can continue in demo mode with any email and password.";
 
   const highlights = [
     {
@@ -85,9 +93,7 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
         <Card>
           <CardHeader>
             <CardTitle>{t.login.signIn}</CardTitle>
-            <CardDescription>
-              {usesSupabase ? t.login.credentialsSupabase : t.login.credentialsDemo}
-            </CardDescription>
+            <CardDescription>{credentialsText}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <LoginForm action={action} usesSupabase={usesSupabase} />
