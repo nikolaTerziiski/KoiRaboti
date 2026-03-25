@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"telegram\\\\|grammy\\\\|telegraf\\\\|bot\" /e/Projects/KoiRaboti --include=*.ts --include=*.tsx --include=*.json --include=*.js)",
+      "Bash(npm install:*)"
+    ]
+  }
+}
