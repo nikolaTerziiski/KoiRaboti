@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { waitUntil } from "@vercel/functions";
 import { env, hasTelegramBotCredentials } from "@/lib/env";
 import { handleTelegramMessage } from "@/lib/telegram/handler";
 import type { TelegramUpdate } from "@/lib/telegram/types";
+
+// Allow up to 60s on Vercel Pro; Hobby caps at 10s regardless
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   // 1. Check bot is configured
@@ -28,13 +32,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // 5. Process the message (errors are caught inside handleTelegramMessage)
-  try {
-    await handleTelegramMessage(update.message);
-  } catch (error) {
-    console.error("[Telegram Webhook] Unhandled error:", error);
-  }
+  // 5. Process in background via waitUntil — return 200 immediately to Telegram
+  //    This prevents Telegram from retrying on slow Gemini responses
+  waitUntil(
+    handleTelegramMessage(update.message).catch((error) => {
+      console.error("[Telegram Webhook] Unhandled error:", error);
+    }),
+  );
 
-  // 6. Always return 200 to Telegram (prevents retries)
   return NextResponse.json({ ok: true });
 }

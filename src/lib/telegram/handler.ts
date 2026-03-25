@@ -2,7 +2,7 @@ import { sendMessage, sendTypingAction } from "./api";
 import { findOrCreateTelegramUser, createBusiness, getCategoriesForBusiness } from "./data";
 import { processMessage } from "./gemini";
 import { executeFunctionCall } from "./executor";
-import { downloadPhoto } from "./receipts";
+import { downloadPhoto, uploadReceiptToStorage } from "./receipts";
 import type { TelegramMessage } from "./types";
 
 /**
@@ -43,6 +43,8 @@ export async function handleTelegramMessage(
     // 6. Handle photo if present
     let imageBase64: string | undefined;
     let imageMimeType: string | undefined;
+    let receiptImagePath: string | undefined;
+
     if (message.photo && message.photo.length > 0) {
       // Pick highest resolution (last in array)
       const largestPhoto = message.photo[message.photo.length - 1];
@@ -50,6 +52,15 @@ export async function handleTelegramMessage(
       if (photoData) {
         imageBase64 = photoData.base64;
         imageMimeType = photoData.mimeType;
+        // Upload to Supabase Storage
+        const storagePath = await uploadReceiptToStorage(
+          user.businessId,
+          photoData.buffer,
+          photoData.mimeType,
+        );
+        if (storagePath) {
+          receiptImagePath = storagePath;
+        }
       }
     }
 
@@ -88,6 +99,7 @@ export async function handleTelegramMessage(
           businessId: user.businessId,
           telegramUserId: user.id,
           categories,
+          receiptImagePath,
         });
         results.push(result.message);
       }

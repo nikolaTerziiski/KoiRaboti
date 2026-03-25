@@ -23,12 +23,13 @@ export async function executeFunctionCall(params: {
   businessId: string;
   telegramUserId: string;
   categories: ExpenseCategory[];
+  receiptImagePath?: string;
 }): Promise<ExecutionResult> {
   const { call, businessId, telegramUserId, categories } = params;
 
   switch (call.name) {
     case "save_expense":
-      return executeSaveExpense(call.args, businessId, telegramUserId, categories);
+      return executeSaveExpense(call.args, businessId, telegramUserId, categories, params.receiptImagePath);
     case "query_expenses":
       return executeQueryExpenses(call.args, businessId, categories);
     case "get_expense_summary":
@@ -51,6 +52,7 @@ async function executeSaveExpense(
   businessId: string,
   telegramUserId: string,
   categories: ExpenseCategory[],
+  receiptImagePath?: string,
 ): Promise<ExecutionResult> {
   const amount = Number(args.amount);
   if (!amount || amount <= 0) {
@@ -75,6 +77,7 @@ async function executeSaveExpense(
     currencyOriginal: currency,
     description,
     expenseDate,
+    receiptImagePath,
   });
 
   const displayCat = category
