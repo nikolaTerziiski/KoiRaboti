@@ -17,6 +17,11 @@ export type RegisterActionState = {
   message: string | null;
 };
 
+export type OnboardingActionState = {
+  status: "idle" | "success" | "error";
+  message: string | null;
+};
+
 export async function getSessionMode(): Promise<SessionMode> {
   const cookieStore = await cookies();
 
@@ -89,23 +94,10 @@ export async function registerAction(
   _previousState: RegisterActionState,
   formData: FormData,
 ): Promise<RegisterActionState> {
-  const restaurantName = String(formData.get("restaurantName") ?? "").trim();
-  const adminFullName = String(formData.get("adminFullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
-  const confirmPassword = String(formData.get("confirmPassword") ?? "").trim();
-  const defaultExpenseRaw = String(formData.get("defaultDailyExpense") ?? "").trim();
 
-  if (password !== confirmPassword) {
-    return {
-      status: "error",
-      messageKey: "passwordMismatch",
-      message: "Passwords do not match.",
-    };
-  }
-
-  const defaultDailyExpense = Number(defaultExpenseRaw);
-  if (!restaurantName || !adminFullName || !email || !password) {
+  if (!email || !password) {
     return {
       status: "error",
       messageKey: "msgError",
@@ -113,11 +105,11 @@ export async function registerAction(
     };
   }
 
-  if (!Number.isFinite(defaultDailyExpense) || defaultDailyExpense < 0) {
+  if (password.length < 6) {
     return {
       status: "error",
       messageKey: "msgError",
-      message: "Default daily expense must be a valid positive number.",
+      message: "Password must be at least 6 characters.",
     };
   }
 
@@ -130,31 +122,68 @@ export async function registerAction(
     };
   }
 
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  const { error: signUpError } = await supabase.auth.signUp({
     email,
     password,
   });
 
-  if (signUpError || !signUpData.user) {
+  if (signUpError) {
     return {
       status: "error",
       messageKey: "msgError",
-      message: signUpError?.message ?? "Sign-up failed.",
+      message: signUpError.message,
+    };
+  }
+
+  // After signup, user is auto-logged in by Supabase.
+  // Redirect to onboarding to collect business details.
+  redirect("/onboarding");
+}
+
+export async function onboardingAction(
+  _previousState: OnboardingActionState,
+  formData: FormData,
+): Promise<OnboardingActionState> {
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const businessName = String(formData.get("businessName") ?? "").trim();
+
+  if (!fullName || !businessName) {
+    return {
+      status: "error",
+      message: "All fields are required.",
+    };
+  }
+
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) {
+    return {
+      status: "error",
+      message: "Connection unavailable.",
+    };
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Not authenticated.",
     };
   }
 
   const { error: rpcError } = await supabase.rpc("register_restaurant", {
-    p_user_id: signUpData.user.id,
-    p_user_email: signUpData.user.email ?? email,
-    p_restaurant_name: restaurantName,
-    p_admin_full_name: adminFullName,
-    p_default_daily_expense: defaultDailyExpense,
+    p_user_id: user.id,
+    p_user_email: user.email ?? "",
+    p_restaurant_name: businessName,
+    p_admin_full_name: fullName,
+    p_default_daily_expense: 409.0335, // 800 BGN default
   });
 
   if (rpcError) {
     return {
       status: "error",
-      messageKey: "msgError",
       message: rpcError.message,
     };
   }

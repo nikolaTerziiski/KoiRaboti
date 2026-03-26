@@ -57,7 +57,7 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
         <LocaleSwitcher />
       </div>
       <div className="grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
-        <Card className="bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground">
+        <Card className="hidden bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground sm:block">
           <CardHeader>
             <CardTitle className="text-3xl">{t.login.title}</CardTitle>
             <CardDescription className="max-w-sm text-primary-foreground/80">

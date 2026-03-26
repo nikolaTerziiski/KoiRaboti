@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LocaleSwitcher } from "@/components/ui/locale-switcher";
 import { useLocale } from "@/lib/i18n/context";
-import { DEFAULT_MANUAL_EXPENSE_EUR, formatBgnCurrencyFromEur } from "@/lib/format";
 import type { RegisterActionState } from "@/actions/auth";
 import { registerAction } from "@/actions/auth";
 
@@ -23,11 +22,6 @@ const initialRegisterActionState: RegisterActionState = {
   messageKey: null,
   message: null,
 };
-
-function toNumber(value: string) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
-}
 
 type RegisterContentProps = {
   hasSupabase: boolean;
@@ -39,12 +33,7 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
     registerAction,
     initialRegisterActionState,
   );
-  const [defaultExpense, setDefaultExpense] = useState(
-    String(DEFAULT_MANUAL_EXPENSE_EUR),
-  );
 
-  // Show the translated message for known client-side errors (e.g. password mismatch),
-  // but keep the raw server message for generic live-data failures.
   const errorMessage =
     actionState.messageKey === "passwordMismatch"
       ? t.register.passwordMismatch
@@ -64,7 +53,7 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
         <CardContent>
           {!hasSupabase ? (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
                 {locale === "bg"
                   ? "Регистрацията е временно недостъпна, докато приложението не бъде конфигурирано."
                   : "Registration is temporarily unavailable until the app is configured."}
@@ -83,24 +72,6 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
             <>
               <form action={formAction} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="restaurantName">{t.register.restaurantName}</Label>
-                  <Input
-                    id="restaurantName"
-                    name="restaurantName"
-                    required
-                    autoComplete="organization"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="adminFullName">{t.register.adminFullName}</Label>
-                  <Input
-                    id="adminFullName"
-                    name="adminFullName"
-                    required
-                    autoComplete="name"
-                  />
-                </div>
-                <div className="space-y-2">
                   <Label htmlFor="email">{t.register.email}</Label>
                   <Input
                     id="email"
@@ -117,36 +88,11 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
                     name="password"
                     type="password"
                     required
+                    minLength={6}
                     autoComplete="new-password"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">{t.register.confirmPassword}</Label>
-                  <Input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    required
-                    autoComplete="new-password"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="defaultDailyExpense">
-                    {t.register.defaultExpenseEur}
-                  </Label>
-                  <Input
-                    id="defaultDailyExpense"
-                    name="defaultDailyExpense"
-                    inputMode="decimal"
-                    value={defaultExpense}
-                    onChange={(e) => setDefaultExpense(e.target.value)}
-                  />
                   <p className="text-xs text-muted-foreground">
-                    {t.register.bgnView}{" "}
-                    {formatBgnCurrencyFromEur(toNumber(defaultExpense))}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t.register.defaultExpenseDesc}
+                    {locale === "bg" ? "Минимум 6 символа" : "At least 6 characters"}
                   </p>
                 </div>
 
@@ -154,8 +100,8 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
                   <div
                     className={
                       actionState.status === "success"
-                        ? "rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
-                        : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                        ? "rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
+                        : "rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
                     }
                   >
                     {errorMessage}

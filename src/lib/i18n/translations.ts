@@ -54,7 +54,7 @@ const translations = {
         "Supabase keys are optional for first run. Any email and password will open demo mode.",
       redirectNote:
         "The app redirects to `/today` after sign-in and exposes the rest of the internal tools from the bottom navigation.",
-      noAccount: "New restaurant?",
+      noAccount: "No account yet?",
       register: "Create account",
       highlights: {
         attendance: {
@@ -82,8 +82,8 @@ const translations = {
       continueDemo: "Continue in demo mode",
     },
     register: {
-      title: "Register your restaurant",
-      subtitle: "Create an account to start managing your team.",
+      title: "Create account",
+      subtitle: "Get started in seconds.",
       restaurantName: "Restaurant name",
       adminFullName: "Your full name",
       email: "Email",
@@ -288,7 +288,7 @@ const translations = {
         "Supabase ключовете са незадължителни. Всеки имейл и парола отварят демо режим.",
       redirectNote:
         "Приложението пренасочва към `/today` след вход и показва останалите инструменти от долната навигация.",
-      noAccount: "Нов ресторант?",
+      noAccount: "Нямаш акаунт?",
       register: "Създай акаунт",
       highlights: {
         attendance: {
@@ -318,8 +318,8 @@ const translations = {
       continueDemo: "Продължи в демо режим",
     },
     register: {
-      title: "Регистрирай ресторанта си",
-      subtitle: "Създай акаунт, за да започнеш да управляваш екипа си.",
+      title: "Създай акаунт",
+      subtitle: "Започни за секунди.",
       restaurantName: "Име на ресторанта",
       adminFullName: "Твоето пълно Име",
       email: "Имейл",
