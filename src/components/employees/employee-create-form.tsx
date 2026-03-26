@@ -183,7 +183,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           ) : null}
 
           {dataMode === "demo" ? (
-            <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
               {labels.demoNote}
             </div>
           ) : null}

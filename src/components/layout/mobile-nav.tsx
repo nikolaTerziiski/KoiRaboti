@@ -21,7 +21,7 @@ export function MobileNav() {
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">
-      <nav className="pointer-events-auto flex w-full max-w-md items-center justify-between rounded-[1.75rem] border border-border/90 bg-card/95 px-3 py-2 shadow-[0_18px_45px_-24px_rgba(14,44,19,0.45)] backdrop-blur sm:max-w-3xl">
+      <nav className="pointer-events-auto flex w-full max-w-md items-center justify-between rounded-2xl border border-border bg-card/95 px-3 py-2 shadow-md backdrop-blur sm:max-w-3xl">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -31,7 +31,7 @@ export function MobileNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl px-2 py-2 text-xs font-medium transition-colors",
+                "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs font-medium transition-colors",
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground",

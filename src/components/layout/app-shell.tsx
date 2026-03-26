@@ -52,15 +52,15 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
   return (
     <div className="min-h-screen">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-4 pb-28 pt-5 sm:max-w-3xl sm:px-6">
-        <header className="rounded-[2rem] border border-border/80 bg-card/90 p-4 shadow-[0_18px_60px_-26px_rgba(15,55,24,0.38)] backdrop-blur">
+        <header className="rounded-2xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-3">
               <Link href="/today" className="inline-flex items-center gap-2">
-                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/12 text-primary">
+                <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Leaf className="size-5" />
                 </div>
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-primary">
                     KoiRaboti
                   </p>
                   <p className="text-sm text-muted-foreground">{t.shell.subtitle}</p>

@@ -8,7 +8,7 @@ const SelectField = React.forwardRef<
   <select
     ref={ref}
     className={cn(
-      "flex h-11 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+      "flex h-11 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
       className,
     )}
     {...props}

@@ -1,28 +1,38 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6fbf5;
-  --foreground: #15311d;
+  /* Neutral foundation */
+  --background: #fafafa;
+  --foreground: #0f1419;
   --card: #ffffff;
-  --card-foreground: #16311e;
+  --card-foreground: #0f1419;
   --popover: #ffffff;
-  --popover-foreground: #16311e;
-  --primary: #1f8f4c;
-  --primary-foreground: #f7fff9;
-  --secondary: #e5f4e8;
-  --secondary-foreground: #1e4d2f;
-  --muted: #edf6ef;
-  --muted-foreground: #567261;
-  --accent: #d9f1df;
-  --accent-foreground: #154526;
-  --destructive: #b9383e;
-  --destructive-foreground: #fff7f7;
-  --border: #cde4d2;
+  --popover-foreground: #0f1419;
+
+  /* Green accent — used sparingly for CTA, active states, success */
+  --primary: #16a34a;
+  --primary-foreground: #ffffff;
+
+  /* Neutral secondary/muted */
+  --secondary: #f1f5f9;
+  --secondary-foreground: #1e293b;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+
+  /* Semantic colors */
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #16a34a;
+  --warning: #d97706;
+
+  /* Neutral borders and inputs */
+  --border: #e2e8f0;
   --input: #ffffff;
-  --ring: #48a768;
-  --success: #2f9c5a;
-  --warning: #c98a1f;
-  --radius: 1.25rem;
+  --ring: #16a34a;
+
+  --radius: 0.75rem;
 }
 
 @theme inline {
@@ -47,12 +57,10 @@
   --color-ring: var(--ring);
   --color-success: var(--success);
   --color-warning: var(--warning);
-  --font-sans: "Trebuchet MS", "Segoe UI", sans-serif;
-  --font-mono: "Consolas", "Courier New", monospace;
-  --radius-sm: calc(var(--radius) - 0.5rem);
-  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 0.25rem);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
@@ -66,10 +74,6 @@
 
   body {
     @apply min-h-screen bg-background text-foreground antialiased;
-    background-image:
-      radial-gradient(circle at top, rgba(31, 143, 76, 0.18), transparent 28%),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.8), rgba(246, 251, 245, 1));
-    font-family: var(--font-sans);
   }
 
   button,

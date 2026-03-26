@@ -204,9 +204,9 @@ export function ReportsPageClient({
           <p className="text-sm text-muted-foreground">
             {labels.bgnRate} {formatExchangeRateLabel()}.
           </p>
-          <div className="overflow-x-auto rounded-3xl border border-border/70 bg-card">
+          <div className="overflow-x-auto rounded-2xl border border-border bg-card">
             <table className="min-w-full text-sm">
-              <thead className="bg-secondary/35 text-left">
+              <thead className="bg-muted text-left">
                 <tr>
                   <th className="px-3 py-3 font-medium">{labels.date}</th>
                   <th className="px-3 py-3 font-medium">{labels.turnover}</th>
@@ -233,7 +233,7 @@ export function ReportsPageClient({
                   const isEditing = draft?.reportId === report.id;
 
                   return (
-                    <tr key={report.id} className="border-t border-border/70 align-top">
+                    <tr key={report.id} className="border-t border-border align-top">
                       <td className="px-3 py-3 font-medium">
                         {formatDateLabel(report.workDate, locale)}
                       </td>
@@ -365,7 +365,7 @@ export function ReportsPageClient({
                 {draft.attendanceEntries.map((entry) => (
                   <div
                     key={entry.employeeId}
-                    className="rounded-2xl border border-border/70 bg-secondary/25 p-3"
+                    className="rounded-2xl border border-border bg-muted p-3"
                   >
                     <p className="font-medium">{entry.employeeName}</p>
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -447,7 +447,7 @@ export function ReportsPageClient({
               ) : null}
 
               {dataMode === "demo" ? (
-                <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
                   {labels.demoNote}
                 </div>
               ) : null}

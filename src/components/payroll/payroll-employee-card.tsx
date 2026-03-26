@@ -116,13 +116,13 @@ export function PayrollEmployeeCard({
         : null;
 
   const cardClass = row.isPaid
-    ? "border-success/30 bg-success/5"
+    ? "border-green-200 bg-green-50"
     : row.employee.role === "kitchen"
-      ? "border-purple-500/20 bg-purple-500/5"
-      : "border-green-500/20 bg-green-500/5";
+      ? "border-purple-200 bg-purple-50"
+      : "border-green-200 bg-green-50";
 
   const toggleButtonClass = row.isPaid
-    ? "border-success/30 bg-success/10 text-success hover:bg-success/15"
+    ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
     : "";
 
   return (
@@ -132,7 +132,7 @@ export function PayrollEmployeeCard({
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate font-semibold">{row.employee.fullName}</p>
             {row.isPaid ? (
-              <Badge className="border-success/20 bg-success/15 text-success" variant="outline">
+              <Badge className="border-green-200 bg-green-100 text-green-700" variant="outline">
                 {labels.paidBadge}
               </Badge>
             ) : null}
@@ -146,7 +146,7 @@ export function PayrollEmployeeCard({
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
             {labels.earned}
           </p>
           <MoneyDisplay amount={row.totalAmount} compact align="end" />
@@ -155,7 +155,7 @@ export function PayrollEmployeeCard({
               {labels.advances}: - {formatCurrency(row.advancesTotal)}
             </p>
           ) : null}
-          <p className="mt-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+          <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
             {labels.netToPay}
           </p>
           <MoneyDisplay
@@ -206,7 +206,7 @@ export function PayrollEmployeeCard({
       </div>
 
       {advanceOpen ? (
-        <form action={advanceFormAction} className="mt-3 space-y-3 rounded-2xl bg-card/80 p-3">
+        <form action={advanceFormAction} className="mt-3 space-y-3 rounded-2xl bg-card p-3">
           <input type="hidden" name="employeeId" value={row.employee.id} />
           <input type="hidden" name="payrollMonth" value={payrollMonth} />
           <input type="hidden" name="payrollPeriod" value={payrollPeriod} />
@@ -275,7 +275,7 @@ export function PayrollEmployeeCard({
       ) : null}
 
       {dataMode === "demo" ? (
-        <div className="mt-3 rounded-xl border border-border bg-secondary/35 px-3 py-2 text-xs text-muted-foreground">
+        <div className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
           {labels.demoNote}
         </div>
       ) : null}

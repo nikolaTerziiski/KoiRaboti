@@ -58,7 +58,7 @@ export function EmployeesPageClient({
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.activeTeam}
             </p>
             <p className="mt-2 text-2xl font-semibold">{activeEmployees.length}</p>
@@ -66,7 +66,7 @@ export function EmployeesPageClient({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.averageRate}
             </p>
             <div className="mt-2">
@@ -84,8 +84,8 @@ export function EmployeesPageClient({
           <CardDescription>{labels.rosterDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="rounded-2xl bg-secondary/35 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <div className="rounded-2xl bg-muted p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.highestRate}
             </p>
             <div className="mt-2">

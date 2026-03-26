@@ -116,11 +116,11 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
 
   const roleBadgeClass =
     employee.role === "kitchen"
-      ? "border-purple-500/30 bg-purple-500/10 text-purple-700"
-      : "border-green-500/30 bg-green-500/10 text-green-700";
+      ? "border-purple-200 bg-purple-100 text-purple-700"
+      : "border-green-200 bg-green-100 text-green-700";
 
   return (
-    <div className="rounded-3xl border border-border/70 bg-secondary/25 p-4">
+    <div className="rounded-2xl border border-border bg-muted p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">

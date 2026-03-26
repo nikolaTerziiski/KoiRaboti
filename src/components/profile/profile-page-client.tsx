@@ -142,8 +142,8 @@ export function ProfilePageClient({
               ))}
             </SelectField>
           </div>
-          <div className="rounded-2xl bg-secondary/35 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <div className="rounded-2xl bg-muted p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {monthLabel}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
@@ -194,9 +194,9 @@ export function ProfilePageClient({
         </CardHeader>
         <CardContent className="space-y-4">
           {profile ? (
-            <div className="space-y-2 rounded-2xl border border-border/70 bg-secondary/25 p-4">
+            <div className="space-y-2 rounded-2xl border border-border bg-muted p-4">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {profile.fullName}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
@@ -208,7 +208,7 @@ export function ProfilePageClient({
               </p>
             </div>
           ) : (
-            <div className="rounded-2xl border border-border/70 bg-secondary/25 p-4 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground">
               {labels.noProfile}
             </div>
           )}

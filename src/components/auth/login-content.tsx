@@ -71,7 +71,7 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
               return (
                 <div
                   key={item.key}
-                  className="rounded-3xl border border-white/12 bg-white/10 p-4"
+                  className="rounded-2xl border border-white/12 bg-white/10 p-4"
                 >
                   <div className="flex items-start gap-3">
                     <div className="flex size-10 items-center justify-center rounded-2xl bg-white/12">
@@ -97,7 +97,7 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             <LoginForm action={action} usesSupabase={usesSupabase} />
-            <div className="rounded-2xl bg-secondary/35 p-4 text-sm text-muted-foreground">
+            <div className="rounded-2xl bg-muted p-4 text-sm text-muted-foreground">
               {t.login.redirectNote}
             </div>
             <p className="text-center text-sm text-muted-foreground">

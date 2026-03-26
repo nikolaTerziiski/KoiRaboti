@@ -152,16 +152,16 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
     const entries = attendanceDrafts.filter((entry) => entry.employee.role === role);
     const sectionClass =
       role === "kitchen"
-        ? "border-purple-500/20 bg-purple-500/5"
-        : "border-green-500/20 bg-green-500/5";
+        ? "border-purple-200 bg-purple-50"
+        : "border-green-200 bg-green-50";
     const activeClass =
       role === "kitchen"
-        ? "border-purple-500/30 bg-purple-600 text-white shadow-[0_18px_35px_-20px_rgba(124,58,237,0.45)]"
-        : "border-green-500/30 bg-green-500 text-white shadow-[0_18px_35px_-20px_rgba(34,197,94,0.45)]";
+        ? "border-purple-300 bg-purple-600 text-white shadow-md"
+        : "border-green-300 bg-green-600 text-white shadow-md";
     const badgeClass =
       role === "kitchen"
-        ? "border-purple-500/20 bg-purple-500/10 text-purple-700"
-        : "border-green-500/20 bg-green-500/10 text-green-700";
+        ? "border-purple-200 bg-purple-100 text-purple-700"
+        : "border-green-200 bg-green-100 text-green-700";
 
     return {
       role,
@@ -267,7 +267,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               <CardContent className="p-4">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {card.label}
                     </p>
                     <div className="mt-2">
@@ -281,7 +281,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                       )}
                     </div>
                   </div>
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-secondary text-secondary-foreground">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                     <Icon className="size-4" />
                   </div>
                 </div>
@@ -384,7 +384,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                   notes: event.target.value,
                 }))
               }
-              className="min-h-24 w-full rounded-xl border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
+              className="min-h-24 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
               placeholder={t.today.notesPlaceholder}
             />
           </div>
@@ -397,12 +397,12 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
           <CardDescription>{labels.attendanceDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             {labels.roleHint}
           </div>
           <div className="space-y-4">
             {roleSections.map((section) => (
-              <div key={section.role} className={cn("rounded-3xl border p-4", section.sectionClass)}>
+              <div key={section.role} className={cn("rounded-2xl border p-4", section.sectionClass)}>
                 <div className="flex items-center justify-between gap-3 pb-3">
                   <h3 className="text-lg font-semibold">{section.title}</h3>
                   <Badge className={section.badgeClass} variant="outline">
@@ -426,8 +426,8 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                         }
                       }}
                       className={cn(
-                        "rounded-3xl border p-4 transition-colors",
-                        entry.isPresent ? section.activeClass : "border-border/70 bg-secondary/25",
+                        "rounded-xl border p-4 transition-colors",
+                        entry.isPresent ? section.activeClass : "border-border bg-muted",
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -508,27 +508,27 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
             </div>
           ) : null}
           {dataMode === "demo" ? (
-            <div className="rounded-2xl border border-border bg-secondary/35 px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
               {t.today.demoSaveNote}
             </div>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-secondary/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="rounded-2xl bg-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t.today.cardShare}
               </p>
               <div className="mt-2">
                 <MoneyDisplay amount={toNumber(reportForm.cardAmount)} />
               </div>
             </div>
-            <div className="rounded-2xl bg-secondary/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="rounded-2xl bg-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {labels.saveSummary}
               </p>
               <p className="mt-2 text-xl font-semibold">{totalPayUnits.toFixed(1)}</p>
             </div>
-            <div className="rounded-2xl bg-secondary/40 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="rounded-2xl bg-muted p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 {t.today.manualExpense}
               </p>
               <div className="mt-2">

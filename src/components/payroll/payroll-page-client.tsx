@@ -109,8 +109,8 @@ export function PayrollPageClient({
         : "border-green-500/20 bg-green-500/5";
     const badgeClass =
       role === "kitchen"
-        ? "border-purple-500/20 bg-purple-500/10 text-purple-700"
-        : "border-green-500/20 bg-green-500/10 text-green-700";
+        ? "border-purple-200 bg-purple-100 text-purple-700"
+        : "border-green-200 bg-green-100 text-green-700";
 
     return {
       role,
@@ -161,8 +161,8 @@ export function PayrollPageClient({
               {labels.secondHalf}
             </Button>
           </div>
-          <div className="rounded-2xl bg-secondary/35 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <div className="rounded-2xl bg-muted p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.activeRange}
             </p>
             <p className="mt-2 text-lg font-semibold">
@@ -181,7 +181,7 @@ export function PayrollPageClient({
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.totalPayroll}
             </p>
             <div className="mt-2">
@@ -191,7 +191,7 @@ export function PayrollPageClient({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.staffPaid}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.employeeCount}</p>
@@ -199,7 +199,7 @@ export function PayrollPageClient({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.shiftsCount}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.totalUnits.toFixed(1)}</p>
@@ -207,7 +207,7 @@ export function PayrollPageClient({
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {labels.overrides}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.overrideDays}</p>
@@ -222,13 +222,13 @@ export function PayrollPageClient({
         </CardHeader>
         <CardContent className="space-y-4">
           {payrollRows.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
               {labels.noAttendance}
             </div>
           ) : null}
 
           {roleSections.map((section) => (
-            <div key={section.role} className={cn("rounded-3xl border p-4", section.sectionClass)}>
+            <div key={section.role} className={cn("rounded-2xl border p-4", section.sectionClass)}>
               <div className="flex items-center justify-between gap-3 pb-3">
                 <h3 className="text-lg font-semibold">{section.title}</h3>
                 <Badge className={section.badgeClass} variant="outline">
