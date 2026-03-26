@@ -234,7 +234,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
         )}
       />
 
-      <Card className="bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground">
+      <Card className="bg-gradient-to-br from-primary to-green-800 text-primary-foreground">
         <CardHeader>
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -244,13 +244,13 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               </CardDescription>
             </div>
             {dataMode === "demo" ? (
-              <Badge className="bg-white/14 text-white" variant="default">
+              <Badge className="bg-white/15 text-white" variant="default">
                 {t.today.demoDataset}
               </Badge>
             ) : null}
           </div>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm text-primary-foreground/85">
+        <CardContent className="space-y-2 text-sm text-primary-foreground/80">
           <p>{labels.roleHint}</p>
           <p>
             {t.today.currency} {formatExchangeRateLabel()}.

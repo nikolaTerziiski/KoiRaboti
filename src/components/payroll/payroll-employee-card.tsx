@@ -146,7 +146,7 @@ export function PayrollEmployeeCard({
         </div>
 
         <div className="shrink-0 text-right">
-          <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">
             {labels.earned}
           </p>
           <MoneyDisplay amount={row.totalAmount} compact align="end" />
@@ -155,7 +155,7 @@ export function PayrollEmployeeCard({
               {labels.advances}: - {formatCurrency(row.advancesTotal)}
             </p>
           ) : null}
-          <p className="mt-2 text-[11px] uppercase tracking-wide text-muted-foreground">
+          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
             {labels.netToPay}
           </p>
           <MoneyDisplay
@@ -249,7 +249,7 @@ export function PayrollEmployeeCard({
           {advanceFeedback ? (
             <div
               className={cn(
-                "rounded-xl px-3 py-2 text-xs",
+                "rounded-lg px-3 py-2 text-xs",
                 advanceState.status === "error"
                   ? "border border-destructive/20 bg-destructive/10 text-destructive"
                   : "border border-success/20 bg-success/10 text-success",
@@ -264,7 +264,7 @@ export function PayrollEmployeeCard({
       {paymentFeedback ? (
         <div
           className={cn(
-            "mt-3 rounded-xl px-3 py-2 text-xs",
+            "mt-3 rounded-lg px-3 py-2 text-xs",
             paymentState.status === "error"
               ? "border border-destructive/20 bg-destructive/10 text-destructive"
               : "border border-success/20 bg-success/10 text-success",

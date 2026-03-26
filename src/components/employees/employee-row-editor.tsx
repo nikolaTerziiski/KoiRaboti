@@ -187,7 +187,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
       </div>
 
       {toggleState.status === "error" ? (
-        <div className="mt-3 rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="mt-3 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {toggleFeedback}
         </div>
       ) : null}
@@ -255,8 +255,8 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
             <div
               className={
                 updateState.status === "success"
-                  ? "rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
-                  : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  ? "rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
+                  : "rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               }
             >
               {updateFeedback}

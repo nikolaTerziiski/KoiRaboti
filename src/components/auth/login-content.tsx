@@ -57,7 +57,7 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
         <LocaleSwitcher />
       </div>
       <div className="grid gap-4 sm:grid-cols-[1.1fr_0.9fr]">
-        <Card className="hidden bg-gradient-to-br from-primary to-[#176b38] text-primary-foreground sm:block">
+        <Card className="hidden bg-gradient-to-br from-primary to-green-800 text-primary-foreground sm:block">
           <CardHeader>
             <CardTitle className="text-3xl">{t.login.title}</CardTitle>
             <CardDescription className="max-w-sm text-primary-foreground/80">
@@ -71,10 +71,10 @@ export function LoginContent({ action, usesSupabase }: LoginContentProps) {
               return (
                 <div
                   key={item.key}
-                  className="rounded-2xl border border-white/12 bg-white/10 p-4"
+                  className="rounded-2xl border border-white/15 bg-white/10 p-4"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 items-center justify-center rounded-2xl bg-white/12">
+                    <div className="flex size-10 items-center justify-center rounded-2xl bg-white/15">
                       <Icon className="size-4" />
                     </div>
                     <div>

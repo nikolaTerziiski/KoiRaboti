@@ -174,8 +174,8 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             <div
               className={
                 actionState.status === "success"
-                  ? "rounded-2xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
-                  : "rounded-2xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+                  ? "rounded-lg border border-success/20 bg-success/10 px-4 py-3 text-sm text-success"
+                  : "rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
               }
             >
               {feedbackMessage}
@@ -183,7 +183,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           ) : null}
 
           {dataMode === "demo" ? (
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
+            <div className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
               {labels.demoNote}
             </div>
           ) : null}
