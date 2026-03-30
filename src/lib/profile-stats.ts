@@ -5,7 +5,7 @@ import {
   parseISO,
   startOfMonth,
 } from "date-fns";
-import type { DailyReportWithAttendance, Employee } from "./types.ts";
+import type { DailyReportWithAttendance } from "./types.ts";
 import { resolveAttendanceAmount } from "./payroll.ts";
 
 export type MonthStats = {
@@ -63,7 +63,7 @@ export function calculateMonthStats(
 
 export function buildMonthlyStats(
   reports: DailyReportWithAttendance[],
-  employeesOrReferenceDate?: Employee[] | Date,
+  employeesOrReferenceDate?: { id: string }[] | Date,
   referenceDate = new Date(),
 ): MonthStats {
   const effectiveReferenceDate =

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator, CircleDollarSign, Save, Users } from "lucide-react";
 import type { TodayActionState } from "@/actions/today";
@@ -111,33 +111,6 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
     }
   }, [actionState, router]);
 
-  const labels = useMemo(
-    () => ({
-      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
-      service: locale === "bg" ? "Сервиз" : "Service",
-      roleHint:
-        locale === "bg"
-          ? "Сервиз = зелено. Кухня = лилаво. Докосни картата, за да отбележиш служителя като на работа."
-          : "Service is green. Kitchen is purple. Tap the card to mark someone as at work.",
-      tapHint:
-        locale === "bg"
-          ? "Докосни картата, за да го включиш или изключиш от днешния ден."
-          : "Tap the card to toggle this employee for today.",
-      atWork: locale === "bg" ? "На работа" : "At work",
-      notSelected: locale === "bg" ? "Не е избран" : "Not selected",
-      employeesCount: locale === "bg" ? "служители" : "employees",
-      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
-      saving: locale === "bg" ? "Запазване..." : "Saving...",
-      attendanceDesc:
-        locale === "bg"
-          ? "Карти по роли с единствен контрол за броя смени. Всичко останало се пази в дневния отчет."
-          : "Role-grouped cards with a single shift-count selector. Everything else stays in the daily report.",
-      noEmployees: locale === "bg" ? "Няма служители в тази роля." : "No employees in this role.",
-      saveSummary: locale === "bg" ? "Брой смени" : "Number of shifts",
-    }),
-    [locale],
-  );
-
   const checkedInCount = attendanceDrafts.filter((entry) => entry.isPresent).length;
   const totalPayUnits = attendanceDrafts.reduce(
     (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
@@ -165,7 +138,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
 
     return {
       role,
-      title: role === "kitchen" ? labels.kitchen : labels.service,
+      title: role === "kitchen" ? t.common.kitchen : t.common.service,
       entries,
       sectionClass,
       activeClass,
@@ -186,8 +159,8 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
     },
     {
       label: t.today.checkedIn,
-      value: `${checkedInCount} ${labels.employeesCount}`,
-      helper: `${totalPayUnits.toFixed(1)} ${labels.shiftsCount.toLowerCase()}`,
+      value: `${checkedInCount} ${t.today.employeesCount}`,
+      helper: `${totalPayUnits.toFixed(1)} ${t.payroll.shiftsCount.toLowerCase()}`,
       icon: Users,
     },
     {
@@ -251,7 +224,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
           </div>
         </CardHeader>
         <CardContent className="space-y-2 text-sm text-primary-foreground/80">
-          <p>{labels.roleHint}</p>
+          <p>{t.today.roleHint}</p>
           <p>
             {t.today.currency} {formatExchangeRateLabel()}.
           </p>
@@ -303,6 +276,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               id="turnover"
               name="turnover"
               inputMode="decimal"
+              min="0"
               value={reportForm.turnover}
               onChange={(event) =>
                 setReportForm((current) => ({
@@ -321,6 +295,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               id="profit"
               name="profit"
               inputMode="decimal"
+              min="0"
               value={reportForm.profit}
               onChange={(event) =>
                 setReportForm((current) => ({
@@ -339,6 +314,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               id="cardAmount"
               name="cardAmount"
               inputMode="decimal"
+              min="0"
               value={reportForm.cardAmount}
               onChange={(event) =>
                 setReportForm((current) => ({
@@ -357,6 +333,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               id="manualExpense"
               name="manualExpense"
               inputMode="decimal"
+              min="0"
               value={reportForm.manualExpense}
               onChange={(event) =>
                 setReportForm((current) => ({
@@ -394,11 +371,11 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
       <Card>
         <CardHeader>
           <CardTitle>{t.today.attendance}</CardTitle>
-          <CardDescription>{labels.attendanceDesc}</CardDescription>
+          <CardDescription>{t.today.attendanceDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            {labels.roleHint}
+            {t.today.roleHint}
           </div>
           <div className="space-y-4">
             {roleSections.map((section) => (
@@ -411,7 +388,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                 </div>
                 <div className="space-y-3">
                   {section.entries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{labels.noEmployees}</p>
+                    <p className="text-sm text-muted-foreground">{t.today.noEmployeesInRole}</p>
                   ) : null}
                   {section.entries.map((entry) => (
                     <div
@@ -441,7 +418,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                               entry.isPresent ? "text-white/80" : "text-muted-foreground",
                             )}
                           >
-                            {entry.isPresent ? labels.atWork : labels.notSelected}
+                            {entry.isPresent ? t.today.atWork : t.today.notSelected}
                           </p>
                         </div>
                       </div>
@@ -455,7 +432,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                             htmlFor={`payUnits-${entry.employee.id}`}
                             className={cn("text-sm", "text-white/80")}
                           >
-                            {labels.shiftsCount}
+                            {t.payroll.shiftsCount}
                           </Label>
                           <SelectField
                             id={`payUnits-${entry.employee.id}`}
@@ -474,7 +451,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                           </SelectField>
                         </div>
                       ) : (
-                        <p className="mt-3 text-sm text-muted-foreground">{labels.tapHint}</p>
+                        <p className="mt-3 text-sm text-muted-foreground">{t.today.tapHint}</p>
                       )}
                     </div>
                   ))}
@@ -523,7 +500,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
             </div>
             <div className="rounded-2xl bg-muted p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {labels.saveSummary}
+                {t.payroll.shiftsCount}
               </p>
               <p className="mt-2 text-xl font-semibold">{totalPayUnits.toFixed(1)}</p>
             </div>
@@ -544,7 +521,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
             aria-busy={isPending}
           >
             <Save className="size-4" />
-            {isPending ? labels.saving : t.today.saveToday}
+            {isPending ? t.common.saving : t.today.saveToday}
           </Button>
         </CardContent>
       </Card>

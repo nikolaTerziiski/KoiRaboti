@@ -20,33 +20,15 @@ type AppShellProps = {
 };
 
 export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellProps) {
-  const { locale, t } = useLocale();
-  const page =
-    pageKey === "profile"
-      ? {
-          title: locale === "bg" ? "Профил" : "Profile",
-          description:
-            locale === "bg"
-              ? "Месечни статистики и разход за заплати."
-              : "Monthly statistics and labor cost summary.",
-        }
-      : t.pages[pageKey as keyof typeof t.pages];
+  const { t } = useLocale();
+  const page = t.pages[pageKey];
 
-  const sessionLabel =
-    sessionMode === "supabase"
-      ? locale === "bg"
-        ? "Активна сесия"
-        : "Active session"
-      : t.shell.sessionDemo;
+  const sessionLabel = sessionMode === "supabase" ? t.shell.sessionActive : t.shell.sessionDemo;
   const dataLabel =
     dataMode === "error"
-      ? locale === "bg"
-        ? "Данните не са достъпни"
-        : "Data unavailable"
+      ? t.shell.dataUnavailable
       : dataMode === "supabase"
-        ? locale === "bg"
-          ? "Реални данни"
-          : "Live data"
+        ? t.shell.dataLive
         : t.shell.dataDemo;
 
   return (

@@ -1,4 +1,5 @@
-﻿import { format } from "date-fns";
+﻿import type { Metadata } from "next";
+import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
@@ -8,6 +9,7 @@ import { DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Today — KoiRaboti" };
 
 export default async function TodayPage() {
   const [sessionMode, snapshot] = await Promise.all([

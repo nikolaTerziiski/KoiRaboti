@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { EmployeesPageClient } from "@/components/employees/employees-page-client";
@@ -6,6 +7,7 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Employees — KoiRaboti" };
 
 export default async function EmployeesPage() {
   const [sessionMode, snapshot] = await Promise.all([
