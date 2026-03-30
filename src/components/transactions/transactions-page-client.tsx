@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useDeferredValue, useState } from "react";
 import {
   Calendar,
@@ -8,6 +9,7 @@ import {
   Image as ImageIcon,
   MoreHorizontal,
   Pencil,
+  ReceiptText,
   Search,
   Trash2,
 } from "lucide-react";
@@ -50,6 +52,13 @@ type TransactionActionsProps = {
   editLabel: string;
   deleteLabel: string;
   onViewReceipt?: () => void;
+};
+
+type LedgerEmptyStateProps = {
+  title: string;
+  copy: string;
+  ctaLabel?: string;
+  ctaHref?: string;
 };
 
 const MOCK_RECEIPT_URL =
@@ -146,6 +155,33 @@ function TransactionActions({
   );
 }
 
+function LedgerEmptyState({
+  title,
+  copy,
+  ctaLabel,
+  ctaHref,
+}: LedgerEmptyStateProps) {
+  return (
+    <div className="mx-auto flex max-w-md flex-col items-center gap-4 text-center">
+      <div className="flex size-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+        <ReceiptText className="size-7" />
+      </div>
+      <div className="space-y-2">
+        <p className="text-base font-semibold text-slate-900 dark:text-white">{title}</p>
+        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{copy}</p>
+      </div>
+      {ctaLabel && ctaHref ? (
+        <Button
+          asChild
+          className="h-11 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+        >
+          <Link href={ctaHref}>{ctaLabel}</Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function TransactionsPageClient({
   reports,
   dataMode,
@@ -166,6 +202,9 @@ export function TransactionsPageClient({
     toDate,
   });
   const hasActiveDateFilters = Boolean(fromDate || toDate);
+  const hasBaseRows = rows.length > 0;
+  const showNoDataState = !isMockData && !hasBaseRows;
+  const showNoResultsState = hasBaseRows && visibleRows.length === 0;
 
   const copy =
     locale === "bg"
@@ -194,6 +233,10 @@ export function TransactionsPageClient({
           noResultsTitle: "Няма намерени транзакции",
           noResultsCopy:
             "Промени търсенето или филтрите по дата, за да видиш повече записи.",
+          emptyTitle: "Няма транзакции",
+          emptyCopy:
+            "Все още няма реални разходи в леджъра. Добави първия разход от дневния отчет.",
+          emptyCta: "Добави разход",
         }
       : {
           title: "Transactions",
@@ -220,6 +263,10 @@ export function TransactionsPageClient({
           noResultsTitle: "No transactions found",
           noResultsCopy:
             "Adjust your search or date filters to reveal more ledger entries.",
+          emptyTitle: "No transactions",
+          emptyCopy:
+            "There are no real expense rows in the ledger yet. Add your first expense from the daily report.",
+          emptyCta: "Add expense",
         };
 
   function exportCsv() {
@@ -367,7 +414,20 @@ export function TransactionsPageClient({
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRows.length === 0 ? (
+                  {showNoDataState ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-16 text-center">
+                        <LedgerEmptyState
+                          title={copy.emptyTitle}
+                          copy={copy.emptyCopy}
+                          ctaLabel={copy.emptyCta}
+                          ctaHref="/today?task=expenses"
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+
+                  {showNoResultsState ? (
                     <tr>
                       <td colSpan={5} className="px-6 py-16 text-center">
                         <div className="space-y-2">
@@ -439,7 +499,16 @@ export function TransactionsPageClient({
             </div>
 
             <div className="md:hidden">
-              {visibleRows.length === 0 ? (
+              {showNoDataState ? (
+                <div className="px-5 py-14 text-center">
+                  <LedgerEmptyState
+                    title={copy.emptyTitle}
+                    copy={copy.emptyCopy}
+                    ctaLabel={copy.emptyCta}
+                    ctaHref="/today?task=expenses"
+                  />
+                </div>
+              ) : showNoResultsState ? (
                 <div className="px-5 py-14 text-center">
                   <div className="space-y-2">
                     <p className="text-sm font-semibold text-slate-900 dark:text-white">

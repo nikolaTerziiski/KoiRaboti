@@ -31,7 +31,8 @@ type EmployeeRowEditorProps = {
 };
 
 function toNumber(value: string) {
-  const numericValue = Number(value);
+  const normalizedValue = value.replace(/,/g, ".").trim();
+  const numericValue = Number(normalizedValue);
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
@@ -83,21 +84,27 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
 
   const roleBadgeClass =
     employee.role === "kitchen"
-      ? "border-purple-200 bg-purple-100 text-purple-700"
-      : "border-green-200 bg-green-100 text-green-700";
+      ? "border-purple-200 bg-purple-100 text-purple-700 dark:border-purple-800 dark:bg-purple-900/40 dark:text-purple-300"
+      : "border-emerald-200 bg-emerald-100 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300";
+  const roleTintClassName =
+    employee.role === "kitchen"
+      ? "border-purple-100 bg-purple-50/50 dark:border-purple-900/50 dark:bg-purple-950/20"
+      : "border-emerald-100 bg-emerald-50/50 dark:border-emerald-900/50 dark:bg-emerald-950/20";
 
   return (
-    <div className="rounded-2xl border border-border bg-muted p-4">
+    <div className={`rounded-[1.75rem] border p-5 ${roleTintClassName}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="font-semibold">{employee.fullName}</p>
+            <p className="text-lg font-semibold text-slate-900 dark:text-white">
+              {employee.fullName}
+            </p>
             <Badge className={roleBadgeClass} variant="outline">
               {employee.role === "kitchen" ? t.common.kitchen : t.common.service}
             </Badge>
           </div>
           {employee.phoneNumber ? (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
               <Phone className="size-4" />
               <span>{employee.phoneNumber}</span>
             </div>
@@ -108,9 +115,9 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
         </Badge>
       </div>
 
-      <div className="mt-4 rounded-2xl bg-card px-3 py-3">
+      <div className="mt-4 rounded-2xl border border-slate-200/70 bg-white px-4 py-4 dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
             <Wallet className="size-4" />
             {t.employees.dailyRateEur}
           </div>
@@ -118,17 +125,17 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Button
           type="button"
           variant={isEditing ? "default" : "outline"}
-          className="flex-1"
+          className="h-11 rounded-2xl border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
           onClick={() => setIsEditing((current) => !current)}
         >
           <Pencil className="size-4" />
           {t.employees.editProfile}
         </Button>
-        <form action={toggleFormAction} className="flex-1">
+        <form action={toggleFormAction}>
           <input type="hidden" name="employeeId" value={employee.id} />
           <input
             type="hidden"
@@ -138,7 +145,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           <Button
             type="submit"
             variant="outline"
-            className="w-full"
+            className="h-11 w-full rounded-2xl border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900"
             disabled={isToggling || dataMode === "demo"}
             aria-busy={isToggling}
           >
@@ -160,7 +167,10 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
       ) : null}
 
       {isEditing ? (
-        <form action={updateFormAction} className="mt-4 space-y-3">
+        <form
+          action={updateFormAction}
+          className="mt-4 space-y-3 rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
+        >
           <input type="hidden" name="employeeId" value={employee.id} />
           <div className="space-y-2">
             <Label htmlFor={`employee-name-${employee.id}`}>{t.employees.name}</Label>
@@ -171,6 +181,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
               onChange={(event) =>
                 setDraft((current) => ({ ...current, fullName: event.target.value }))
               }
+              className="h-11 rounded-2xl"
             />
           </div>
           <div className="space-y-2">
@@ -185,6 +196,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
                   role: event.target.value === "kitchen" ? "kitchen" : "service",
                 }))
               }
+              className="h-11 rounded-2xl"
             >
               <option value="service">{t.common.service}</option>
               <option value="kitchen">{t.common.kitchen}</option>
@@ -201,6 +213,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
               onChange={(event) =>
                 setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
               }
+              className="h-11 rounded-2xl"
             />
           </div>
           <div className="space-y-2">
@@ -213,6 +226,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
               onChange={(event) =>
                 setDraft((current) => ({ ...current, dailyRate: event.target.value }))
               }
+              className="h-11 rounded-2xl"
             />
             <p className="text-xs text-muted-foreground">
               {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
@@ -231,7 +245,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           ) : null}
           <Button
             type="submit"
-            className="w-full"
+            className="h-11 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
             disabled={isUpdating || dataMode === "demo"}
             aria-busy={isUpdating}
           >

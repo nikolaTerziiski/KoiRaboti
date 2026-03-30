@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState, type ButtonHTMLAttributes } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
@@ -57,6 +57,7 @@ type TodayDashboardProps = {
   expenseCategories: ExpenseCategory[];
   initialReport: DailyReportWithAttendance;
   dataMode: SnapshotMode;
+  initialTask?: TaskKey | null;
 };
 
 type AttendanceDraft = {
@@ -66,9 +67,9 @@ type AttendanceDraft = {
   dailyRate: number;
 };
 
-type TaskKey = "finance" | "attendance" | "expenses";
+export type TaskKey = "finance" | "attendance" | "expenses";
 
-type TaskTileProps = {
+type TaskTileProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   title: string;
   description: string;
   completed: boolean;
@@ -167,16 +168,21 @@ function TaskTile({
   doneLabel,
   icon: Icon,
   accentClassName,
+  className,
+  type = "button",
+  ...props
 }: TaskTileProps) {
   return (
     <button
-      type="button"
+      type={type}
       className={cn(
         "flex h-full w-full flex-col items-start rounded-[1.75rem] border-2 p-6 text-left transition-all duration-300 hover:scale-[1.02]",
         completed
           ? "border-emerald-200 bg-emerald-50 shadow-sm ring-1 ring-emerald-500/20 dark:border-emerald-800/80 dark:bg-emerald-900/20"
           : "border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+        className,
       )}
+      {...props}
     >
       <div className={cn("flex size-16 items-center justify-center rounded-3xl", accentClassName)}>
         <Icon className="size-7" />
@@ -212,6 +218,7 @@ export function TodayDashboard({
   expenseCategories,
   initialReport,
   dataMode,
+  initialTask = null,
 }: TodayDashboardProps) {
   const router = useRouter();
   const { locale, t } = useLocale();
@@ -233,7 +240,7 @@ export function TodayDashboard({
   const [expenseDrafts, setExpenseDrafts] = useState<ExpenseEditorDraftItem[]>(
     buildExpenseDrafts(expenseCategories, initialReport),
   );
-  const [activeDialog, setActiveDialog] = useState<TaskKey | null>(null);
+  const [activeDialog, setActiveDialog] = useState<TaskKey | null>(initialTask || null);
   const [isFinishAttentionActive, setIsFinishAttentionActive] = useState(false);
   const [isFinanceDone, setIsFinanceDone] = useState(
     !initialReport.id.startsWith("report-"),

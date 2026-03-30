@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { TodayDashboard } from "@/components/today/today-dashboard";
+import { TodayDashboard, type TaskKey } from "@/components/today/today-dashboard";
 import { ErrorCard } from "@/components/ui/error-card";
 import { DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
@@ -11,7 +11,26 @@ import { getRestaurantSnapshot } from "@/lib/supabase/data";
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Today — KoiRaboti" };
 
-export default async function TodayPage() {
+type TodayPageSearchParams =
+  | Promise<Record<string, string | string[] | undefined>>
+  | Record<string, string | string[] | undefined>;
+
+type TodayPageProps = {
+  searchParams?: TodayPageSearchParams;
+};
+
+function normalizeInitialTask(
+  rawTask: string | string[] | undefined,
+): TaskKey | null {
+  const task = Array.isArray(rawTask) ? rawTask[0] : rawTask;
+
+  return task === "finance" || task === "attendance" || task === "expenses"
+    ? task
+    : null;
+}
+
+export default async function TodayPage({ searchParams }: TodayPageProps) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
   const [sessionMode, snapshot] = await Promise.all([
     getSessionMode(),
     getRestaurantSnapshot(),
@@ -26,6 +45,7 @@ export default async function TodayPage() {
     : snapshot.mode === "supabase"
       ? "supabase"
       : "demo";
+  const initialTask = normalizeInitialTask(resolvedSearchParams?.task);
 
   const todayKey = format(new Date(), "yyyy-MM-dd");
   const defaultExpense =
@@ -44,6 +64,7 @@ export default async function TodayPage() {
     };
 
   const dashboardVersion = [
+    initialTask ?? "none",
     initialReport.workDate,
     initialReport.turnover,
     initialReport.profit,
@@ -84,6 +105,7 @@ export default async function TodayPage() {
           expenseCategories={snapshot.expenseCategories}
           initialReport={initialReport}
           dataMode={snapshot.mode}
+          initialTask={initialTask}
         />
       )}
     </AppShell>

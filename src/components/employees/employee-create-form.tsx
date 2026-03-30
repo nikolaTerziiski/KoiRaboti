@@ -7,12 +7,11 @@ import type { EmployeeActionState } from "@/actions/employees";
 import { createEmployeeAction } from "@/actions/employees";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
@@ -29,14 +28,28 @@ const initialEmployeeActionState: EmployeeActionState = {
 
 type EmployeeCreateFormProps = {
   dataMode: SnapshotMode;
+  onSuccess?: () => void;
 };
 
+function createInitialDraft() {
+  return {
+    fullName: "",
+    role: "service" as "kitchen" | "service",
+    phoneNumber: "",
+    dailyRate: "",
+  };
+}
+
 function toNumber(value: string) {
-  const numericValue = Number(value);
+  const normalizedValue = value.replace(/,/g, ".").trim();
+  const numericValue = Number(normalizedValue);
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
-export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
+export function EmployeeCreateForm({
+  dataMode,
+  onSuccess,
+}: EmployeeCreateFormProps) {
   const router = useRouter();
   const { t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
@@ -44,12 +57,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
     createEmployeeAction,
     initialEmployeeActionState,
   );
-  const [draft, setDraft] = useState({
-    fullName: "",
-    role: "service" as "kitchen" | "service",
-    phoneNumber: "",
-    dailyRate: "",
-  });
+  const [draft, setDraft] = useState(createInitialDraft);
 
   useEffect(() => {
     if (
@@ -58,9 +66,10 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
       refreshedKeyRef.current !== actionState.refreshKey
     ) {
       refreshedKeyRef.current = actionState.refreshKey;
+      onSuccess?.();
       router.refresh();
     }
-  }, [actionState, router]);
+  }, [actionState, onSuccess, router]);
 
   const feedbackMessage =
     actionState.messageKey === "msgCreateSuccess"
@@ -72,12 +81,16 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           : actionState.message;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t.employees.addEmployee}</CardTitle>
-        <CardDescription>{t.employees.addEmployeeDesc}</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <DialogContent
+      className="overflow-hidden rounded-[1.75rem] p-0 sm:max-w-md"
+      showClose
+    >
+      <DialogHeader className="border-b border-slate-200/70 p-6 pr-16 dark:border-slate-800">
+        <DialogTitle>{t.employees.addEmployee}</DialogTitle>
+        <DialogDescription>{t.employees.addEmployeeDesc}</DialogDescription>
+      </DialogHeader>
+
+      <div className="bg-slate-50/50 p-6 dark:bg-slate-950/80">
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="create-fullName">{t.employees.name}</Label>
@@ -89,6 +102,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               onChange={(event) =>
                 setDraft((current) => ({ ...current, fullName: event.target.value }))
               }
+              className="h-12 rounded-2xl"
             />
           </div>
 
@@ -104,6 +118,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
                   role: event.target.value === "kitchen" ? "kitchen" : "service",
                 }))
               }
+              className="h-12 rounded-2xl"
             >
               <option value="service">{t.common.service}</option>
               <option value="kitchen">{t.common.kitchen}</option>
@@ -121,6 +136,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               onChange={(event) =>
                 setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
               }
+              className="h-12 rounded-2xl"
             />
           </div>
 
@@ -136,6 +152,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
               onChange={(event) =>
                 setDraft((current) => ({ ...current, dailyRate: event.target.value }))
               }
+              className="h-12 rounded-2xl"
             />
             <p className="text-xs text-muted-foreground">
               {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
@@ -162,7 +179,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
 
           <Button
             type="submit"
-            className="w-full"
+            className="h-12 w-full rounded-2xl bg-emerald-600 text-white hover:bg-emerald-700"
             disabled={isPending || dataMode === "demo"}
             aria-busy={isPending}
           >
@@ -170,7 +187,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             {isPending ? t.employees.savingEmployee : t.employees.addToRoster}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </DialogContent>
   );
 }

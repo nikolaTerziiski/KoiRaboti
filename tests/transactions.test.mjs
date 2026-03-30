@@ -72,7 +72,7 @@ test("flattenTransactionRows normalizes fallbacks and sorts by createdAt desc", 
   assert.equal(rows[1]?.hasReceipt, true);
 });
 
-test("resolveTransactionRows uses curated mock rows in demo mode and when live rows are empty", () => {
+test("resolveTransactionRows uses curated mock rows only in demo mode", () => {
   const demoRows = resolveTransactionRows(
     [createReport("2026-03-30", [createExpense()])],
     "demo",
@@ -80,9 +80,9 @@ test("resolveTransactionRows uses curated mock rows in demo mode and when live r
   const emptyRows = resolveTransactionRows([createReport("2026-03-30", [])], "supabase");
 
   assert.equal(demoRows.isMockData, true);
-  assert.equal(emptyRows.isMockData, true);
+  assert.equal(emptyRows.isMockData, false);
   assert.equal(demoRows.rows.length, buildMockTransactionRows().length);
-  assert.equal(emptyRows.rows.length, buildMockTransactionRows().length);
+  assert.equal(emptyRows.rows.length, 0);
 });
 
 test("filterTransactionRows applies text and inclusive date filters", () => {

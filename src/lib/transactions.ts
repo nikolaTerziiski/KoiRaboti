@@ -134,7 +134,7 @@ export function resolveTransactionRows(
 ): ResolvedTransactionRows {
   const flattenedRows = flattenTransactionRows(reports);
 
-  if (dataMode === "demo" || flattenedRows.length === 0) {
+  if (dataMode === "demo") {
     return {
       rows: buildMockTransactionRows(),
       isMockData: true,

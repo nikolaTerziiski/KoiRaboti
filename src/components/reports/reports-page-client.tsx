@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -23,6 +24,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { Button } from "@/components/ui/button";
 import { eurToBgn, formatMonthLabel } from "@/lib/format";
 import { useLocale } from "@/lib/i18n/context";
 import type {
@@ -78,6 +80,14 @@ type DashboardCopy = {
   monthAriaLabel: string;
   demoBadge: string;
   liveBadge: string;
+  emptyState: {
+    noReportsTitle: string;
+    noReportsCopy: string;
+    noReportsCta: string;
+    noExpensesTitle: string;
+    noExpensesCopy: string;
+    noExpensesCta: string;
+  };
   comparePrefix: string;
   noBaseline: string;
   noBaselineHint: string;
@@ -285,8 +295,8 @@ function buildExpenseDistribution(
     }
   }
 
-  if (totals.size < 2) {
-    return buildMockExpenseDistribution(copy);
+  if (totals.size === 0) {
+    return [];
   }
 
   const sortedSegments = Array.from(totals.entries())
@@ -342,11 +352,7 @@ function buildWeeklyTrend(
     };
   });
 
-  const hasSignal = weeklyRows.some(
-    (row) => row.revenue > 0 || row.expenses > 0,
-  );
-
-  return hasSignal ? weeklyRows : buildMockWeeklyTrend(copy);
+  return weeklyRows;
 }
 
 function buildMockMetricCards(copy: DashboardCopy): MetricCardData[] {
@@ -542,6 +548,38 @@ function AnalyticsTooltip({
   );
 }
 
+function AnalyticsEmptyState({
+  title,
+  description,
+  ctaLabel,
+  ctaHref,
+}: {
+  title: string;
+  description: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+}) {
+  return (
+    <div className="flex min-h-[320px] flex-col items-center justify-center gap-4 text-center">
+      <div className="flex size-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+        <CalendarDays className="size-7" />
+      </div>
+      <div className="max-w-md space-y-2">
+        <p className="text-lg font-semibold text-slate-900 dark:text-white">{title}</p>
+        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{description}</p>
+      </div>
+      {ctaLabel && ctaHref ? (
+        <Button
+          asChild
+          className="h-11 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+        >
+          <Link href={ctaHref}>{ctaLabel}</Link>
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function ReportsPageClient({
   reports,
   dataMode,
@@ -559,6 +597,16 @@ export function ReportsPageClient({
           monthAriaLabel: "Избери месец",
           demoBadge: "Примерен анализ",
           liveBadge: "Актуални данни",
+          emptyState: {
+            noReportsTitle: "Няма отчети за този месец",
+            noReportsCopy:
+              "Все още няма записан дневен отчет за избрания месец. Създай първия от дневния отчет.",
+            noReportsCta: "Отвори дневен отчет",
+            noExpensesTitle: "Няма разходи",
+            noExpensesCopy:
+              "За този месец още няма записани разходи. Добави първия от дневния отчет.",
+            noExpensesCta: "Добави разход",
+          },
           comparePrefix: "Спрямо",
           noBaseline: "Няма база",
           noBaselineHint: "Няма предходен месец за сравнение",
@@ -601,6 +649,16 @@ export function ReportsPageClient({
           monthAriaLabel: "Select month",
           demoBadge: "Sample analytics",
           liveBadge: "Live data",
+          emptyState: {
+            noReportsTitle: "No reports for this month",
+            noReportsCopy:
+              "There is no saved daily report for the selected month yet. Create the first one from the daily report flow.",
+            noReportsCta: "Open daily report",
+            noExpensesTitle: "No expenses",
+            noExpensesCopy:
+              "There are no saved expenses for this month yet. Add the first one from the daily report flow.",
+            noExpensesCta: "Add expense",
+          },
           comparePrefix: "Compared to",
           noBaseline: "No baseline",
           noBaselineHint: "No previous month available for comparison",
@@ -646,32 +704,37 @@ export function ReportsPageClient({
   const previousMonth =
     selectedMonthIndex >= 0 ? monthOptions[selectedMonthIndex + 1] ?? null : null;
   const previousReports = previousMonth ? getMonthReports(reports, previousMonth) : [];
-  const shouldUseMockData = dataMode === "demo" || visibleReports.length === 0;
+  const isDemoMode = dataMode === "demo";
+  const hasVisibleReports = visibleReports.length > 0;
   const activeMonthLabel = formatMonthLabel(activeMonth, locale);
   const previousMonthLabel = previousMonth
     ? formatMonthLabel(previousMonth, locale)
     : null;
 
-  const metrics = shouldUseMockData
+  const metrics = isDemoMode
     ? buildMockMetricCards(copy)
-    : buildMetricCards(
+    : hasVisibleReports
+      ? buildMetricCards(
         visibleReports,
         previousReports,
         copy,
         activeMonthLabel,
         previousMonthLabel,
-      );
-  const expenseDistribution = shouldUseMockData
+      )
+      : [];
+  const expenseDistribution = isDemoMode
     ? buildMockExpenseDistribution(copy)
     : buildExpenseDistribution(visibleReports, copy);
-  const weeklyTrend = shouldUseMockData
+  const weeklyTrend = isDemoMode
     ? buildMockWeeklyTrend(copy)
     : buildWeeklyTrend(visibleReports, copy);
+  const hasExpenseData = expenseDistribution.length > 0;
   const expenseTotal = expenseDistribution.reduce(
     (sum, segment) => sum + segment.value,
     0,
   );
   const monthChoices = monthOptions.length > 0 ? monthOptions : [fallbackMonth];
+  const showNoReportsState = !isDemoMode && !hasVisibleReports;
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-4 dark:bg-slate-950 md:p-8">
@@ -685,12 +748,12 @@ export function ReportsPageClient({
               <span
                 className={cn(
                   "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                  shouldUseMockData
+                  isDemoMode
                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                     : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
                 )}
               >
-                {shouldUseMockData ? copy.demoBadge : copy.liveBadge}
+                {isDemoMode ? copy.demoBadge : copy.liveBadge}
               </span>
             </div>
             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -716,14 +779,25 @@ export function ReportsPageClient({
           </div>
         </section>
 
-        <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {metrics.map((metric) => (
-            <MetricCard key={metric.title} metric={metric} />
-          ))}
-        </section>
+        {showNoReportsState ? (
+          <section className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <AnalyticsEmptyState
+              title={copy.emptyState.noReportsTitle}
+              description={copy.emptyState.noReportsCopy}
+              ctaLabel={copy.emptyState.noReportsCta}
+              ctaHref="/today?task=finance"
+            />
+          </section>
+        ) : (
+          <>
+            <section className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {metrics.map((metric) => (
+                <MetricCard key={metric.title} metric={metric} />
+              ))}
+            </section>
 
-        <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <article className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <article className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -740,77 +814,86 @@ export function ReportsPageClient({
               </div>
             </div>
 
-            <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
-              <div className="relative h-[280px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <RechartsPieChart>
-                    <Tooltip content={<AnalyticsTooltip />} />
-                    <Pie
-                      data={expenseDistribution}
-                      dataKey="value"
-                      nameKey="name"
-                      innerRadius={78}
-                      outerRadius={110}
-                      paddingAngle={3}
-                      cornerRadius={12}
-                    >
-                      {expenseDistribution.map((segment) => (
-                        <Cell
-                          key={`segment-${segment.name}`}
-                          fill={segment.color}
-                        />
-                      ))}
-                    </Pie>
-                  </RechartsPieChart>
-                </ResponsiveContainer>
+            {!isDemoMode && !hasExpenseData ? (
+              <AnalyticsEmptyState
+                title={copy.emptyState.noExpensesTitle}
+                description={copy.emptyState.noExpensesCopy}
+                ctaLabel={copy.emptyState.noExpensesCta}
+                ctaHref="/today?task=expenses"
+              />
+            ) : (
+              <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_220px] xl:items-center">
+                <div className="relative h-[280px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsPieChart>
+                      <Tooltip content={<AnalyticsTooltip />} />
+                      <Pie
+                        data={expenseDistribution}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={78}
+                        outerRadius={110}
+                        paddingAngle={3}
+                        cornerRadius={12}
+                      >
+                        {expenseDistribution.map((segment) => (
+                          <Cell
+                            key={`segment-${segment.name}`}
+                            fill={segment.color}
+                          />
+                        ))}
+                      </Pie>
+                    </RechartsPieChart>
+                  </ResponsiveContainer>
 
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <div className="space-y-1 text-center">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                      {copy.charts.totalExpenses}
-                    </p>
-                    <p className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-                      {formatCompactBgnValue(expenseTotal)}
-                    </p>
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <div className="space-y-1 text-center">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+                        {copy.charts.totalExpenses}
+                      </p>
+                      <p className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                        {formatCompactBgnValue(expenseTotal)}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                {expenseDistribution.map((segment) => (
-                  <div
-                    key={segment.name}
-                    className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/90 px-4 py-3 dark:bg-slate-950/70"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="size-3 rounded-full"
-                        style={{ backgroundColor: segment.color }}
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                          {segment.name}
-                        </p>
+                <div className="space-y-3">
+                  {expenseDistribution.map((segment) => (
+                    <div
+                      key={segment.name}
+                      className="flex items-center justify-between gap-4 rounded-2xl bg-slate-50/90 px-4 py-3 dark:bg-slate-950/70"
+                    >
+                      <div className="flex items-center gap-3">
                         <span
-                          className={cn(
-                            "mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold",
-                            segment.toneClassName,
-                          )}
-                        >
-                          {segment.share}%
-                        </span>
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: segment.color }}
+                        />
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                            {segment.name}
+                          </p>
+                          <span
+                            className={cn(
+                              "mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold",
+                              segment.toneClassName,
+                            )}
+                          >
+                            {segment.share}%
+                          </span>
+                        </div>
                       </div>
+                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+                        {formatBgnValue(segment.value)}
+                      </p>
                     </div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-                      {formatBgnValue(segment.value)}
-                    </p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </article>
 
-          <article className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+              <article className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
@@ -906,7 +989,9 @@ export function ReportsPageClient({
               </ResponsiveContainer>
             </div>
           </article>
-        </section>
+            </section>
+          </>
+        )}
       </div>
     </div>
   );
