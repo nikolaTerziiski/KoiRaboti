@@ -8,15 +8,14 @@ import { cn } from "@/lib/utils";
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { locale, t } = useLocale();
-  const profileLabel = locale === "bg" ? "Профил" : "Profile";
+  const { t } = useLocale();
 
   const navItems = [
     { href: "/today", label: t.nav.today, icon: CalendarClock },
     { href: "/employees", label: t.nav.employees, icon: Users },
     { href: "/payroll", label: t.nav.payroll, icon: BarChart3 },
     { href: "/reports", label: t.nav.reports, icon: FileText },
-    { href: "/profile", label: profileLabel, icon: UserRound },
+    { href: "/profile", label: t.nav.profile, icon: UserRound },
   ];
 
   return (
@@ -33,6 +32,7 @@ export function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
                 "flex min-w-0 flex-1 flex-col items-center gap-1 rounded-xl px-2 py-2 text-xs font-medium transition-colors",
                 isActive

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { hasSupabaseCredentials } from "@/lib/env";
@@ -5,6 +6,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import { OnboardingContent } from "@/components/auth/onboarding-content";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Onboarding — KoiRaboti" };
 
 export default async function OnboardingPage() {
   const sessionMode = await getSessionMode();

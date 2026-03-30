@@ -22,30 +22,11 @@ const initialState: OnboardingActionState = {
 };
 
 export function OnboardingContent() {
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const [actionState, formAction, isPending] = useActionState(
     onboardingAction,
     initialState,
   );
-
-  const labels = {
-    title: locale === "bg" ? "Добре дошъл!" : "Welcome!",
-    subtitle:
-      locale === "bg"
-        ? "Кажи ни малко за себе си, за да настроим приложението."
-        : "Tell us a bit about yourself so we can set things up.",
-    fullName: locale === "bg" ? "Как се казваш?" : "What's your name?",
-    fullNamePlaceholder: locale === "bg" ? "Иван Иванов" : "John Smith",
-    businessName: locale === "bg" ? "Име на бизнеса" : "Business name",
-    businessNamePlaceholder:
-      locale === "bg" ? "Ресторант Златното пиле" : "My Restaurant",
-    businessHint:
-      locale === "bg"
-        ? "Можеш да го промениш по-късно от настройките."
-        : "You can change this later in settings.",
-    submit: locale === "bg" ? "Започни" : "Get started",
-    submitting: locale === "bg" ? "Настройване..." : "Setting up...",
-  };
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center px-4 py-8">
@@ -57,32 +38,32 @@ export function OnboardingContent() {
 
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">{labels.title}</CardTitle>
-          <CardDescription>{labels.subtitle}</CardDescription>
+          <CardTitle className="text-2xl">{t.onboarding.title}</CardTitle>
+          <CardDescription>{t.onboarding.subtitle}</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={formAction} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="fullName">{labels.fullName}</Label>
+              <Label htmlFor="fullName">{t.onboarding.fullName}</Label>
               <Input
                 id="fullName"
                 name="fullName"
                 required
                 autoComplete="name"
-                placeholder={labels.fullNamePlaceholder}
+                placeholder={t.onboarding.fullNamePlaceholder}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="businessName">{labels.businessName}</Label>
+              <Label htmlFor="businessName">{t.onboarding.businessName}</Label>
               <Input
                 id="businessName"
                 name="businessName"
                 required
                 autoComplete="organization"
-                placeholder={labels.businessNamePlaceholder}
+                placeholder={t.onboarding.businessNamePlaceholder}
               />
               <p className="text-xs text-muted-foreground">
-                {labels.businessHint}
+                {t.onboarding.businessHint}
               </p>
             </div>
 
@@ -99,7 +80,7 @@ export function OnboardingContent() {
               disabled={isPending}
               aria-busy={isPending}
             >
-              {isPending ? labels.submitting : labels.submit}
+              {isPending ? t.onboarding.submitting : t.onboarding.submit}
             </Button>
           </form>
         </CardContent>

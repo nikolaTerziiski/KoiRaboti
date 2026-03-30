@@ -7,6 +7,7 @@ import { hasSupabaseCredentials } from "@/lib/env";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { PayUnits } from "@/lib/types";
+import { isValidPayUnits, normalizeText, parseJsonArray, parseNumber } from "@/lib/validation";
 
 export type TodayActionState = {
   status: "idle" | "success" | "error";
@@ -32,6 +33,7 @@ type EmployeeRateRow = {
   daily_rate: number | string;
 };
 
+<<<<<<< HEAD
 type ExpenseItemPayload = ExpenseItemInput;
 
 function normalizeText(value: FormDataEntryValue | string | null | undefined) {
@@ -52,15 +54,11 @@ function isValidPayUnits(value: number): value is PayUnits {
   return value === 1 || value === 1.5 || value === 2;
 }
 
+=======
+>>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
 function parseAttendancePayload(rawValue: FormDataEntryValue | null): AttendancePayload[] {
-  if (!rawValue) {
-    return [];
-  }
-
-  const parsedValue = JSON.parse(String(rawValue)) as unknown;
-  if (!Array.isArray(parsedValue)) {
-    throw new Error("Attendance payload is invalid.");
-  }
+  const parsedValue = parseJsonArray(rawValue, "Attendance payload");
+  if (parsedValue.length === 0) return [];
 
   return parsedValue.map((entry) => {
     const candidate = entry as Partial<AttendancePayload>;

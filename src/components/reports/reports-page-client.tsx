@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import type { ReportActionState } from "@/actions/reports";
@@ -153,7 +153,7 @@ export function ReportsPageClient({
   dataMode,
 }: ReportsPageClientProps) {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t, locale } = useLocale();
   const refreshRef = useRef<string | null>(null);
   const [actionState, formAction, isPending] = useActionState(
     saveReportCorrectionAction,
@@ -176,55 +176,6 @@ export function ReportsPageClient({
     }
   }, [actionState, router]);
 
-  const labels = useMemo(
-    () => ({
-      history: locale === "bg" ? "Отчети" : "Reports",
-      historyDesc:
-        locale === "bg"
-          ? "Стегната таблица с дневните резултати и бърза поправка на минали дни."
-          : "A strict daily table with a quick correction flow for past days.",
-      month: locale === "bg" ? "Месец" : "Month",
-      exportCsv: locale === "bg" ? "Експорт (CSV)" : "Export (CSV)",
-      date: locale === "bg" ? "Дата" : "Date",
-      turnover: locale === "bg" ? "Оборот" : "Turnover",
-      profit: locale === "bg" ? "Печалба" : "Profit",
-      card: locale === "bg" ? "Карта" : "Card",
-      expense: locale === "bg" ? "Разход" : "Expense",
-      netProfit: locale === "bg" ? "Чиста печалба" : "Net profit",
-      edit: locale === "bg" ? "Поправи" : "Edit",
-      close: locale === "bg" ? "Затвори" : "Close",
-      correctionTitle:
-        locale === "bg" ? "Поправка на отчета" : "Report correction",
-      correctionDesc:
-        locale === "bg"
-          ? "Можеш да коригираш дневните числа, броя смени или ръчното заплащане за конкретен служител."
-          : "You can correct the daily numbers, shift count, or manual pay override.",
-      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
-      payOverride: locale === "bg" ? "Ръчно заплащане (EUR)" : "Pay override (EUR)",
-      save: locale === "bg" ? "Запази поправката" : "Save correction",
-      saving: locale === "bg" ? "Запазване..." : "Saving...",
-      demoNote:
-        locale === "bg"
-          ? "В демо режим можеш да разглеждаш, но не и да записваш поправки."
-          : "Demo mode lets you review reports but not save corrections.",
-      saveSuccess:
-        locale === "bg" ? "Поправката е запазена." : "Correction saved.",
-      saveError:
-        locale === "bg"
-          ? "Поправката не може да бъде запазена."
-          : "The correction could not be saved.",
-      noReports:
-        locale === "bg"
-          ? "Няма отчети за избрания месец."
-          : "There are no reports for the selected month.",
-      bgnRate:
-        locale === "bg"
-          ? "Сумите се показват и в BGN по фиксиран курс"
-          : "Amounts are also shown in BGN using the fixed rate",
-    }),
-    [locale],
-  );
-
   const visibleReports = reports.filter((report) =>
     selectedMonth ? report.workDate.startsWith(selectedMonth.slice(0, 7)) : true,
   );
@@ -233,13 +184,13 @@ export function ReportsPageClient({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{labels.history}</CardTitle>
-          <CardDescription>{labels.historyDesc}</CardDescription>
+          <CardTitle>{t.reports.history}</CardTitle>
+          <CardDescription>{t.reports.historyDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
             <div className="space-y-2">
-              <Label htmlFor="reports-month">{labels.month}</Label>
+              <Label htmlFor="reports-month">{t.reports.month}</Label>
               <SelectField
                 id="reports-month"
                 value={selectedMonth}
@@ -260,22 +211,22 @@ export function ReportsPageClient({
               onClick={() => exportReportsToCSV(visibleReports, selectedMonth)}
             >
               <Download className="size-4" />
-              {labels.exportCsv}
+              {t.reports.exportCsv}
             </Button>
           </div>
           <p className="text-sm text-muted-foreground">
-            {labels.bgnRate} {formatExchangeRateLabel()}.
+            {t.reports.bgnRate} {formatExchangeRateLabel()}.
           </p>
           <div className="overflow-x-auto rounded-2xl border border-border bg-card">
             <table className="min-w-full text-sm">
               <thead className="bg-muted text-left">
                 <tr>
-                  <th className="px-3 py-3 font-medium">{labels.date}</th>
-                  <th className="px-3 py-3 font-medium">{labels.turnover}</th>
-                  <th className="px-3 py-3 font-medium">{labels.profit}</th>
-                  <th className="px-3 py-3 font-medium">{labels.card}</th>
-                  <th className="px-3 py-3 font-medium">{labels.expense}</th>
-                  <th className="px-3 py-3 font-medium">{labels.netProfit}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.date}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.turnover}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.profit}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.card}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.expense}</th>
+                  <th className="px-3 py-3 font-medium">{t.reports.netProfit}</th>
                   <th className="px-3 py-3 font-medium" />
                 </tr>
               </thead>
@@ -286,7 +237,7 @@ export function ReportsPageClient({
                       colSpan={7}
                       className="px-3 py-6 text-center text-muted-foreground"
                     >
-                      {labels.noReports}
+                      {t.reports.noReports}
                     </td>
                   </tr>
                 ) : null}
@@ -327,7 +278,7 @@ export function ReportsPageClient({
                             )
                           }
                         >
-                          {isEditing ? labels.close : labels.edit}
+                          {isEditing ? t.reports.close : t.reports.edit}
                         </Button>
                       </td>
                     </tr>
@@ -343,9 +294,9 @@ export function ReportsPageClient({
         <Card>
           <CardHeader>
             <CardTitle>
-              {labels.correctionTitle} {formatDateLabel(draft.workDate, locale)}
+              {t.reports.correctionTitle} {formatDateLabel(draft.workDate, locale)}
             </CardTitle>
-            <CardDescription>{labels.correctionDesc}</CardDescription>
+            <CardDescription>{t.reports.correctionDesc}</CardDescription>
           </CardHeader>
           <CardContent>
             <form action={formAction} className="space-y-4">
@@ -386,7 +337,7 @@ export function ReportsPageClient({
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-turnover">{labels.turnover}</Label>
+                  <Label htmlFor="edit-turnover">{t.reports.turnover}</Label>
                   <Input
                     id="edit-turnover"
                     name="turnover"
@@ -400,7 +351,7 @@ export function ReportsPageClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-profit">{labels.profit}</Label>
+                  <Label htmlFor="edit-profit">{t.reports.profit}</Label>
                   <Input
                     id="edit-profit"
                     name="profit"
@@ -414,7 +365,7 @@ export function ReportsPageClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-card">{labels.card}</Label>
+                  <Label htmlFor="edit-card">{t.reports.card}</Label>
                   <Input
                     id="edit-card"
                     name="cardAmount"
@@ -428,7 +379,7 @@ export function ReportsPageClient({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-expense">{labels.expense}</Label>
+                  <Label htmlFor="edit-expense">{t.reports.expense}</Label>
                   <Input
                     id="edit-expense"
                     name="manualExpense"
@@ -473,7 +424,7 @@ export function ReportsPageClient({
                     <div className="mt-3 grid gap-3 sm:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor={`units-${entry.employeeId}`}>
-                          {labels.shiftsCount}
+                          {t.reports.shiftsCount}
                         </Label>
                         <SelectField
                           id={`units-${entry.employeeId}`}
@@ -505,7 +456,7 @@ export function ReportsPageClient({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor={`override-${entry.employeeId}`}>
-                          {labels.payOverride}
+                          {t.reports.payOverride}
                         </Label>
                         <Input
                           id={`override-${entry.employeeId}`}
@@ -541,16 +492,16 @@ export function ReportsPageClient({
                   }
                 >
                   {actionState.messageKey === "msgSaveSuccess"
-                    ? labels.saveSuccess
+                    ? t.reports.saveSuccess
                     : actionState.messageKey === "msgSaveError"
-                      ? labels.saveError
+                      ? t.reports.saveError
                       : actionState.message}
                 </div>
               ) : null}
 
               {dataMode === "demo" ? (
                 <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-                  {labels.demoNote}
+                  {t.reports.demoNote}
                 </div>
               ) : null}
 
@@ -560,7 +511,7 @@ export function ReportsPageClient({
                 disabled={isPending || dataMode === "demo"}
                 aria-busy={isPending}
               >
-                {isPending ? labels.saving : labels.save}
+                {isPending ? t.reports.saving : t.reports.save}
               </Button>
             </form>
           </CardContent>

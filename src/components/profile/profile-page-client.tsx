@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState, useMemo } from "react";
 import { format, startOfMonth } from "date-fns";
 import { LogOut, Send } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
@@ -37,7 +37,7 @@ export function ProfilePageClient({
   telegramConnectUrl,
   telegramLinkedUsersCount,
 }: ProfilePageClientProps) {
-  const { locale } = useLocale();
+  const { t, locale } = useLocale();
   const currentMonthKey = getCurrentMonthKey();
   const monthOptions = useMemo(() => {
     const months = new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`));
@@ -47,6 +47,7 @@ export function ProfilePageClient({
   }, [currentMonthKey, reports]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
 
+<<<<<<< HEAD
   const labels = useMemo(
     () => ({
       title: locale === "bg" ? "Профил и статистики" : "Profile and stats",
@@ -106,6 +107,8 @@ export function ProfilePageClient({
     [dataMode, locale, telegramLinkedUsersCount],
   );
 
+=======
+>>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
   const selectedMonthReports = useMemo(
     () =>
       reports.filter((report) =>
@@ -121,36 +124,25 @@ export function ProfilePageClient({
 
   const monthLabel = formatMonthLabel(selectedMonth, locale);
   const laborCostRisk = stats.laborCostPercentage > 30;
+  const dataModeLabel = dataMode === "demo" ? t.profile.dataDemo : t.profile.dataLive;
 
   const metrics = [
-    {
-      label: labels.totalTurnover,
-      value: stats.totalTurnover,
-    },
-    {
-      label: labels.netProfit,
-      value: stats.netProfit,
-    },
-    {
-      label: labels.averageDailyTurnover,
-      value: stats.averageDailyTurnover,
-    },
-    {
-      label: labels.laborCost,
-      value: stats.totalLaborCost,
-    },
+    { label: t.profile.totalTurnover, value: stats.totalTurnover },
+    { label: t.profile.netProfit, value: stats.netProfit },
+    { label: t.profile.averageDailyTurnover, value: stats.averageDailyTurnover },
+    { label: t.profile.laborCost, value: stats.totalLaborCost },
   ];
 
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{labels.title}</CardTitle>
-          <CardDescription>{labels.subtitle}</CardDescription>
+          <CardTitle>{t.profile.title}</CardTitle>
+          <CardDescription>{t.profile.subtitle}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="profile-month">{labels.month}</Label>
+            <Label htmlFor="profile-month">{t.profile.month}</Label>
             <SelectField
               id="profile-month"
               value={selectedMonth}
@@ -169,10 +161,10 @@ export function ProfilePageClient({
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {selectedMonthReports.length > 0
-                ? `${selectedMonthReports.length} ${labels.reportsSummary}`
-                : labels.noReports}
+                ? `${selectedMonthReports.length} ${t.profile.reportsSummary}`
+                : t.profile.noReports}
             </p>
-            <p className="mt-1 text-sm text-muted-foreground">{labels.dataMode}</p>
+            <p className="mt-1 text-sm text-muted-foreground">{dataModeLabel}</p>
           </div>
         </CardContent>
       </Card>
@@ -190,7 +182,7 @@ export function ProfilePageClient({
         ))}
         <Card className={cn(laborCostRisk ? "border-destructive/30 bg-destructive/5" : undefined)}>
           <CardHeader className="pb-2">
-            <CardDescription>{labels.laborCostPercentage}</CardDescription>
+            <CardDescription>{t.profile.laborCostPercentage}</CardDescription>
           </CardHeader>
           <CardContent>
             <p
@@ -202,7 +194,7 @@ export function ProfilePageClient({
               {stats.laborCostPercentage.toFixed(1)}%
             </p>
             {laborCostRisk ? (
-              <p className="mt-1 text-xs text-destructive">{labels.laborCostWarning}</p>
+              <p className="mt-1 text-xs text-destructive">{t.profile.laborCostWarning}</p>
             ) : null}
           </CardContent>
         </Card>
@@ -210,8 +202,8 @@ export function ProfilePageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>{labels.profileTitle}</CardTitle>
-          <CardDescription>{labels.profileDesc}</CardDescription>
+          <CardTitle>{t.profile.profileTitle}</CardTitle>
+          <CardDescription>{t.profile.profileDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {profile ? (
@@ -221,23 +213,23 @@ export function ProfilePageClient({
                   {profile.fullName}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {labels.email}: {profile.email}
+                  {t.profile.email}: {profile.email}
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">
-                {labels.restaurant}: {restaurant?.name ?? "KoiRaboti"}
+                {t.profile.restaurant}: {restaurant?.name ?? "KoiRaboti"}
               </p>
             </div>
           ) : (
             <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-              {labels.noProfile}
+              {t.profile.noProfile}
             </div>
           )}
 
           <form action={logoutAction}>
             <Button type="submit" variant="outline" className="w-full">
               <LogOut className="size-4" />
-              {labels.logout}
+              {t.profile.logout}
             </Button>
           </form>
         </CardContent>

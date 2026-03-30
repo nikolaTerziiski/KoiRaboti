@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
@@ -9,6 +10,7 @@ import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { PayrollPayment } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Payroll — KoiRaboti" };
 
 type SupabasePayrollPaymentRow = {
   id: string;
@@ -89,17 +91,11 @@ export default async function PayrollPage() {
     );
   }
 
-  const dataMode = snapshot.errorMessage
-    ? "error"
-    : snapshot.mode === "supabase"
-      ? "supabase"
-      : "demo";
-
   return (
     <AppShell
       pageKey="payroll"
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
-      dataMode={dataMode}
+      dataMode={snapshot.mode === "supabase" ? "supabase" : "demo"}
     >
       <PayrollPageClient
         employees={snapshot.employees}

@@ -30,6 +30,7 @@ type AppShellProps = {
 };
 
 export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellProps) {
+<<<<<<< HEAD
   const pathname = usePathname();
   const { locale, t } = useLocale();
   const profileLabel = locale === "bg" ? "Профил" : "Profile";
@@ -44,22 +45,17 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
               : "Monthly statistics and labor cost summary.",
         }
       : t.pages[pageKey as keyof typeof t.pages];
+=======
+  const { t } = useLocale();
+  const page = t.pages[pageKey];
+>>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
 
-  const sessionLabel =
-    sessionMode === "supabase"
-      ? locale === "bg"
-        ? "Активна сесия"
-        : "Active session"
-      : t.shell.sessionDemo;
+  const sessionLabel = sessionMode === "supabase" ? t.shell.sessionActive : t.shell.sessionDemo;
   const dataLabel =
     dataMode === "error"
-      ? locale === "bg"
-        ? "Данните не са достъпни"
-        : "Data unavailable"
+      ? t.shell.dataUnavailable
       : dataMode === "supabase"
-        ? locale === "bg"
-          ? "Реални данни"
-          : "Live data"
+        ? t.shell.dataLive
         : t.shell.dataDemo;
 
   const navItems = [
