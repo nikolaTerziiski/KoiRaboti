@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import { format, startOfMonth } from "date-fns";
 import { LogOut, Send } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
@@ -47,68 +47,30 @@ export function ProfilePageClient({
   }, [currentMonthKey, reports]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
 
-<<<<<<< HEAD
-  const labels = useMemo(
+  const telegramLabels = useMemo(
     () => ({
-      title: locale === "bg" ? "Профил и статистики" : "Profile and stats",
-      subtitle:
-        locale === "bg"
-          ? "Избери месец и виж основните KPI на ресторанта."
-          : "Pick a month and review the restaurant KPI snapshot.",
-      month: locale === "bg" ? "Месец" : "Month",
-      totalTurnover: locale === "bg" ? "Общ оборот" : "Total turnover",
-      netProfit: locale === "bg" ? "Чиста печалба" : "Net profit",
-      averageDailyTurnover:
-        locale === "bg" ? "Среден дневен оборот" : "Average daily turnover",
-      laborCost: locale === "bg" ? "Разход за труд" : "Total labor cost",
-      laborCostPercentage: locale === "bg" ? "% Труд от оборота" : "Labor cost %",
-      profileTitle: locale === "bg" ? "Потребителски профил" : "User profile",
-      profileDesc:
-        locale === "bg" ? "Управление на акаунта и сесията." : "Account and session management.",
-      restaurant: locale === "bg" ? "Ресторант" : "Restaurant",
-      email: locale === "bg" ? "Имейл" : "Email",
-      reportsSummary: locale === "bg" ? "дни с отчет" : "recorded day(s)",
-      noReports:
-        locale === "bg" ? "Няма отчети за този месец." : "No reports recorded for this month.",
-      dataMode:
-        dataMode === "demo"
-          ? locale === "bg"
-            ? "Демо данни"
-            : "Demo data"
-          : locale === "bg"
-            ? "Реални данни"
-            : "Live data",
-      noProfile:
-        locale === "bg" ? "Няма профилна информация." : "No profile information available.",
-      logout: locale === "bg" ? "Изход" : "Sign out",
-      laborCostWarning:
-        locale === "bg"
-          ? "Висок дял на трудовите разходи"
-          : "Labor cost share is high",
-      telegramTitle: locale === "bg" ? "Telegram bot" : "Telegram bot",
-      telegramDesc:
+      title: locale === "bg" ? "Telegram бот" : "Telegram bot",
+      description:
         locale === "bg"
           ? "Свържи Telegram, за да записваш разходи, да получаваш дневни обобщения и да задаваш въпроси за бизнеса."
           : "Connect Telegram for expense capture, daily summaries, and ops questions.",
-      telegramConnect: locale === "bg" ? "Свържи в Telegram" : "Connect in Telegram",
-      telegramLinked:
+      connect: locale === "bg" ? "Свържи в Telegram" : "Connect in Telegram",
+      linked:
         locale === "bg"
           ? `${telegramLinkedUsersCount} свързан(и) Telegram акаунт(а)`
           : `${telegramLinkedUsersCount} linked Telegram account(s)`,
-      telegramHint:
+      hint:
         locale === "bg"
           ? "Бутонът отваря бота с еднократен токен за този ресторант."
           : "The button opens the bot with a one-time token for this restaurant.",
-      telegramCommands:
+      commands:
         locale === "bg"
           ? "Полезни команди: /summary, /categories, /daily_on, /daily_off"
           : "Useful commands: /summary, /categories, /daily_on, /daily_off",
     }),
-    [dataMode, locale, telegramLinkedUsersCount],
+    [locale, telegramLinkedUsersCount],
   );
 
-=======
->>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
   const selectedMonthReports = useMemo(
     () =>
       reports.filter((report) =>
@@ -243,21 +205,21 @@ export function ProfilePageClient({
                 <Send className="size-4" />
               </div>
               <div>
-                <CardTitle>{labels.telegramTitle}</CardTitle>
-                <CardDescription>{labels.telegramDesc}</CardDescription>
+                <CardTitle>{telegramLabels.title}</CardTitle>
+                <CardDescription>{telegramLabels.description}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-              <p>{labels.telegramLinked}</p>
-              <p className="mt-1">{labels.telegramHint}</p>
-              <p className="mt-2 font-medium text-foreground">{labels.telegramCommands}</p>
+              <p>{telegramLabels.linked}</p>
+              <p className="mt-1">{telegramLabels.hint}</p>
+              <p className="mt-2 font-medium text-foreground">{telegramLabels.commands}</p>
             </div>
             <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer">
               <Button variant="outline" className="w-full">
                 <Send className="size-4" />
-                {labels.telegramConnect}
+                {telegramLabels.connect}
               </Button>
             </a>
           </CardContent>

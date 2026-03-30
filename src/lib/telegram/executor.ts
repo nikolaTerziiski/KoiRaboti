@@ -133,16 +133,12 @@ export async function executeFunctionCall(params: {
   }
 }
 
-<<<<<<< HEAD
-=======
 // ---------------------------------------------------------------------------
 // Individual executors
 // ---------------------------------------------------------------------------
 
 const VALID_CURRENCIES = new Set(["BGN", "EUR"]);
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
->>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
 async function executeSaveExpense(
   args: Record<string, unknown>,
   restaurantId: string,
@@ -155,25 +151,13 @@ async function executeSaveExpense(
     return { success: false, message: "Невалидна сума. Моля, опитай пак." };
   }
 
-<<<<<<< HEAD
-  const currency = ((args.currency as string | undefined) ?? "BGN").toUpperCase();
+  const rawCurrency = ((args.currency as string | undefined) ?? "BGN").toUpperCase();
+  const currency = VALID_CURRENCIES.has(rawCurrency) ? rawCurrency : "BGN";
   const categoryName = args.category_name as string | undefined;
   const description = (args.description as string | undefined)?.trim() || null;
-  const expenseDate = (args.expense_date as string | undefined)?.trim() || undefined;
+  const rawExpenseDate = (args.expense_date as string | undefined)?.trim() || undefined;
+  const expenseDate = rawExpenseDate && ISO_DATE_RE.test(rawExpenseDate) ? rawExpenseDate : undefined;
   const category = resolveCategory(categories, categoryName);
-=======
-  const rawCurrency = typeof args.currency === "string" ? args.currency.toUpperCase() : "BGN";
-  const currency = VALID_CURRENCIES.has(rawCurrency) ? rawCurrency : "BGN";
-  const categoryName = typeof args.category_name === "string" ? args.category_name : null;
-  const description = typeof args.description === "string" ? args.description : null;
-  const rawDate = typeof args.expense_date === "string" ? args.expense_date : undefined;
-  const expenseDate = rawDate && ISO_DATE_RE.test(rawDate) ? rawDate : undefined;
-
-  // Resolve category by name (case-insensitive)
-  const category = categories.find(
-    (c) => c.name.toLowerCase() === categoryName?.toLowerCase(),
-  );
->>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
 
   const expense = await saveExpense({
     restaurantId,

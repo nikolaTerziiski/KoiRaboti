@@ -416,31 +416,6 @@ export function TodayDashboard({
               {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
             </p>
           </div>
-<<<<<<< HEAD
-=======
-          <div className="space-y-2">
-            <Label htmlFor="manualExpense">{t.today.manualExpenseEur}</Label>
-            <Input
-              id="manualExpense"
-              name="manualExpense"
-              inputMode="decimal"
-              min="0"
-              value={reportForm.manualExpense}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  manualExpense: event.target.value,
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t.today.default} {formatBgnCurrencyFromEur(DEFAULT_MANUAL_EXPENSE_EUR)}
-            </p>
-          </div>
->>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="reportNotes">{t.today.managerNotes}</Label>
             <textarea

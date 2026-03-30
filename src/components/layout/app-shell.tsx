@@ -30,25 +30,9 @@ type AppShellProps = {
 };
 
 export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellProps) {
-<<<<<<< HEAD
   const pathname = usePathname();
-  const { locale, t } = useLocale();
-  const profileLabel = locale === "bg" ? "Профил" : "Profile";
-
-  const page =
-    pageKey === "profile"
-      ? {
-          title: profileLabel,
-          description:
-            locale === "bg"
-              ? "Месечни статистики и разход за заплати."
-              : "Monthly statistics and labor cost summary.",
-        }
-      : t.pages[pageKey as keyof typeof t.pages];
-=======
   const { t } = useLocale();
   const page = t.pages[pageKey];
->>>>>>> 8e0795b99140a08092cc6027cd5ad331ab5f6dd4
 
   const sessionLabel = sessionMode === "supabase" ? t.shell.sessionActive : t.shell.sessionDemo;
   const dataLabel =
@@ -63,12 +47,11 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
     { href: "/employees", label: t.nav.employees, icon: Users },
     { href: "/payroll", label: t.nav.payroll, icon: BarChart3 },
     { href: "/reports", label: t.nav.reports, icon: FileText },
-    { href: "/profile", label: profileLabel, icon: UserRound },
+    { href: "/profile", label: t.nav.profile, icon: UserRound },
   ];
 
   return (
     <div className="min-h-screen lg:flex">
-      {/* ── Desktop sidebar (lg+) ── */}
       <aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-60 lg:flex-col lg:border-r lg:border-border lg:bg-card">
         <div className="flex flex-1 flex-col gap-6 p-4">
           <Link href="/today" className="flex items-center gap-2 px-2 py-1">
@@ -123,17 +106,14 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
         </div>
       </aside>
 
-      {/* ── Main content area ── */}
       <div className="flex-1 lg:pl-60">
         <div
           className="mx-auto w-full max-w-md px-4 pt-5 sm:max-w-3xl sm:px-6 lg:pb-8"
           style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom))" }}
         >
-          {/* Mobile header card */}
           <header className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-3">
-                {/* Logo — mobile only (sidebar has it on desktop) */}
                 <Link href="/today" className="inline-flex items-center gap-2 lg:hidden">
                   <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Leaf className="size-5" />
@@ -152,7 +132,6 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
                   </p>
                 </div>
               </div>
-              {/* Controls — mobile only */}
               <div className="flex flex-col items-end gap-1 lg:hidden">
                 <LocaleSwitcher />
                 <form action={logoutAction}>
@@ -173,7 +152,6 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
         </div>
       </div>
 
-      {/* Mobile-only bottom nav */}
       <MobileNav />
     </div>
   );

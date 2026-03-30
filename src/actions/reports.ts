@@ -33,23 +33,7 @@ type EmployeeRateRow = {
   daily_rate: number | string;
 };
 
-function parseNumber(value: FormDataEntryValue | null, fieldName: string) {
-  const parsed = Number(value ?? "");
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${fieldName} must be a valid number.`);
-  }
-
-  return parsed;
-}
-
-function normalizeText(value: FormDataEntryValue | string | null | undefined) {
-  const normalized = String(value ?? "").trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function isValidPayUnits(value: number): value is PayUnits {
-  return value === 1 || value === 1.5 || value === 2;
-}
+type ExpenseItemPayload = ExpenseItemInput;
 
 function parseAttendancePayload(
   rawValue: FormDataEntryValue | null,
