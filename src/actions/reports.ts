@@ -5,6 +5,7 @@ import { hasSupabaseCredentials } from "@/lib/env";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { PayUnits } from "@/lib/types";
+import { isValidPayUnits, normalizeText, parseJsonArray, parseNumber } from "@/lib/validation";
 
 export type ReportActionState = {
   status: "idle" | "success" | "error";
@@ -30,35 +31,11 @@ type EmployeeRateRow = {
   daily_rate: number | string;
 };
 
-function parseNumber(value: FormDataEntryValue | null, fieldName: string) {
-  const parsed = Number(value ?? "");
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${fieldName} must be a valid number.`);
-  }
-
-  return parsed;
-}
-
-function normalizeText(value: FormDataEntryValue | string | null | undefined) {
-  const normalized = String(value ?? "").trim();
-  return normalized.length > 0 ? normalized : null;
-}
-
-function isValidPayUnits(value: number): value is PayUnits {
-  return value === 1 || value === 1.5 || value === 2;
-}
-
 function parseAttendancePayload(
   rawValue: FormDataEntryValue | null,
 ): AttendanceCorrectionPayload[] {
-  if (!rawValue) {
-    return [];
-  }
-
-  const parsedValue = JSON.parse(String(rawValue)) as unknown;
-  if (!Array.isArray(parsedValue)) {
-    throw new Error("Attendance payload is invalid.");
-  }
+  const parsedValue = parseJsonArray(rawValue, "Attendance payload");
+  if (parsedValue.length === 0) return [];
 
   return parsedValue.map((entry) => {
     const candidate = entry as Partial<AttendanceCorrectionPayload>;

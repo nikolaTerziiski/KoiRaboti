@@ -47,6 +47,9 @@ export async function executeFunctionCall(params: {
 // Individual executors
 // ---------------------------------------------------------------------------
 
+const VALID_CURRENCIES = new Set(["BGN", "EUR"]);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 async function executeSaveExpense(
   args: Record<string, unknown>,
   businessId: string,
@@ -55,14 +58,16 @@ async function executeSaveExpense(
   receiptImagePath?: string,
 ): Promise<ExecutionResult> {
   const amount = Number(args.amount);
-  if (!amount || amount <= 0) {
+  if (!Number.isFinite(amount) || amount <= 0) {
     return { success: false, message: "Невалидна сума. Моля, опитай пак." };
   }
 
-  const currency = (args.currency as string) ?? "BGN";
-  const categoryName = args.category_name as string;
-  const description = (args.description as string) ?? null;
-  const expenseDate = (args.expense_date as string) ?? undefined;
+  const rawCurrency = typeof args.currency === "string" ? args.currency.toUpperCase() : "BGN";
+  const currency = VALID_CURRENCIES.has(rawCurrency) ? rawCurrency : "BGN";
+  const categoryName = typeof args.category_name === "string" ? args.category_name : null;
+  const description = typeof args.description === "string" ? args.description : null;
+  const rawDate = typeof args.expense_date === "string" ? args.expense_date : undefined;
+  const expenseDate = rawDate && ISO_DATE_RE.test(rawDate) ? rawDate : undefined;
 
   // Resolve category by name (case-insensitive)
   const category = categories.find(

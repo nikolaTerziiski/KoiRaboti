@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useLocale } from "@/lib/i18n/context";
@@ -9,26 +9,14 @@ type ErrorCardProps = {
 };
 
 export function ErrorCard({ pageKey, message }: ErrorCardProps) {
-  const { locale, t } = useLocale();
-  const page =
-    pageKey === "profile"
-      ? {
-          errorTitle:
-            locale === "bg"
-              ? "Живите данни не могат да се заредят"
-              : "Live data could not be loaded",
-        }
-      : t.pages[pageKey as keyof typeof t.pages];
-  const errorDescription =
-    locale === "bg"
-      ? "Реалните данни не могат да се заредят в момента. Моля, опитай отново."
-      : "Live data could not be loaded right now. Please try again.";
+  const { t } = useLocale();
+  const page = t.pages[pageKey];
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{page.errorTitle}</CardTitle>
-        <CardDescription>{errorDescription}</CardDescription>
+        <CardDescription>{t.shell.dataLoadError}</CardDescription>
       </CardHeader>
       <CardContent className="text-sm text-muted-foreground">{message}</CardContent>
     </Card>

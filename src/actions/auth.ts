@@ -2,7 +2,7 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { DEMO_SESSION_COOKIE } from "@/lib/constants";
+import { DEFAULT_DAILY_EXPENSE_EUR, DEMO_SESSION_COOKIE } from "@/lib/constants";
 import { hasSupabaseCredentials } from "@/lib/env";
 import type { SessionMode } from "@/lib/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -178,7 +178,7 @@ export async function onboardingAction(
     p_user_email: user.email ?? "",
     p_restaurant_name: businessName,
     p_admin_full_name: fullName,
-    p_default_daily_expense: 409.0335, // 800 BGN default
+    p_default_daily_expense: DEFAULT_DAILY_EXPENSE_EUR,
   });
 
   if (rpcError) {

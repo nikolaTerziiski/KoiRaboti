@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Banknote, CheckCheck, Loader2, Undo2 } from "lucide-react";
 import type { PayrollPaymentActionState } from "@/actions/payments";
@@ -40,7 +40,7 @@ export function PayrollEmployeeCard({
   dataMode,
 }: PayrollEmployeeCardProps) {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const refreshRef = useRef<string | null>(null);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [advanceAmount, setAdvanceAmount] = useState("");
@@ -71,48 +71,18 @@ export function PayrollEmployeeCard({
     }
   }, [advanceState, paymentState, router]);
 
-  const labels = useMemo(
-    () => ({
-      earned: locale === "bg" ? "Спечелено" : "Earned",
-      advances: locale === "bg" ? "Аванси" : "Advances",
-      netToPay: locale === "bg" ? "Нетно за плащане" : "Net to pay",
-      dates: locale === "bg" ? "Дати" : "Dates",
-      shifts: locale === "bg" ? "Брой смени" : "Shifts",
-      paidBadge: locale === "bg" ? "Платено" : "Paid",
-      pay: locale === "bg" ? "Плати" : "Pay",
-      paid: locale === "bg" ? "Платено" : "Paid",
-      advance: locale === "bg" ? "Дай Аванс" : "Give Advance",
-      advanceAmount: locale === "bg" ? "Аванс (EUR)" : "Advance (EUR)",
-      saveAdvance: locale === "bg" ? "Запази" : "Save",
-      cancel: locale === "bg" ? "Откажи" : "Cancel",
-      demoNote: locale === "bg" ? "Demo режимът е само за преглед." : "Demo mode is read-only.",
-      advanceSaved: locale === "bg" ? "Авансът е записан." : "Advance saved.",
-      paymentSaved:
-        locale === "bg" ? "Плащането е обновено." : "Payroll payment updated.",
-      advanceError:
-        locale === "bg"
-          ? "Авансът не може да бъде записан."
-          : "Advance could not be saved.",
-      paymentError:
-        locale === "bg"
-          ? "Плащането не може да бъде обновено."
-          : "Payroll payment could not be updated.",
-    }),
-    [locale],
-  );
-
   const advanceFeedback =
     advanceState.status === "error"
-      ? advanceState.message ?? labels.advanceError
+      ? advanceState.message ?? t.payroll.advanceError
       : advanceState.status === "success"
-        ? labels.advanceSaved
+        ? t.payroll.advanceSaved
         : null;
 
   const paymentFeedback =
     paymentState.status === "error"
-      ? paymentState.message ?? labels.paymentError
+      ? paymentState.message ?? t.payroll.paymentError
       : paymentState.status === "success"
-        ? labels.paymentSaved
+        ? t.payroll.paymentSaved
         : null;
 
   const cardClass = row.isPaid
@@ -133,30 +103,30 @@ export function PayrollEmployeeCard({
             <p className="truncate font-semibold">{row.employee.fullName}</p>
             {row.isPaid ? (
               <Badge className="border-green-200 bg-green-100 text-green-700" variant="outline">
-                {labels.paidBadge}
+                {t.payroll.paidBadge}
               </Badge>
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            {labels.shifts}: {row.totalUnits.toFixed(1)}
+            {t.payroll.shifts}: {row.totalUnits.toFixed(1)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {labels.dates}: {row.workedDates.length > 0 ? row.workedDates.join(", ") : "—"}
+            {t.payroll.dates}: {row.workedDates.length > 0 ? row.workedDates.join(", ") : "—"}
           </p>
         </div>
 
         <div className="shrink-0 text-right">
           <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {labels.earned}
+            {t.payroll.earned}
           </p>
           <MoneyDisplay amount={row.totalAmount} compact align="end" />
           {row.advancesTotal > 0 ? (
             <p className="mt-2 text-xs font-medium text-destructive">
-              {labels.advances}: - {formatCurrency(row.advancesTotal)}
+              {t.payroll.advances}: - {formatCurrency(row.advancesTotal)}
             </p>
           ) : null}
           <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {labels.netToPay}
+            {t.payroll.netToPay}
           </p>
           <MoneyDisplay
             amount={row.netAmountToPay}
@@ -178,7 +148,7 @@ export function PayrollEmployeeCard({
           disabled={dataMode === "demo"}
         >
           <Banknote className="size-4" />
-          {labels.advance}
+          {t.payroll.advance}
         </Button>
         <form action={paymentFormAction} className="flex-1">
           <input type="hidden" name="employeeId" value={row.employee.id} />
@@ -200,7 +170,7 @@ export function PayrollEmployeeCard({
             ) : (
               <CheckCheck className="size-4" />
             )}
-            {row.isPaid ? labels.paid : labels.pay}
+            {row.isPaid ? t.payroll.paid : t.payroll.pay}
           </Button>
         </form>
       </div>
@@ -211,7 +181,7 @@ export function PayrollEmployeeCard({
           <input type="hidden" name="payrollMonth" value={payrollMonth} />
           <input type="hidden" name="payrollPeriod" value={payrollPeriod} />
           <div className="space-y-2">
-            <Label htmlFor={`advance-amount-${row.employee.id}`}>{labels.advanceAmount}</Label>
+            <Label htmlFor={`advance-amount-${row.employee.id}`}>{t.payroll.advanceAmount}</Label>
             <Input
               id={`advance-amount-${row.employee.id}`}
               name="amount"
@@ -234,7 +204,7 @@ export function PayrollEmployeeCard({
               }}
               disabled={isAdvancing}
             >
-              {labels.cancel}
+              {t.common.cancel}
             </Button>
             <Button
               type="submit"
@@ -243,7 +213,7 @@ export function PayrollEmployeeCard({
               aria-busy={isAdvancing}
             >
               {isAdvancing ? <Loader2 className="size-4 animate-spin" /> : null}
-              {labels.saveAdvance}
+              {t.common.save}
             </Button>
           </div>
           {advanceFeedback ? (
@@ -276,7 +246,7 @@ export function PayrollEmployeeCard({
 
       {dataMode === "demo" ? (
         <div className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
-          {labels.demoNote}
+          {t.payroll.demoNote}
         </div>
       ) : null}
     </div>

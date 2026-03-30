@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { EmployeeActionState } from "@/actions/employees";
@@ -38,7 +38,7 @@ function toNumber(value: string) {
 
 export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
   const [actionState, formAction, isPending] = useActionState(
     createEmployeeAction,
@@ -62,59 +62,29 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
     }
   }, [actionState, router]);
 
-  const labels = useMemo(
-    () => ({
-      title: locale === "bg" ? "Добави служител" : "Add employee",
-      description:
-        locale === "bg"
-          ? "Минимална форма за име, роля, телефон и дневна ставка."
-          : "A minimal form for name, role, phone, and daily rate.",
-      fullName: locale === "bg" ? "Име" : "Name",
-      role: locale === "bg" ? "Роля" : "Role",
-      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
-      service: locale === "bg" ? "Сервиз" : "Service",
-      phone: locale === "bg" ? "Телефон" : "Phone",
-      phonePlaceholder: locale === "bg" ? "По желание" : "Optional",
-      dailyRate: locale === "bg" ? "Дневна ставка (EUR)" : "Daily rate (EUR)",
-      bgnView: locale === "bg" ? "BGN:" : "BGN:",
-      demoNote:
-        locale === "bg"
-          ? "В демо режим формата е видима, но записването е изключено."
-          : "In demo mode the form stays visible, but saving is disabled.",
-      saving: locale === "bg" ? "Запазване..." : "Saving...",
-      add: locale === "bg" ? "Добави" : "Add",
-      saveError: locale === "bg" ? "Запазването е неуспешно." : "Saving failed.",
-      saveSuccess: locale === "bg" ? "Служителят е добавен." : "Employee added.",
-      duplicatePhone:
-        locale === "bg"
-          ? "Този телефон вече е използван."
-          : "This phone number is already used.",
-    }),
-    [locale],
-  );
-
   const feedbackMessage =
     actionState.messageKey === "msgCreateSuccess"
-      ? labels.saveSuccess
+      ? t.employees.msgCreateSuccess
       : actionState.messageKey === "msgDuplicatePhone"
-        ? labels.duplicatePhone
+        ? t.employees.msgDuplicatePhone
         : actionState.messageKey === "msgSaveError"
-          ? labels.saveError
+          ? t.employees.msgSaveError
           : actionState.message;
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{labels.title}</CardTitle>
-        <CardDescription>{labels.description}</CardDescription>
+        <CardTitle>{t.employees.addEmployee}</CardTitle>
+        <CardDescription>{t.employees.addEmployeeDesc}</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="create-fullName">{labels.fullName}</Label>
+            <Label htmlFor="create-fullName">{t.employees.name}</Label>
             <Input
               id="create-fullName"
               name="fullName"
+              required
               value={draft.fullName}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, fullName: event.target.value }))
@@ -123,7 +93,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="create-role">{labels.role}</Label>
+            <Label htmlFor="create-role">{t.employees.role}</Label>
             <SelectField
               id="create-role"
               name="role"
@@ -135,18 +105,18 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
                 }))
               }
             >
-              <option value="service">{labels.service}</option>
-              <option value="kitchen">{labels.kitchen}</option>
+              <option value="service">{t.common.service}</option>
+              <option value="kitchen">{t.common.kitchen}</option>
             </SelectField>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="create-phoneNumber">{labels.phone}</Label>
+            <Label htmlFor="create-phoneNumber">{t.employees.phoneNumber}</Label>
             <Input
               id="create-phoneNumber"
               name="phoneNumber"
               type="tel"
-              placeholder={labels.phonePlaceholder}
+              placeholder={t.common.optional}
               value={draft.phoneNumber}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
@@ -155,18 +125,20 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="create-dailyRate">{labels.dailyRate}</Label>
+            <Label htmlFor="create-dailyRate">{t.employees.dailyRateEur}</Label>
             <Input
               id="create-dailyRate"
               name="dailyRate"
               inputMode="decimal"
+              required
+              min="0"
               value={draft.dailyRate}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, dailyRate: event.target.value }))
               }
             />
             <p className="text-xs text-muted-foreground">
-              {labels.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
+              {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
           </div>
 
@@ -184,7 +156,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
 
           {dataMode === "demo" ? (
             <div className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {labels.demoNote}
+              {t.employees.demoNote}
             </div>
           ) : null}
 
@@ -195,7 +167,7 @@ export function EmployeeCreateForm({ dataMode }: EmployeeCreateFormProps) {
             aria-busy={isPending}
           >
             <Plus className="size-4" />
-            {isPending ? labels.saving : labels.add}
+            {isPending ? t.employees.savingEmployee : t.employees.addToRoster}
           </Button>
         </form>
       </CardContent>

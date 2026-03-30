@@ -51,6 +51,7 @@ function parsePayrollPeriod(value: FormDataEntryValue | null): PayrollPeriod {
 
 function revalidatePayrollViews() {
   revalidatePath("/payroll");
+  revalidatePath("/profile");
 }
 
 export async function addPayrollAdvanceAction(

@@ -1,6 +1,5 @@
-﻿"use client";
+"use client";
 
-import { useMemo } from "react";
 import { EmployeeCreateForm } from "@/components/employees/employee-create-form";
 import { EmployeeRowEditor } from "@/components/employees/employee-row-editor";
 import {
@@ -23,7 +22,7 @@ export function EmployeesPageClient({
   initialEmployees,
   dataMode,
 }: EmployeesPageClientProps) {
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const activeEmployees = initialEmployees.filter((employee) => employee.isActive);
   const averageRate =
     activeEmployees.reduce((sum, employee) => sum + employee.dailyRate, 0) /
@@ -39,27 +38,13 @@ export function EmployeesPageClient({
     )
     .join("|");
 
-  const labels = useMemo(
-    () => ({
-      activeTeam: locale === "bg" ? "Активен екип" : "Active team",
-      averageRate: locale === "bg" ? "Средна дневна ставка" : "Average daily rate",
-      roster: locale === "bg" ? "Служители" : "Employees",
-      rosterDesc:
-        locale === "bg"
-          ? "Минимални профили за бърза редакция на име, телефон и дневна ставка."
-          : "Minimal profiles for quick editing of name, phone, and daily rate.",
-      highestRate: locale === "bg" ? "Най-висока дневна ставка" : "Highest daily rate",
-    }),
-    [locale],
-  );
-
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.activeTeam}
+              {t.employees.activeTeam}
             </p>
             <p className="mt-2 text-2xl font-semibold">{activeEmployees.length}</p>
           </CardContent>
@@ -67,7 +52,7 @@ export function EmployeesPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.averageRate}
+              {t.employees.avgDailyRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={averageRate} />
@@ -80,18 +65,23 @@ export function EmployeesPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>{labels.roster}</CardTitle>
-          <CardDescription>{labels.rosterDesc}</CardDescription>
+          <CardTitle>{t.employees.employeeRoster}</CardTitle>
+          <CardDescription>{t.employees.rosterDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="rounded-2xl bg-muted p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.highestRate}
+              {t.employees.highestRate}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={highestRate} />
             </div>
           </div>
+          {initialEmployees.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              {t.employees.noEmployees}
+            </p>
+          ) : null}
           {initialEmployees.map((employee) => (
             <EmployeeRowEditor
               key={`${employee.id}:${employee.fullName}:${employee.role}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`}
@@ -104,6 +94,3 @@ export function EmployeesPageClient({
     </div>
   );
 }
-
-
-

@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -46,56 +46,13 @@ export function PayrollPageClient({
   payments,
   dataMode,
 }: PayrollPageClientProps) {
-  const { locale } = useLocale();
+  const { t, locale } = useLocale();
   const monthOptions = Array.from(
     new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`)),
   );
   const fallbackMonth = format(new Date(), "yyyy-MM-01");
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0] ?? fallbackMonth);
   const [period, setPeriod] = useState<PayrollPeriod>("first_half");
-
-  const labels = useMemo(
-    () => ({
-      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
-      service: locale === "bg" ? "Сервиз" : "Service",
-      window: locale === "bg" ? "Период на заплащане" : "Payroll window",
-      windowDesc:
-        locale === "bg"
-          ? "Избери месец и половина от месеца за изчислението."
-          : "Choose a month and half-month payroll period.",
-      month: locale === "bg" ? "Месец" : "Month",
-      firstHalf: locale === "bg" ? "1-15" : "1-15",
-      secondHalf: locale === "bg" ? "16-край" : "16-end",
-      activeRange: locale === "bg" ? "Период" : "Range",
-      demoAttendance:
-        locale === "bg" ? "Използват се демо данни за присъствие." : "Using demo attendance data.",
-      supabaseAttendance:
-        locale === "bg" ? "Данните са синхронизирани." : "Data is synchronized.",
-      bgnRate:
-        locale === "bg"
-          ? "Сумите се показват и в BGN по фиксиран курс"
-          : "Amounts are also shown in BGN using the fixed rate",
-      totalPayroll: locale === "bg" ? "Общо" : "Total",
-      staffPaid: locale === "bg" ? "Служители" : "Employees",
-      shiftsCount: locale === "bg" ? "Брой смени" : "Number of shifts",
-      overrides: locale === "bg" ? "Корекции" : "Overrides",
-      listTitle:
-        locale === "bg" ? "Заплати на служителите" : "Employee payroll",
-      listDesc:
-        locale === "bg"
-          ? "Компактен преглед по роли, брой смени, аванси и платени периоди."
-          : "A compact view grouped by role with shifts, advances, and payment status.",
-      noAttendance:
-        locale === "bg"
-          ? "Няма данни за този месец и период."
-          : "There is no attendance for this month and period.",
-      noRows:
-        locale === "bg"
-          ? "Няма служители с отчетено присъствие в тази роля."
-          : "No employees with attendance in this role.",
-    }),
-    [locale],
-  );
 
   const referenceDate = parseISO(selectedMonth);
   const payrollRows = buildPayrollRows(reports, employees, payments, period, referenceDate);
@@ -114,7 +71,7 @@ export function PayrollPageClient({
 
     return {
       role,
-      title: role === "kitchen" ? labels.kitchen : labels.service,
+      title: role === "kitchen" ? t.common.kitchen : t.common.service,
       rows,
       sectionClass,
       badgeClass,
@@ -125,13 +82,13 @@ export function PayrollPageClient({
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>{labels.window}</CardTitle>
-          <CardDescription>{labels.windowDesc}</CardDescription>
+          <CardTitle>{t.payroll.window}</CardTitle>
+          <CardDescription>{t.payroll.windowDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <label className="text-sm font-medium" htmlFor="payroll-month">
-              {labels.month}
+              {t.payroll.month}
             </label>
             <SelectField
               id="payroll-month"
@@ -151,28 +108,28 @@ export function PayrollPageClient({
               variant={period === "first_half" ? "default" : "outline"}
               onClick={() => setPeriod("first_half")}
             >
-              {labels.firstHalf}
+              {t.payroll.firstHalf}
             </Button>
             <Button
               type="button"
               variant={period === "second_half" ? "default" : "outline"}
               onClick={() => setPeriod("second_half")}
             >
-              {labels.secondHalf}
+              {t.payroll.secondHalf}
             </Button>
           </div>
           <div className="rounded-2xl bg-muted p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.activeRange}
+              {t.payroll.activeRange}
             </p>
             <p className="mt-2 text-lg font-semibold">
               {getPayrollPeriodLabel(period, referenceDate, locale)}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {dataMode === "demo" ? labels.demoAttendance : labels.supabaseAttendance}
+              {dataMode === "demo" ? t.payroll.demoAttendance : t.payroll.supabaseAttendance}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {labels.bgnRate} {formatExchangeRateLabel()}.
+              {t.payroll.bgnRate} {formatExchangeRateLabel()}.
             </p>
           </div>
         </CardContent>
@@ -182,7 +139,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.totalPayroll}
+              {t.payroll.totalPayroll}
             </p>
             <div className="mt-2">
               <MoneyDisplay amount={summary.totalPayroll} />
@@ -192,7 +149,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.staffPaid}
+              {t.payroll.staffPaid}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.employeeCount}</p>
           </CardContent>
@@ -200,7 +157,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.shiftsCount}
+              {t.payroll.shiftsCount}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.totalUnits.toFixed(1)}</p>
           </CardContent>
@@ -208,7 +165,7 @@ export function PayrollPageClient({
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {labels.overrides}
+              {t.payroll.overrides}
             </p>
             <p className="mt-2 text-xl font-semibold">{summary.overrideDays}</p>
           </CardContent>
@@ -217,13 +174,13 @@ export function PayrollPageClient({
 
       <Card>
         <CardHeader>
-          <CardTitle>{labels.listTitle}</CardTitle>
-          <CardDescription>{labels.listDesc}</CardDescription>
+          <CardTitle>{t.payroll.payrollRows}</CardTitle>
+          <CardDescription>{t.payroll.payrollRowsDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {payrollRows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
-              {labels.noAttendance}
+              {t.payroll.noAttendance}
             </div>
           ) : null}
 
@@ -246,7 +203,7 @@ export function PayrollPageClient({
                   />
                 ))}
                 {section.rows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{labels.noRows}</p>
+                  <p className="text-sm text-muted-foreground">{t.payroll.noRows}</p>
                 ) : null}
               </div>
             </div>
@@ -256,4 +213,3 @@ export function PayrollPageClient({
     </div>
   );
 }
-

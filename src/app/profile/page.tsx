@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
@@ -6,6 +7,7 @@ import { ProfilePageClient } from "@/components/profile/profile-page-client";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Profile — KoiRaboti" };
 
 export default async function ProfilePage() {
   const [sessionMode, snapshot] = await Promise.all([

@@ -20,15 +20,8 @@ type LoginContentProps = {
 };
 
 export function LoginContent({ action, usesSupabase }: LoginContentProps) {
-  const { locale, t } = useLocale();
-  const credentialsText =
-    usesSupabase
-      ? locale === "bg"
-        ? "Влез с администраторските си данни."
-        : "Use your admin credentials."
-      : locale === "bg"
-        ? "Можеш да продължиш в демо режим с произволен имейл и парола."
-        : "You can continue in demo mode with any email and password.";
+  const { t } = useLocale();
+  const credentialsText = usesSupabase ? t.login.credentialsSupabase : t.login.credentialsDemo;
 
   const highlights = [
     {

@@ -28,7 +28,7 @@ type RegisterContentProps = {
 };
 
 export function RegisterContent({ hasSupabase }: RegisterContentProps) {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const [actionState, formAction, isPending] = useActionState(
     registerAction,
     initialRegisterActionState,
@@ -54,9 +54,7 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
           {!hasSupabase ? (
             <div className="space-y-4">
               <div className="rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {locale === "bg"
-                  ? "Регистрацията е временно недостъпна, докато приложението не бъде конфигурирано."
-                  : "Registration is temporarily unavailable until the app is configured."}
+                {t.register.unavailable}
               </div>
               <p className="text-center text-sm text-muted-foreground">
                 {t.register.alreadyHaveAccount}{" "}
@@ -92,7 +90,7 @@ export function RegisterContent({ hasSupabase }: RegisterContentProps) {
                     autoComplete="new-password"
                   />
                   <p className="text-xs text-muted-foreground">
-                    {locale === "bg" ? "Минимум 6 символа" : "At least 6 characters"}
+                    {t.register.passwordHint}
                   </p>
                 </div>
 

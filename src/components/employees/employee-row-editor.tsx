@@ -1,6 +1,6 @@
-﻿"use client";
+"use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Pencil, Phone, Wallet } from "lucide-react";
 import type { EmployeeActionState } from "@/actions/employees";
@@ -37,7 +37,7 @@ function toNumber(value: string) {
 
 export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps) {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const refreshRef = useRef<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [updateState, updateFormAction, isUpdating] = useActionState(
@@ -69,50 +69,17 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
     }
   }, [router, toggleState, updateState]);
 
-  const labels = useMemo(
-    () => ({
-      role: locale === "bg" ? "Роля" : "Role",
-      kitchen: locale === "bg" ? "Кухня" : "Kitchen",
-      service: locale === "bg" ? "Сервиз" : "Service",
-      dailyRate: locale === "bg" ? "Дневна ставка" : "Daily rate",
-      editProfile: locale === "bg" ? "Редактирай профил" : "Edit profile",
-      name: locale === "bg" ? "Име" : "Name",
-      phone: locale === "bg" ? "Телефон" : "Phone",
-      phonePlaceholder: locale === "bg" ? "По желание" : "Optional",
-      dailyRateEur: locale === "bg" ? "Дневна ставка (EUR)" : "Daily rate (EUR)",
-      bgnView: locale === "bg" ? "BGN:" : "BGN:",
-      active: locale === "bg" ? "Активен" : "Active",
-      inactive: locale === "bg" ? "Неактивен" : "Inactive",
-      save: locale === "bg" ? "Запази профила" : "Save profile",
-      saving: locale === "bg" ? "Запазване..." : "Saving...",
-      deactivate: locale === "bg" ? "Деактивирай" : "Deactivate",
-      reactivate: locale === "bg" ? "Активирай отново" : "Reactivate",
-      deactivating: locale === "bg" ? "Деактивиране..." : "Deactivating...",
-      reactivating: locale === "bg" ? "Активиране..." : "Reactivating...",
-      saveSuccess: locale === "bg" ? "Профилът е обновен." : "Profile updated.",
-      saveError:
-        locale === "bg"
-          ? "Профилът не може да бъде обновен."
-          : "Profile could not be updated.",
-      duplicatePhone:
-        locale === "bg"
-          ? "Този телефон вече е използван."
-          : "This phone number is already used.",
-    }),
-    [locale],
-  );
-
   const updateFeedback =
     updateState.messageKey === "msgUpdateSuccess"
-      ? labels.saveSuccess
+      ? t.employees.msgUpdateSuccess
       : updateState.messageKey === "msgDuplicatePhone"
-        ? labels.duplicatePhone
+        ? t.employees.msgDuplicatePhone
         : updateState.messageKey === "msgSaveError"
-          ? labels.saveError
+          ? t.employees.msgSaveError
           : updateState.message;
 
   const toggleFeedback =
-    toggleState.messageKey === "msgSaveError" ? labels.saveError : toggleState.message;
+    toggleState.messageKey === "msgSaveError" ? t.employees.msgSaveError : toggleState.message;
 
   const roleBadgeClass =
     employee.role === "kitchen"
@@ -126,7 +93,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-semibold">{employee.fullName}</p>
             <Badge className={roleBadgeClass} variant="outline">
-              {employee.role === "kitchen" ? labels.kitchen : labels.service}
+              {employee.role === "kitchen" ? t.common.kitchen : t.common.service}
             </Badge>
           </div>
           {employee.phoneNumber ? (
@@ -137,7 +104,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           ) : null}
         </div>
         <Badge variant={employee.isActive ? "success" : "outline"}>
-          {employee.isActive ? labels.active : labels.inactive}
+          {employee.isActive ? t.employees.active : t.employees.inactive}
         </Badge>
       </div>
 
@@ -145,7 +112,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Wallet className="size-4" />
-            {labels.dailyRate}
+            {t.employees.dailyRateEur}
           </div>
           <MoneyDisplay amount={employee.dailyRate} align="end" />
         </div>
@@ -159,7 +126,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           onClick={() => setIsEditing((current) => !current)}
         >
           <Pencil className="size-4" />
-          {labels.editProfile}
+          {t.employees.editProfile}
         </Button>
         <form action={toggleFormAction} className="flex-1">
           <input type="hidden" name="employeeId" value={employee.id} />
@@ -177,11 +144,11 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
           >
             {isToggling
               ? employee.isActive
-                ? labels.deactivating
-                : labels.reactivating
+                ? t.employees.deactivating
+                : t.employees.reactivating
               : employee.isActive
-                ? labels.deactivate
-                : labels.reactivate}
+                ? t.employees.markInactive
+                : t.employees.reactivate}
           </Button>
         </form>
       </div>
@@ -196,7 +163,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
         <form action={updateFormAction} className="mt-4 space-y-3">
           <input type="hidden" name="employeeId" value={employee.id} />
           <div className="space-y-2">
-            <Label htmlFor={`employee-name-${employee.id}`}>{labels.name}</Label>
+            <Label htmlFor={`employee-name-${employee.id}`}>{t.employees.name}</Label>
             <Input
               id={`employee-name-${employee.id}`}
               name="fullName"
@@ -207,7 +174,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`employee-role-${employee.id}`}>{labels.role}</Label>
+            <Label htmlFor={`employee-role-${employee.id}`}>{t.employees.role}</Label>
             <SelectField
               id={`employee-role-${employee.id}`}
               name="role"
@@ -219,17 +186,17 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
                 }))
               }
             >
-              <option value="service">{labels.service}</option>
-              <option value="kitchen">{labels.kitchen}</option>
+              <option value="service">{t.common.service}</option>
+              <option value="kitchen">{t.common.kitchen}</option>
             </SelectField>
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`employee-phone-${employee.id}`}>{labels.phone}</Label>
+            <Label htmlFor={`employee-phone-${employee.id}`}>{t.employees.phoneNumber}</Label>
             <Input
               id={`employee-phone-${employee.id}`}
               name="phoneNumber"
               type="tel"
-              placeholder={labels.phonePlaceholder}
+              placeholder={t.common.optional}
               value={draft.phoneNumber}
               onChange={(event) =>
                 setDraft((current) => ({ ...current, phoneNumber: event.target.value }))
@@ -237,7 +204,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor={`employee-rate-${employee.id}`}>{labels.dailyRateEur}</Label>
+            <Label htmlFor={`employee-rate-${employee.id}`}>{t.employees.dailyRateEur}</Label>
             <Input
               id={`employee-rate-${employee.id}`}
               name="dailyRate"
@@ -248,7 +215,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
               }
             />
             <p className="text-xs text-muted-foreground">
-              {labels.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
+              {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
           </div>
           {updateState.status !== "idle" ? (
@@ -268,7 +235,7 @@ export function EmployeeRowEditor({ employee, dataMode }: EmployeeRowEditorProps
             disabled={isUpdating || dataMode === "demo"}
             aria-busy={isUpdating}
           >
-            {isUpdating ? labels.saving : labels.save}
+            {isUpdating ? t.employees.savingChanges : t.employees.saveEmployee}
           </Button>
         </form>
       ) : null}
