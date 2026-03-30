@@ -31,6 +31,11 @@ export default async function ProfilePage() {
     ? `https://t.me/${env.telegramBotUsername}`
     : null;
   let telegramLinkedUsersCount = 0;
+  const telegramConfigState = env.telegramBotUsername
+    ? "connectable"
+    : hasTelegramBotCredentials()
+      ? "missing_public_username"
+      : "not_configured";
 
   if (
     snapshot.mode === "supabase" &&
@@ -67,6 +72,7 @@ export default async function ProfilePage() {
           dataMode={snapshot.mode}
           telegramConnectUrl={telegramConnectUrl}
           telegramLinkedUsersCount={telegramLinkedUsersCount}
+          telegramConfigState={telegramConfigState}
         />
       )}
     </AppShell>
