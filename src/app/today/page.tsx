@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
 import { TodayDashboard } from "@/components/today/today-dashboard";
-import { TrendsDashboard } from "@/components/today/trends-dashboard";
 import { ErrorCard } from "@/components/ui/error-card";
 import { DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
@@ -74,20 +73,18 @@ export default async function TodayPage() {
       pageKey="today"
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
       dataMode={dataMode}
+      hidePageHeader
     >
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="today" message={snapshot.errorMessage} />
       ) : (
-        <div className="space-y-4">
-          <TrendsDashboard reports={snapshot.reports} />
-          <TodayDashboard
-            key={dashboardVersion}
-            employees={snapshot.employees}
-            expenseCategories={snapshot.expenseCategories}
-            initialReport={initialReport}
-            dataMode={snapshot.mode}
-          />
-        </div>
+        <TodayDashboard
+          key={dashboardVersion}
+          employees={snapshot.employees}
+          expenseCategories={snapshot.expenseCategories}
+          initialReport={initialReport}
+          dataMode={snapshot.mode}
+        />
       )}
     </AppShell>
   );

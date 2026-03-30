@@ -278,7 +278,7 @@ export function AppShell({
 
       <div className="lg:pl-64">
         <div className="sticky top-0 z-30 border-b border-slate-200/70 bg-slate-50/90 backdrop-blur lg:hidden dark:border-slate-800 dark:bg-slate-950/90">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="mx-auto flex w-full max-w-[1800px] items-center justify-between gap-3 px-4 py-3 md:px-8 lg:px-12">
             <Link href="/today" className="flex min-w-0 items-center gap-3">
               <div className="flex size-10 items-center justify-center rounded-2xl bg-emerald-600 text-white shadow-[0_16px_30px_rgba(5,150,105,0.24)]">
                 <Leaf className="size-4" />
@@ -328,7 +328,7 @@ export function AppShell({
 
         <div
           className={cn(
-            "mx-auto w-full max-w-7xl px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-10 lg:pt-8",
+            "mx-auto w-full max-w-[1800px] px-4 pb-28 pt-6 md:px-8 lg:px-12 lg:pb-10 lg:pt-8",
             contentClassName,
           )}
         >

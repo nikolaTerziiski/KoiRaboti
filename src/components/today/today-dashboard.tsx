@@ -1,26 +1,31 @@
-﻿"use client";
+"use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Calculator, CircleDollarSign, Save, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  CheckCircle2,
+  ChevronRight,
+  Plus,
+  ReceiptText,
+  Trash2,
+  Users,
+  Wallet,
+} from "lucide-react";
 import type { TodayActionState } from "@/actions/today";
 import { saveTodayReportAction } from "@/actions/today";
-import {
-  ExpenseItemsEditor,
-  type ExpenseEditorDraftItem,
-} from "@/components/expenses/expense-items-editor";
-import { Badge } from "@/components/ui/badge";
+import type { ExpenseEditorDraftItem } from "@/components/expenses/expense-items-editor";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
 import { calculateExpenseTotal } from "@/lib/expenses";
 import { useLocale } from "@/lib/i18n/context";
@@ -46,7 +51,12 @@ const initialTodayActionState: TodayActionState = {
   refreshKey: null,
 };
 
-const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
+type TodayDashboardProps = {
+  employees: Employee[];
+  expenseCategories: ExpenseCategory[];
+  initialReport: DailyReportWithAttendance;
+  dataMode: SnapshotMode;
+};
 
 type AttendanceDraft = {
   employee: Employee;
@@ -55,12 +65,20 @@ type AttendanceDraft = {
   dailyRate: number;
 };
 
-type TodayDashboardProps = {
-  employees: Employee[];
-  expenseCategories: ExpenseCategory[];
-  initialReport: DailyReportWithAttendance;
-  dataMode: SnapshotMode;
+type TaskKey = "finance" | "attendance" | "expenses";
+
+type TaskTileProps = {
+  title: string;
+  description: string;
+  completed: boolean;
+  pendingLabel: string;
+  doneLabel: string;
+  icon: LucideIcon;
+  accentClassName: string;
 };
+
+const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
+const SHIFT_OPTIONS: Array<0 | PayUnits> = [0, 1, 1.5, 2];
 
 function toNumber(value: string) {
   const numericValue = Number(value);
@@ -91,51 +109,97 @@ function buildExpenseDrafts(
   expenseCategories: ExpenseCategory[],
   initialReport: DailyReportWithAttendance,
 ): ExpenseEditorDraftItem[] {
-  if (initialReport.expenseItems.length > 0) {
-    return initialReport.expenseItems.map((item) => ({
-      id: item.id,
-      categoryId: item.categoryId,
-      amount: String(item.amount),
-      description: item.description ?? "",
-      sourceType: item.sourceType,
-      receiptImagePath: item.receiptImagePath,
-      receiptOcrText: item.receiptOcrText,
-      telegramUserId: item.telegramUserId,
-      amountOriginal: item.amountOriginal,
-      currencyOriginal: item.currencyOriginal,
-      categoryName:
-        item.categoryName ??
-        expenseCategories.find((category) => category.id === item.categoryId)?.name ??
-        null,
-      categoryEmoji:
-        item.categoryEmoji ??
-        expenseCategories.find((category) => category.id === item.categoryId)?.emoji ??
-        null,
-      createdAt: item.createdAt,
-    }));
+  if (initialReport.expenseItems.length === 0) {
+    return [];
   }
 
-  if (initialReport.manualExpense > 0) {
-    return [
-      {
-        id: `fallback-expense-${initialReport.id}`,
-        categoryId: null,
-        amount: String(initialReport.manualExpense),
-        description: "",
-        sourceType: "web",
-        receiptImagePath: null,
-        receiptOcrText: null,
-        telegramUserId: null,
-        amountOriginal: initialReport.manualExpense,
-        currencyOriginal: "EUR",
-        categoryName: null,
-        categoryEmoji: null,
-        createdAt: null,
-      },
-    ];
-  }
+  return initialReport.expenseItems.map((item) => ({
+    id: item.id,
+    categoryId: item.categoryId,
+    amount: String(item.amount),
+    description: item.description ?? "",
+    sourceType: item.sourceType,
+    receiptImagePath: item.receiptImagePath,
+    receiptOcrText: item.receiptOcrText,
+    telegramUserId: item.telegramUserId,
+    amountOriginal: item.amountOriginal,
+    currencyOriginal: item.currencyOriginal,
+    categoryName:
+      item.categoryName ??
+      expenseCategories.find((category) => category.id === item.categoryId)?.name ??
+      null,
+    categoryEmoji:
+      item.categoryEmoji ??
+      expenseCategories.find((category) => category.id === item.categoryId)?.emoji ??
+      null,
+    createdAt: item.createdAt,
+  }));
+}
 
-  return [];
+function createExpenseDraftItem(category: ExpenseCategory | null): ExpenseEditorDraftItem {
+  return {
+    id: crypto.randomUUID(),
+    categoryId: category?.id ?? null,
+    amount: "",
+    description: "",
+    sourceType: "web",
+    receiptImagePath: null,
+    receiptOcrText: null,
+    telegramUserId: null,
+    amountOriginal: null,
+    currencyOriginal: "EUR",
+    categoryName: category?.name ?? null,
+    categoryEmoji: category?.emoji ?? null,
+    createdAt: null,
+  };
+}
+
+function TaskTile({
+  title,
+  description,
+  completed,
+  pendingLabel,
+  doneLabel,
+  icon: Icon,
+  accentClassName,
+}: TaskTileProps) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        "flex h-full w-full flex-col items-start rounded-[1.75rem] border-2 p-6 text-left transition-all duration-300 hover:scale-[1.02]",
+        completed
+          ? "border-emerald-200 bg-emerald-50 shadow-sm ring-1 ring-emerald-500/20 dark:border-emerald-800/80 dark:bg-emerald-900/20"
+          : "border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900",
+      )}
+    >
+      <div className={cn("flex size-16 items-center justify-center rounded-3xl", accentClassName)}>
+        <Icon className="size-7" />
+      </div>
+      <div className="mt-6 space-y-2">
+        <h3 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+          {title}
+        </h3>
+        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
+      </div>
+      <div className="mt-auto flex w-full items-center justify-between pt-6">
+        <span
+          className={cn(
+            "inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold",
+            completed
+              ? "bg-white text-emerald-700 dark:bg-slate-900 dark:text-emerald-400"
+              : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+          )}
+        >
+          {completed ? <CheckCircle2 className="size-4" /> : <ChevronRight className="size-4" />}
+          {completed ? doneLabel : pendingLabel}
+        </span>
+        <ChevronRight className="size-5 text-slate-300 dark:text-slate-600" />
+      </div>
+    </button>
+  );
 }
 
 export function TodayDashboard({
@@ -147,6 +211,7 @@ export function TodayDashboard({
   const router = useRouter();
   const { locale, t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
+  const readyTimeoutRef = useRef<number | null>(null);
   const [actionState, formAction, isPending] = useActionState(
     saveTodayReportAction,
     initialTodayActionState,
@@ -163,6 +228,17 @@ export function TodayDashboard({
   const [expenseDrafts, setExpenseDrafts] = useState<ExpenseEditorDraftItem[]>(
     buildExpenseDrafts(expenseCategories, initialReport),
   );
+  const [activeDialog, setActiveDialog] = useState<TaskKey | null>(null);
+  const [isFinishAttentionActive, setIsFinishAttentionActive] = useState(false);
+  const [isFinanceDone, setIsFinanceDone] = useState(
+    !initialReport.id.startsWith("report-"),
+  );
+  const [isAttendanceDone, setIsAttendanceDone] = useState(
+    initialReport.attendanceEntries.length > 0,
+  );
+  const [isExpensesDone, setIsExpensesDone] = useState(
+    initialReport.expenseItems.length > 0,
+  );
 
   useEffect(() => {
     if (
@@ -175,93 +251,208 @@ export function TodayDashboard({
     }
   }, [actionState, router]);
 
+  const totalExpense = calculateExpenseTotal(
+    expenseDrafts.map((item) => ({ amount: toNumber(item.amount) })),
+  );
   const checkedInCount = attendanceDrafts.filter((entry) => entry.isPresent).length;
   const totalPayUnits = attendanceDrafts.reduce(
     (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
     0,
   );
-  const estimatedPayroll = attendanceDrafts.reduce(
-    (sum, entry) => sum + (entry.isPresent ? entry.dailyRate * entry.payUnits : 0),
-    0,
-  );
-  const totalExpense = calculateExpenseTotal(
-    expenseDrafts.map((item) => ({ amount: toNumber(item.amount) })),
-  );
+  const allTasksComplete = isFinanceDone && isAttendanceDone && isExpensesDone;
+  const isFinishReady = allTasksComplete && dataMode !== "demo";
+  const completedCount = [isFinanceDone, isAttendanceDone, isExpensesDone].filter(Boolean)
+    .length;
 
-  const roleSections = ROLE_ORDER.map((role) => {
-    const entries = attendanceDrafts.filter((entry) => entry.employee.role === role);
-    const sectionClass =
-      role === "kitchen"
-        ? "border-purple-200 bg-purple-50"
-        : "border-green-200 bg-green-50";
-    const activeClass =
-      role === "kitchen"
-        ? "border-purple-300 bg-purple-600 text-white shadow-md"
-        : "border-green-300 bg-green-600 text-white shadow-md";
-    const badgeClass =
-      role === "kitchen"
-        ? "border-purple-200 bg-purple-100 text-purple-700"
-        : "border-green-200 bg-green-100 text-green-700";
-
-    return {
-      role,
-      title: role === "kitchen" ? t.common.kitchen : t.common.service,
-      entries,
-      sectionClass,
-      activeClass,
-      badgeClass,
+  useEffect(() => {
+    return () => {
+      if (readyTimeoutRef.current) {
+        window.clearTimeout(readyTimeoutRef.current);
+        readyTimeoutRef.current = null;
+      }
     };
-  });
+  }, []);
 
-  const summaryCards = [
-    {
-      label: t.today.turnover,
-      amount: toNumber(reportForm.turnover),
-      icon: CircleDollarSign,
-    },
-    {
-      label: t.today.profit,
-      amount: toNumber(reportForm.profit),
-      icon: Calculator,
-    },
-    {
-      label: t.today.checkedIn,
-      value: `${checkedInCount} ${t.today.employeesCount}`,
-      helper: `${totalPayUnits.toFixed(1)} ${t.payroll.shiftsCount.toLowerCase()}`,
-      icon: Users,
-    },
-    {
-      label: t.today.payroll,
-      amount: estimatedPayroll,
-      icon: CircleDollarSign,
-    },
-  ];
+  const copy =
+    locale === "bg"
+      ? {
+          title: "Дневен Отчет",
+          subtitle: "Изпълнете задачите си за деня.",
+          progress: "Завършени задачи",
+          pending: "Чакащо",
+          done: "Завършено",
+          finish: "Приключи Деня",
+          finishHint: "Финалното запазване изпраща целия отчет към системата.",
+          demoNote:
+            "Демо режимът остава интерактивен, но финалното запазване е изключено.",
+          finance: [
+            "1. Оборот и Каса",
+            "Въведете дневните приходи и бележки.",
+            "Финанси",
+            "Попълни оборот, печалба, карти и бележки.",
+            "Запази Финанси",
+          ] as const,
+          attendance: [
+            "2. Персонал",
+            "Отбележете присъствията и смените.",
+            "Персонал",
+            "Маркирай кой е на работа и колко смени прави днес.",
+            "Запази Присъствия",
+          ] as const,
+          expenses: [
+            "3. Разходи",
+            "Потвърдете днешните разходи и касови бележки.",
+            "Разходи",
+            "Прегледай mini ledger-а и добави разходите за деня.",
+            "Потвърди Разходите",
+          ] as const,
+          totalExpense: "Общ разход",
+          addExpense: "Добави разход",
+          remove: "Премахни",
+          category: "Категория",
+          amount: "Сума (EUR)",
+          note: "Бележка",
+          notePlaceholder: "Кратко описание на разхода",
+          uncategorized: "Без категория",
+          emptyExpenses: "Все още няма добавени разходи за този ден.",
+          noEmployees: "Няма активни служители за днес.",
+          telegram: "От Telegram",
+          receipt: "Касова бележка",
+          saveSuccess: "Дневният отчет и присъствието бяха запазени.",
+          saveError: "Запазването неуспешно. Моля, опитай отново.",
+        }
+      : {
+          title: "Daily Report",
+          subtitle: "Complete your tasks for the day.",
+          progress: "Completed tasks",
+          pending: "Pending",
+          done: "Done",
+          finish: "Finish Day",
+          finishHint: "The final save submits the full report to the system.",
+          demoNote: "Demo mode stays interactive, but the final save remains disabled.",
+          finance: [
+            "1. Revenue and Cash",
+            "Enter the daily numbers and notes.",
+            "Finance",
+            "Fill turnover, profit, cards, and notes.",
+            "Save Finance",
+          ] as const,
+          attendance: [
+            "2. Staff",
+            "Review attendance and shift units.",
+            "Attendance",
+            "Mark who is working and how many shifts they cover.",
+            "Save Attendance",
+          ] as const,
+          expenses: [
+            "3. Expenses",
+            "Confirm today's expenses and receipts.",
+            "Expenses",
+            "Review the mini ledger and add today's expenses.",
+            "Confirm Expenses",
+          ] as const,
+          totalExpense: "Total expense",
+          addExpense: "Add expense",
+          remove: "Remove",
+          category: "Category",
+          amount: "Amount (EUR)",
+          note: "Note",
+          notePlaceholder: "Short expense description",
+          uncategorized: "Uncategorized",
+          emptyExpenses: "No expenses have been added for this day yet.",
+          noEmployees: "There are no active employees for today.",
+          telegram: "From Telegram",
+          receipt: "Receipt",
+          saveSuccess: "Today report and attendance were saved.",
+          saveError: "Could not save. Please try again.",
+        };
 
-  function toggleAttendance(employeeId: string) {
+  const roleSections = ROLE_ORDER.map((role) => ({
+    role,
+    title: role === "kitchen" ? t.common.kitchen : t.common.service,
+    badgeClassName:
+      role === "kitchen"
+        ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+        : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+    entries: attendanceDrafts.filter((entry) => entry.employee.role === role),
+  }));
+
+  function closeDialog() {
+    setActiveDialog(null);
+  }
+
+  function triggerFinishAttention() {
+    if (dataMode === "demo") {
+      return;
+    }
+
+    setIsFinishAttentionActive(true);
+
+    if (readyTimeoutRef.current) {
+      window.clearTimeout(readyTimeoutRef.current);
+    }
+
+    readyTimeoutRef.current = window.setTimeout(() => {
+      setIsFinishAttentionActive(false);
+      readyTimeoutRef.current = null;
+    }, 650);
+  }
+
+  function completeTask(task: TaskKey) {
+    const nextFinanceDone = task === "finance" ? true : isFinanceDone;
+    const nextAttendanceDone = task === "attendance" ? true : isAttendanceDone;
+    const nextExpensesDone = task === "expenses" ? true : isExpensesDone;
+    const willBecomeReady =
+      nextFinanceDone && nextAttendanceDone && nextExpensesDone && !allTasksComplete;
+
+    if (task === "finance") setIsFinanceDone(true);
+    if (task === "attendance") setIsAttendanceDone(true);
+    if (task === "expenses") setIsExpensesDone(true);
+
+    if (willBecomeReady) {
+      triggerFinishAttention();
+    }
+
+    setActiveDialog(null);
+  }
+
+  function updateAttendanceSelection(employeeId: string, selection: 0 | PayUnits) {
     setAttendanceDrafts((current) =>
-      current.map((item) =>
-        item.employee.id === employeeId
+      current.map((entry) =>
+        entry.employee.id === employeeId
           ? {
-              ...item,
-              isPresent: !item.isPresent,
-              payUnits: item.isPresent ? 1 : item.payUnits,
+              ...entry,
+              isPresent: selection !== 0,
+              payUnits: selection === 0 ? 1 : selection,
             }
-          : item,
+          : entry,
       ),
     );
   }
 
-  function updatePayUnits(employeeId: string, payUnits: PayUnits) {
-    setAttendanceDrafts((current) =>
-      current.map((item) =>
-        item.employee.id === employeeId ? { ...item, payUnits } : item,
-      ),
+  function addExpenseDraft() {
+    setExpenseDrafts((current) => [
+      ...current,
+      createExpenseDraftItem(expenseCategories[0] ?? null),
+    ]);
+  }
+
+  function updateExpenseDraft(
+    itemId: string,
+    updater: (item: ExpenseEditorDraftItem) => ExpenseEditorDraftItem,
+  ) {
+    setExpenseDrafts((current) =>
+      current.map((item) => (item.id === itemId ? updater(item) : item)),
     );
   }
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form action={formAction} className="w-full space-y-8">
       <input type="hidden" name="workDate" value={initialReport.workDate} />
+      <input type="hidden" name="turnover" value={reportForm.turnover} />
+      <input type="hidden" name="profit" value={reportForm.profit} />
+      <input type="hidden" name="cardAmount" value={reportForm.cardAmount} />
+      <input type="hidden" name="reportNotes" value={reportForm.notes} />
       <input type="hidden" name="manualExpense" value={String(totalExpense)} />
       <input
         type="hidden"
@@ -295,311 +486,560 @@ export function TodayDashboard({
           })),
         )}
       />
-
-      <Card className="bg-gradient-to-br from-primary to-green-800 text-primary-foreground">
-        <CardHeader>
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <CardTitle className="text-xl">{t.today.shiftSheet}</CardTitle>
-              <CardDescription className="mt-1 text-primary-foreground/80">
-                {formatDateLabel(initialReport.workDate, locale)}
-              </CardDescription>
-            </div>
-            {dataMode === "demo" ? (
-              <Badge className="bg-white/15 text-white" variant="default">
-                {t.today.demoDataset}
-              </Badge>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2 text-sm text-primary-foreground/80">
-          <p>{t.today.roleHint}</p>
-          <p>
-            {t.today.currency} {formatExchangeRateLabel()}.
-          </p>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        {summaryCards.map((card) => {
-          const Icon = card.icon;
-
-          return (
-            <Card key={card.label}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {card.label}
-                    </p>
-                    <div className="mt-2">
-                      {card.amount === undefined ? (
-                        <>
-                          <p className="text-lg font-semibold">{card.value}</p>
-                          <p className="text-xs text-muted-foreground">{card.helper}</p>
-                        </>
-                      ) : (
-                        <MoneyDisplay amount={card.amount} />
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                    <Icon className="size-4" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.today.dailyReport}</CardTitle>
-          <CardDescription>{t.today.dailyReportDesc}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="turnover">{t.today.turnoverEur}</Label>
-            <Input
-              id="turnover"
-              name="turnover"
-              inputMode="decimal"
-              min="0"
-              value={reportForm.turnover}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  turnover: event.target.value,
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.turnover))}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="profit">{t.today.profitEur}</Label>
-            <Input
-              id="profit"
-              name="profit"
-              inputMode="decimal"
-              min="0"
-              value={reportForm.profit}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  profit: event.target.value,
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.profit))}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="cardAmount">{t.today.cardAmountEur}</Label>
-            <Input
-              id="cardAmount"
-              name="cardAmount"
-              inputMode="decimal"
-              min="0"
-              value={reportForm.cardAmount}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  cardAmount: event.target.value,
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
-            </p>
-          </div>
-          <div className="space-y-2 sm:col-span-2">
-            <Label htmlFor="reportNotes">{t.today.managerNotes}</Label>
-            <textarea
-              id="reportNotes"
-              name="reportNotes"
-              value={reportForm.notes}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  notes: event.target.value,
-                }))
-              }
-              className="min-h-24 w-full rounded-lg border border-border bg-input px-3 py-2 text-sm text-foreground shadow-sm focus-visible:ring-2 focus-visible:ring-ring"
-              placeholder={t.today.notesPlaceholder}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <ExpenseItemsEditor
-        locale={locale}
-        categories={expenseCategories}
-        items={expenseDrafts}
-        onChange={setExpenseDrafts}
-        disabled={dataMode === "demo"}
-      />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.today.attendance}</CardTitle>
-          <CardDescription>{t.today.attendanceDesc}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            {t.today.roleHint}
-          </div>
+      <section className="rounded-[2rem] border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8 lg:p-10">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-4">
-            {roleSections.map((section) => (
-              <div key={section.role} className={cn("rounded-2xl border p-4", section.sectionClass)}>
-                <div className="flex items-center justify-between gap-3 pb-3">
-                  <h3 className="text-lg font-semibold">{section.title}</h3>
-                  <Badge className={section.badgeClass} variant="outline">
-                    {section.entries.length}
-                  </Badge>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                <span className="size-2 rounded-full bg-emerald-500" />
+                {copy.progress}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                {completedCount}/3
+              </span>
+              {dataMode === "demo" ? (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1.5 text-sm font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                  {t.today.demoDataset}
+                </span>
+              ) : null}
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white md:text-4xl">
+                {copy.title}
+              </h1>
+              <p className="mt-3 max-w-3xl text-base leading-7 text-slate-500 dark:text-slate-400">
+                {copy.subtitle}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[420px]">
+            <div className="rounded-3xl bg-slate-50 px-5 py-4 dark:bg-slate-950/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                {t.nav.today}
+              </p>
+              <p className="mt-2 text-lg font-bold text-slate-900 dark:text-white">
+                {formatDateLabel(initialReport.workDate, locale)}
+              </p>
+            </div>
+            <div className="rounded-3xl bg-slate-50 px-5 py-4 dark:bg-slate-950/70">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                EUR / BGN
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+                {formatExchangeRateLabel()}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <Dialog
+            open={activeDialog === "finance"}
+            onOpenChange={(open) => setActiveDialog(open ? "finance" : null)}
+            preventClose
+          >
+            <DialogTrigger asChild>
+              <TaskTile
+                title={copy.finance[0]}
+                description={copy.finance[1]}
+                completed={isFinanceDone}
+                pendingLabel={copy.pending}
+                doneLabel={copy.done}
+                icon={Wallet}
+                accentClassName="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+              />
+            </DialogTrigger>
+
+            <DialogContent
+              className="overflow-hidden rounded-[1.75rem] p-0 sm:max-w-lg"
+              showClose
+              onClose={closeDialog}
+              onPointerDownOutside={(event) => event.preventDefault()}
+              onEscapeKeyDown={(event) => event.preventDefault()}
+            >
+              <DialogHeader className="border-b border-slate-200/70 p-6 pr-16 dark:border-slate-800">
+                <DialogTitle>{copy.finance[2]}</DialogTitle>
+                <DialogDescription>{copy.finance[3]}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5 bg-slate-50/50 p-6 dark:bg-slate-950/80">
+                <div className="space-y-2">
+                  <Label htmlFor="finance-turnover">{t.today.turnoverEur}</Label>
+                  <Input
+                    id="finance-turnover"
+                    inputMode="decimal"
+                    value={reportForm.turnover}
+                    onChange={(event) =>
+                      setReportForm((current) => ({
+                        ...current,
+                        turnover: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-2xl"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.turnover))}
+                  </p>
                 </div>
-                <div className="space-y-3">
-                  {section.entries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">{t.today.noEmployeesInRole}</p>
-                  ) : null}
-                  {section.entries.map((entry) => (
+
+                <div className="space-y-2">
+                  <Label htmlFor="finance-profit">{t.today.profitEur}</Label>
+                  <Input
+                    id="finance-profit"
+                    inputMode="decimal"
+                    value={reportForm.profit}
+                    onChange={(event) =>
+                      setReportForm((current) => ({
+                        ...current,
+                        profit: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-2xl"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.profit))}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="finance-card">{t.today.cardAmountEur}</Label>
+                  <Input
+                    id="finance-card"
+                    inputMode="decimal"
+                    value={reportForm.cardAmount}
+                    onChange={(event) =>
+                      setReportForm((current) => ({
+                        ...current,
+                        cardAmount: event.target.value,
+                      }))
+                    }
+                    className="h-12 rounded-2xl"
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {t.today.bgnView}{" "}
+                    {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="finance-notes">{t.today.managerNotes}</Label>
+                  <textarea
+                    id="finance-notes"
+                    value={reportForm.notes}
+                    onChange={(event) =>
+                      setReportForm((current) => ({
+                        ...current,
+                        notes: event.target.value,
+                      }))
+                    }
+                    className="min-h-28 w-full rounded-2xl border border-slate-200/70 bg-white px-4 py-3 text-sm text-slate-900 shadow-sm outline-none transition-colors focus:border-emerald-400 dark:border-slate-800 dark:bg-slate-900 dark:text-white"
+                    placeholder={t.today.notesPlaceholder}
+                  />
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => completeTask("finance")}
+                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                >
+                  {copy.finance[4]}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={activeDialog === "attendance"}
+            onOpenChange={(open) => setActiveDialog(open ? "attendance" : null)}
+            preventClose
+          >
+            <DialogTrigger asChild>
+              <TaskTile
+                title={copy.attendance[0]}
+                description={copy.attendance[1]}
+                completed={isAttendanceDone}
+                pendingLabel={copy.pending}
+                doneLabel={copy.done}
+                icon={Users}
+                accentClassName="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+              />
+            </DialogTrigger>
+
+            <DialogContent
+              className="overflow-hidden rounded-[1.75rem] p-0 sm:max-w-3xl"
+              showClose
+              onClose={closeDialog}
+              onPointerDownOutside={(event) => event.preventDefault()}
+              onEscapeKeyDown={(event) => event.preventDefault()}
+            >
+              <DialogHeader className="border-b border-slate-200/70 p-6 pr-16 dark:border-slate-800">
+                <DialogTitle>{copy.attendance[2]}</DialogTitle>
+                <DialogDescription>{copy.attendance[3]}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5 bg-slate-50/50 p-6 dark:bg-slate-950/80">
+                {attendanceDrafts.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-slate-200/70 bg-white px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                    {copy.noEmployees}
+                  </div>
+                ) : (
+                  roleSections.map((section) => (
                     <div
-                      key={entry.employee.id}
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => toggleAttendance(entry.employee.id)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                          event.preventDefault();
-                          toggleAttendance(entry.employee.id);
-                        }
-                      }}
-                      className={cn(
-                        "rounded-xl border p-4 transition-colors",
-                        entry.isPresent ? section.activeClass : "border-border bg-muted",
-                      )}
+                      key={section.role}
+                      className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className={cn("font-semibold", entry.isPresent && "text-white")}>
-                            {entry.employee.fullName}
-                          </p>
-                          <p
-                            className={cn(
-                              "mt-1 text-sm",
-                              entry.isPresent ? "text-white/80" : "text-muted-foreground",
-                            )}
-                          >
-                            {entry.isPresent ? t.today.atWork : t.today.notSelected}
-                          </p>
-                        </div>
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                          {section.title}
+                        </h3>
+                        <span
+                          className={cn(
+                            "inline-flex rounded-full px-3 py-1 text-xs font-semibold",
+                            section.badgeClassName,
+                          )}
+                        >
+                          {section.entries.length}
+                        </span>
                       </div>
 
-                      {entry.isPresent ? (
-                        <div
-                          className="mt-4"
-                          onClick={(event) => event.stopPropagation()}
-                        >
-                          <Label
-                            htmlFor={`payUnits-${entry.employee.id}`}
-                            className={cn("text-sm", "text-white/80")}
-                          >
-                            {t.payroll.shiftsCount}
-                          </Label>
-                          <SelectField
-                            id={`payUnits-${entry.employee.id}`}
-                            value={String(entry.payUnits)}
-                            className="mt-1 border-white/20 bg-white text-foreground"
-                            onChange={(event) =>
-                              updatePayUnits(
-                                entry.employee.id,
-                                Number(event.target.value) as PayUnits,
-                              )
-                            }
-                          >
-                            <option value="1">1</option>
-                            <option value="1.5">1.5</option>
-                            <option value="2">2</option>
-                          </SelectField>
-                        </div>
-                      ) : (
-                        <p className="mt-3 text-sm text-muted-foreground">{t.today.tapHint}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                      <div className="space-y-3">
+                        {section.entries.length === 0 ? (
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                            {t.today.noEmployeesInRole}
+                          </p>
+                        ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t.today.save}</CardTitle>
-          <CardDescription>{t.today.saveDesc}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+                        {section.entries.map((entry) => {
+                          const selectedUnits = entry.isPresent ? entry.payUnits : 0;
+
+                          return (
+                            <div
+                              key={entry.employee.id}
+                              className="rounded-3xl border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/70"
+                            >
+                              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                  <p className="text-base font-semibold text-slate-900 dark:text-white">
+                                    {entry.employee.fullName}
+                                  </p>
+                                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                                    {t.payroll.shiftsCount}
+                                  </p>
+                                </div>
+
+                                <div className="grid grid-cols-4 gap-2">
+                                  {SHIFT_OPTIONS.map((option) => (
+                                    <button
+                                      key={`${entry.employee.id}-${option}`}
+                                      type="button"
+                                      onClick={() =>
+                                        updateAttendanceSelection(entry.employee.id, option)
+                                      }
+                                      className={cn(
+                                        "h-12 min-w-14 rounded-2xl border text-sm font-bold transition-all",
+                                        selectedUnits === option
+                                          ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                                          : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:text-emerald-400",
+                                      )}
+                                    >
+                                      {option}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))
+                )}
+
+                <Button
+                  type="button"
+                  onClick={() => completeTask("attendance")}
+                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                >
+                  {copy.attendance[4]}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3">
+          <Dialog
+            open={activeDialog === "expenses"}
+            onOpenChange={(open) => setActiveDialog(open ? "expenses" : null)}
+            preventClose
+          >
+            <DialogTrigger asChild>
+              <TaskTile
+                title={copy.expenses[0]}
+                description={copy.expenses[1]}
+                completed={isExpensesDone}
+                pendingLabel={copy.pending}
+                doneLabel={copy.done}
+                icon={ReceiptText}
+                accentClassName="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+              />
+            </DialogTrigger>
+
+            <DialogContent
+              className="overflow-hidden rounded-[1.75rem] p-0 sm:max-w-3xl"
+              showClose
+              onClose={closeDialog}
+              onPointerDownOutside={(event) => event.preventDefault()}
+              onEscapeKeyDown={(event) => event.preventDefault()}
+            >
+              <DialogHeader className="border-b border-slate-200/70 p-6 pr-16 dark:border-slate-800">
+                <DialogTitle>{copy.expenses[2]}</DialogTitle>
+                <DialogDescription>{copy.expenses[3]}</DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-5 bg-slate-50/50 p-6 dark:bg-slate-950/80">
+                {expenseDrafts.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-slate-200/70 bg-white px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                    {copy.emptyExpenses}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {expenseDrafts.map((item) => (
+                      <div
+                        key={item.id}
+                        className="rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                      >
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_160px_auto]">
+                          <div className="space-y-2">
+                            <Label htmlFor={`expense-category-${item.id}`}>{copy.category}</Label>
+                            <SelectField
+                              id={`expense-category-${item.id}`}
+                              value={item.categoryId ?? ""}
+                              className="h-12 rounded-2xl"
+                              onChange={(event) => {
+                                const nextCategoryId = event.target.value || null;
+                                const category =
+                                  expenseCategories.find(
+                                    (entry) => entry.id === nextCategoryId,
+                                  ) ?? null;
+
+                                updateExpenseDraft(item.id, (current) => ({
+                                  ...current,
+                                  categoryId: nextCategoryId,
+                                  categoryName: category?.name ?? null,
+                                  categoryEmoji: category?.emoji ?? null,
+                                }));
+                              }}
+                            >
+                              <option value="">{copy.uncategorized}</option>
+                              {expenseCategories.map((category) => (
+                                <option key={category.id} value={category.id}>
+                                  {category.emoji ? `${category.emoji} ` : ""}
+                                  {category.name}
+                                </option>
+                              ))}
+                            </SelectField>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor={`expense-amount-${item.id}`}>{copy.amount}</Label>
+                            <Input
+                              id={`expense-amount-${item.id}`}
+                              inputMode="decimal"
+                              value={item.amount}
+                              onChange={(event) =>
+                                updateExpenseDraft(item.id, (current) => ({
+                                  ...current,
+                                  amount: event.target.value,
+                                }))
+                              }
+                              className="h-12 rounded-2xl"
+                            />
+                          </div>
+
+                          <div className="flex items-end">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() =>
+                                setExpenseDrafts((current) =>
+                                  current.filter((entry) => entry.id !== item.id),
+                                )
+                              }
+                              className="h-12 rounded-2xl px-4 text-slate-500 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/30 dark:hover:text-rose-400"
+                            >
+                              <Trash2 className="size-4" />
+                              {copy.remove}
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 space-y-2">
+                          <Label htmlFor={`expense-description-${item.id}`}>{copy.note}</Label>
+                          <Input
+                            id={`expense-description-${item.id}`}
+                            value={item.description}
+                            placeholder={copy.notePlaceholder}
+                            onChange={(event) =>
+                              updateExpenseDraft(item.id, (current) => ({
+                                ...current,
+                                description: event.target.value,
+                              }))
+                            }
+                            className="h-12 rounded-2xl"
+                          />
+                        </div>
+
+                        <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                          {item.sourceType === "telegram" ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">
+                              <ReceiptText className="size-3" />
+                              {copy.telegram}
+                            </span>
+                          ) : null}
+                          {item.receiptImagePath ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 dark:bg-slate-800">
+                              <ReceiptText className="size-3" />
+                              {copy.receipt}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/70 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                      {copy.totalExpense}
+                    </p>
+                    <p className="mt-2 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                      €{totalExpense.toFixed(2)}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                      {formatBgnCurrencyFromEur(totalExpense)}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={addExpenseDraft}
+                    className="h-12 rounded-2xl border-slate-200/70 px-5 hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-700 dark:hover:border-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
+                  >
+                    <Plus className="size-4" />
+                    {copy.addExpense}
+                  </Button>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={() => completeTask("expenses")}
+                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                >
+                  {copy.expenses[4]}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:p-8 lg:p-10">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          <div className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              {copy.finance[2]}
+            </p>
+            <p className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              €{toNumber(reportForm.turnover).toFixed(2)}
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {formatBgnCurrencyFromEur(toNumber(reportForm.turnover))}
+            </p>
+          </div>
+
+          <div className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              {copy.attendance[2]}
+            </p>
+            <p className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              {checkedInCount}
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {totalPayUnits.toFixed(1)} {t.payroll.shiftsCount.toLowerCase()}
+            </p>
+          </div>
+
+          <div className="rounded-3xl bg-slate-50 p-5 dark:bg-slate-950/70">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+              {copy.expenses[2]}
+            </p>
+            <p className="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              €{totalExpense.toFixed(2)}
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {formatBgnCurrencyFromEur(totalExpense)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 space-y-4">
           {actionState.status !== "idle" ? (
             <div
               className={cn(
-                "rounded-2xl px-4 py-3 text-sm",
+                "rounded-3xl border px-5 py-4 text-sm",
                 actionState.status === "success"
-                  ? "border border-success/20 bg-success/10 text-success"
-                  : "border border-destructive/20 bg-destructive/10 text-destructive",
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-400"
+                  : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-400",
               )}
             >
               {actionState.messageKey === "msgSaveSuccess"
-                ? t.today.msgSaveSuccess
+                ? copy.saveSuccess
                 : actionState.messageKey === "msgSaveError"
-                  ? t.today.msgSaveError
+                  ? copy.saveError
                   : actionState.message}
             </div>
           ) : null}
+
           {dataMode === "demo" ? (
-            <div className="rounded-2xl border border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-              {t.today.demoSaveNote}
+            <div className="rounded-3xl border border-slate-200/70 bg-slate-50 px-5 py-4 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
+              {copy.demoNote}
             </div>
           ) : null}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t.today.cardShare}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={toNumber(reportForm.cardAmount)} />
+
+          <div className="rounded-[1.75rem] border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/70">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                  {copy.finishHint}
+                </p>
+                <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                  {copy.progress}: {completedCount}/3
+                </p>
               </div>
-            </div>
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t.payroll.shiftsCount}
-              </p>
-              <p className="mt-2 text-xl font-semibold">{totalPayUnits.toFixed(1)}</p>
-            </div>
-            <div className="rounded-2xl bg-muted p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t.today.manualExpense}
-              </p>
-              <div className="mt-2">
-                <MoneyDisplay amount={totalExpense} />
-              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                disabled={!isFinishReady || isPending}
+                aria-busy={isPending}
+                className={cn(
+                  "h-16 w-full rounded-[1.4rem] px-8 text-base font-extrabold transition-all duration-300 lg:w-auto lg:min-w-[320px]",
+                  isFinishReady
+                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700"
+                    : "bg-slate-200 text-slate-500 hover:bg-slate-200",
+                  isFinishAttentionActive && "animate-pulse scale-[1.02]",
+                )}
+              >
+                <CheckCircle2 className="size-5" />
+                {isPending ? t.common.saving : copy.finish}
+              </Button>
             </div>
           </div>
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            disabled={isPending || dataMode === "demo"}
-            aria-busy={isPending}
-          >
-            <Save className="size-4" />
-            {isPending ? t.common.saving : t.today.saveToday}
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </form>
   );
 }
