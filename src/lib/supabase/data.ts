@@ -2,9 +2,11 @@
 import { createDemoSnapshot } from "@/lib/mock-data";
 import type {
   AttendanceEntry,
+  DailyExpenseItem,
   DailyReportWithAttendance,
   Employee,
   EmployeeRole,
+  ExpenseCategory,
   Profile,
   Restaurant,
   RestaurantSnapshot,
@@ -45,6 +47,39 @@ type SupabaseAttendanceRow = {
   notes: string | null;
 };
 
+type SupabaseExpenseCategoryRow = {
+  id: string;
+  restaurant_id: string;
+  name: string;
+  emoji: string | null;
+  is_active: boolean;
+};
+
+type SupabaseExpenseItemRow = {
+  id: string;
+  daily_report_id: string;
+  category_id: string | null;
+  amount: number | string;
+  amount_original?: number | string | null;
+  currency_original?: string | null;
+  description: string | null;
+  receipt_image_path?: string | null;
+  receipt_ocr_text?: string | null;
+  source_type?: string | null;
+  telegram_user_id?: string | null;
+  created_at?: string | null;
+  restaurant_expense_categories?:
+    | {
+        name: string;
+        emoji: string | null;
+      }
+    | Array<{
+        name: string;
+        emoji: string | null;
+      }>
+    | null;
+};
+
 type SupabaseReportRow = {
   id: string;
   work_date: string;
@@ -54,6 +89,7 @@ type SupabaseReportRow = {
   manual_expense: number | string;
   notes: string | null;
   attendance_entries?: SupabaseAttendanceRow[];
+  daily_expense_items?: SupabaseExpenseItemRow[];
 };
 
 function mapRestaurant(row: SupabaseRestaurantRow): Restaurant {
@@ -90,6 +126,39 @@ function mapProfile(row: SupabaseProfileRow): Profile {
   };
 }
 
+function mapExpenseCategory(row: SupabaseExpenseCategoryRow): ExpenseCategory {
+  return {
+    id: row.id,
+    restaurantId: row.restaurant_id,
+    name: row.name,
+    emoji: row.emoji,
+    isActive: row.is_active,
+  };
+}
+
+function mapExpenseItem(row: SupabaseExpenseItemRow): DailyExpenseItem {
+  const categoryRaw = row.restaurant_expense_categories;
+  const category = Array.isArray(categoryRaw) ? categoryRaw[0] : categoryRaw;
+
+  return {
+    id: row.id,
+    dailyReportId: row.daily_report_id,
+    categoryId: row.category_id,
+    amount: Number(row.amount),
+    amountOriginal:
+      row.amount_original == null ? null : Number(row.amount_original),
+    currencyOriginal: row.currency_original ?? null,
+    description: row.description,
+    receiptImagePath: row.receipt_image_path ?? null,
+    receiptOcrText: row.receipt_ocr_text ?? null,
+    sourceType: row.source_type === "telegram" ? "telegram" : "web",
+    telegramUserId: row.telegram_user_id ?? null,
+    categoryName: category?.name ?? null,
+    categoryEmoji: category?.emoji ?? null,
+    createdAt: row.created_at ?? null,
+  };
+}
+
 function mapAttendance(row: SupabaseAttendanceRow): AttendanceEntry {
   return {
     id: row.id,
@@ -112,6 +181,7 @@ function mapReport(row: SupabaseReportRow): DailyReportWithAttendance {
     manualExpense: Number(row.manual_expense),
     notes: row.notes,
     attendanceEntries: (row.attendance_entries ?? []).map(mapAttendance),
+    expenseItems: (row.daily_expense_items ?? []).map(mapExpenseItem),
   };
 }
 
@@ -122,6 +192,7 @@ function buildLiveErrorSnapshot(message: string): RestaurantSnapshot {
     profile: null,
     employees: [],
     reports: [],
+    expenseCategories: [],
     errorMessage: message,
   };
 }
@@ -148,7 +219,13 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     return createDemoSnapshot();
   }
 
-  const [restaurantResponse, profileResponse, employeesResponse, reportsResponse] = await Promise.all([
+  const [
+    restaurantResponse,
+    profileResponse,
+    employeesResponse,
+    reportsResponse,
+    expenseCategoriesResponse,
+  ] = await Promise.all([
     supabase
       .from("restaurants")
       .select("id, name, default_daily_expense")
@@ -162,22 +239,28 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     supabase
       .from("daily_reports")
       .select(
-        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes)",
+        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
       )
       .order("work_date", { ascending: false }),
+    supabase
+      .from("restaurant_expense_categories")
+      .select("id, restaurant_id, name, emoji, is_active")
+      .order("name"),
   ]);
 
   if (
     restaurantResponse.error ||
     profileResponse.error ||
     employeesResponse.error ||
-    reportsResponse.error
+    reportsResponse.error ||
+    expenseCategoriesResponse.error
   ) {
     const messages = [
       restaurantResponse.error?.message,
       profileResponse.error?.message,
       employeesResponse.error?.message,
       reportsResponse.error?.message,
+      expenseCategoriesResponse.error?.message,
     ]
       .filter(Boolean)
       .join(" | ");
@@ -199,10 +282,11 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
       : null,
     employees: ((employeesResponse.data ?? []) as SupabaseEmployeeRow[]).map(mapEmployee),
     reports: ((reportsResponse.data ?? []) as SupabaseReportRow[]).map(mapReport),
+    expenseCategories: ((expenseCategoriesResponse.data ?? []) as SupabaseExpenseCategoryRow[]).map(
+      mapExpenseCategory,
+    ),
     errorMessage: null,
   };
 }
-
-
 
 

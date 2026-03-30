@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Calculator, CircleDollarSign, Save, Users } from "lucide-react";
 import type { TodayActionState } from "@/actions/today";
 import { saveTodayReportAction } from "@/actions/today";
+import {
+  ExpenseItemsEditor,
+  type ExpenseEditorDraftItem,
+} from "@/components/expenses/expense-items-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,9 +22,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
+import { calculateExpenseTotal } from "@/lib/expenses";
 import { useLocale } from "@/lib/i18n/context";
 import {
-  DEFAULT_MANUAL_EXPENSE_EUR,
   formatBgnCurrencyFromEur,
   formatDateLabel,
   formatExchangeRateLabel,
@@ -30,6 +34,7 @@ import type {
   DailyReportWithAttendance,
   Employee,
   EmployeeRole,
+  ExpenseCategory,
   PayUnits,
   SnapshotMode,
 } from "@/lib/types";
@@ -52,6 +57,7 @@ type AttendanceDraft = {
 
 type TodayDashboardProps = {
   employees: Employee[];
+  expenseCategories: ExpenseCategory[];
   initialReport: DailyReportWithAttendance;
   dataMode: SnapshotMode;
 };
@@ -81,7 +87,63 @@ function buildAttendanceDrafts(
     });
 }
 
-export function TodayDashboard({ employees, initialReport, dataMode }: TodayDashboardProps) {
+function buildExpenseDrafts(
+  expenseCategories: ExpenseCategory[],
+  initialReport: DailyReportWithAttendance,
+): ExpenseEditorDraftItem[] {
+  if (initialReport.expenseItems.length > 0) {
+    return initialReport.expenseItems.map((item) => ({
+      id: item.id,
+      categoryId: item.categoryId,
+      amount: String(item.amount),
+      description: item.description ?? "",
+      sourceType: item.sourceType,
+      receiptImagePath: item.receiptImagePath,
+      receiptOcrText: item.receiptOcrText,
+      telegramUserId: item.telegramUserId,
+      amountOriginal: item.amountOriginal,
+      currencyOriginal: item.currencyOriginal,
+      categoryName:
+        item.categoryName ??
+        expenseCategories.find((category) => category.id === item.categoryId)?.name ??
+        null,
+      categoryEmoji:
+        item.categoryEmoji ??
+        expenseCategories.find((category) => category.id === item.categoryId)?.emoji ??
+        null,
+      createdAt: item.createdAt,
+    }));
+  }
+
+  if (initialReport.manualExpense > 0) {
+    return [
+      {
+        id: `fallback-expense-${initialReport.id}`,
+        categoryId: null,
+        amount: String(initialReport.manualExpense),
+        description: "",
+        sourceType: "web",
+        receiptImagePath: null,
+        receiptOcrText: null,
+        telegramUserId: null,
+        amountOriginal: initialReport.manualExpense,
+        currencyOriginal: "EUR",
+        categoryName: null,
+        categoryEmoji: null,
+        createdAt: null,
+      },
+    ];
+  }
+
+  return [];
+}
+
+export function TodayDashboard({
+  employees,
+  expenseCategories,
+  initialReport,
+  dataMode,
+}: TodayDashboardProps) {
   const router = useRouter();
   const { locale, t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
@@ -93,11 +155,13 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
     turnover: String(initialReport.turnover),
     profit: String(initialReport.profit),
     cardAmount: String(initialReport.cardAmount),
-    manualExpense: String(initialReport.manualExpense),
     notes: initialReport.notes ?? "",
   });
   const [attendanceDrafts, setAttendanceDrafts] = useState<AttendanceDraft[]>(
     buildAttendanceDrafts(employees, initialReport),
+  );
+  const [expenseDrafts, setExpenseDrafts] = useState<ExpenseEditorDraftItem[]>(
+    buildExpenseDrafts(expenseCategories, initialReport),
   );
 
   useEffect(() => {
@@ -146,6 +210,9 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
   const estimatedPayroll = attendanceDrafts.reduce(
     (sum, entry) => sum + (entry.isPresent ? entry.dailyRate * entry.payUnits : 0),
     0,
+  );
+  const totalExpense = calculateExpenseTotal(
+    expenseDrafts.map((item) => ({ amount: toNumber(item.amount) })),
   );
 
   const roleSections = ROLE_ORDER.map((role) => {
@@ -222,6 +289,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
   return (
     <form action={formAction} className="space-y-4">
       <input type="hidden" name="workDate" value={initialReport.workDate} />
+      <input type="hidden" name="manualExpense" value={String(totalExpense)} />
       <input
         type="hidden"
         name="attendancePayload"
@@ -230,6 +298,27 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
             employeeId: entry.employee.id,
             isPresent: entry.isPresent,
             payUnits: entry.payUnits,
+          })),
+        )}
+      />
+      <input
+        type="hidden"
+        name="expenseItemsPayload"
+        value={JSON.stringify(
+          expenseDrafts.map((item) => ({
+            id: item.id,
+            categoryId: item.categoryId,
+            amount: toNumber(item.amount),
+            amountOriginal: item.amountOriginal ?? toNumber(item.amount),
+            currencyOriginal: item.currencyOriginal ?? "EUR",
+            description: item.description,
+            receiptImagePath: item.receiptImagePath,
+            receiptOcrText: item.receiptOcrText,
+            sourceType: item.sourceType,
+            telegramUserId: item.telegramUserId,
+            categoryName: item.categoryName,
+            categoryEmoji: item.categoryEmoji,
+            createdAt: item.createdAt,
           })),
         )}
       />
@@ -351,27 +440,6 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
               {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.cardAmount))}
             </p>
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="manualExpense">{t.today.manualExpenseEur}</Label>
-            <Input
-              id="manualExpense"
-              name="manualExpense"
-              inputMode="decimal"
-              value={reportForm.manualExpense}
-              onChange={(event) =>
-                setReportForm((current) => ({
-                  ...current,
-                  manualExpense: event.target.value,
-                }))
-              }
-            />
-            <p className="text-xs text-muted-foreground">
-              {t.today.bgnView} {formatBgnCurrencyFromEur(toNumber(reportForm.manualExpense))}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t.today.default} {formatBgnCurrencyFromEur(DEFAULT_MANUAL_EXPENSE_EUR)}
-            </p>
-          </div>
           <div className="space-y-2 sm:col-span-2">
             <Label htmlFor="reportNotes">{t.today.managerNotes}</Label>
             <textarea
@@ -390,6 +458,14 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
           </div>
         </CardContent>
       </Card>
+
+      <ExpenseItemsEditor
+        locale={locale}
+        categories={expenseCategories}
+        items={expenseDrafts}
+        onChange={setExpenseDrafts}
+        disabled={dataMode === "demo"}
+      />
 
       <Card>
         <CardHeader>
@@ -532,7 +608,7 @@ export function TodayDashboard({ employees, initialReport, dataMode }: TodayDash
                 {t.today.manualExpense}
               </p>
               <div className="mt-2">
-                <MoneyDisplay amount={toNumber(reportForm.manualExpense)} />
+                <MoneyDisplay amount={totalExpense} />
               </div>
             </div>
           </div>

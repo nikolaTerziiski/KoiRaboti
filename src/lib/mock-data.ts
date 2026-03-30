@@ -1,9 +1,12 @@
 ﻿import { format, startOfDay, subDays } from "date-fns";
 import { bgnToEur, DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
+import { calculateExpenseTotal } from "@/lib/expenses";
 import type {
   AttendanceEntry,
+  DailyExpenseItem,
   DailyReportWithAttendance,
   Employee,
+  ExpenseCategory,
   Profile,
   Restaurant,
   RestaurantSnapshot,
@@ -137,6 +140,44 @@ export const demoProfile: Profile = {
   email: "owner@demo.local",
 };
 
+export const demoExpenseCategories: ExpenseCategory[] = [
+  {
+    id: "cat-food",
+    restaurantId: DEMO_RESTAURANT_ID,
+    name: "Food and produce",
+    emoji: "🛒",
+    isActive: true,
+  },
+  {
+    id: "cat-drinks",
+    restaurantId: DEMO_RESTAURANT_ID,
+    name: "Drinks",
+    emoji: "🥤",
+    isActive: true,
+  },
+  {
+    id: "cat-utilities",
+    restaurantId: DEMO_RESTAURANT_ID,
+    name: "Utilities",
+    emoji: "💡",
+    isActive: true,
+  },
+  {
+    id: "cat-supplies",
+    restaurantId: DEMO_RESTAURANT_ID,
+    name: "Supplies",
+    emoji: "📎",
+    isActive: true,
+  },
+  {
+    id: "cat-other",
+    restaurantId: DEMO_RESTAURANT_ID,
+    name: "Other",
+    emoji: "📦",
+    isActive: true,
+  },
+];
+
 function resolvePayUnits(dayIndex: number, employeeIndex: number): 1 | 1.5 | 2 {
   if ((dayIndex + employeeIndex) % 5 === 0) {
     return 2;
@@ -176,6 +217,68 @@ function buildAttendanceEntries(
     });
 }
 
+function buildExpenseItems(
+  reportId: string,
+  dayIndex: number,
+  workDate: string,
+): DailyExpenseItem[] {
+  const items: DailyExpenseItem[] = [
+    {
+      id: `${reportId}-expense-food`,
+      dailyReportId: reportId,
+      categoryId: "cat-food",
+      amount: bgnToEur(330 + (dayIndex % 2) * 35),
+      amountOriginal: 330 + (dayIndex % 2) * 35,
+      currencyOriginal: "BGN",
+      description: dayIndex === 0 ? "Fresh vegetables and dairy." : "Produce restock.",
+      receiptImagePath: dayIndex === 0 ? "demo/receipt-food.jpg" : null,
+      receiptOcrText: dayIndex === 0 ? "Vegetables, dairy, bread." : null,
+      sourceType: dayIndex % 3 === 0 ? "telegram" : "web",
+      telegramUserId: dayIndex % 3 === 0 ? "demo-telegram-user" : null,
+      categoryName: "Food and produce",
+      categoryEmoji: "🛒",
+      createdAt: `${workDate}T08:30:00.000Z`,
+    },
+    {
+      id: `${reportId}-expense-utilities`,
+      dailyReportId: reportId,
+      categoryId: "cat-utilities",
+      amount: bgnToEur(180 + (dayIndex % 3) * 20),
+      amountOriginal: 180 + (dayIndex % 3) * 20,
+      currencyOriginal: "BGN",
+      description: "Utilities and daily services.",
+      receiptImagePath: null,
+      receiptOcrText: null,
+      sourceType: "web" as const,
+      telegramUserId: null,
+      categoryName: "Utilities",
+      categoryEmoji: "💡",
+      createdAt: `${workDate}T10:15:00.000Z`,
+    },
+  ];
+
+  if (dayIndex % 2 === 0) {
+    items.push({
+      id: `${reportId}-expense-other`,
+      dailyReportId: reportId,
+      categoryId: "cat-other",
+      amount: bgnToEur(70 + dayIndex * 5),
+      amountOriginal: 70 + dayIndex * 5,
+      currencyOriginal: "BGN",
+      description: "Small same-day purchase.",
+      receiptImagePath: null,
+      receiptOcrText: null,
+      sourceType: "telegram" as const,
+      telegramUserId: "demo-telegram-user",
+      categoryName: "Other",
+      categoryEmoji: "📦",
+      createdAt: `${workDate}T13:45:00.000Z`,
+    });
+  }
+
+  return items;
+}
+
 function buildDemoReports(referenceDate = new Date()): DailyReportWithAttendance[] {
   const today = startOfDay(referenceDate);
 
@@ -186,8 +289,13 @@ function buildDemoReports(referenceDate = new Date()): DailyReportWithAttendance
     const turnoverBgn = 4200 + (7 - index) * 180 + (index % 2 === 0 ? 90 : 0);
     const turnover = bgnToEur(turnoverBgn);
     const cardAmount = turnover * (0.62 + (index % 3) * 0.03);
+    const expenseItems = buildExpenseItems(id, index, workDate);
     const manualExpense =
-      index === 0 ? DEFAULT_MANUAL_EXPENSE_EUR : bgnToEur(800 + (index % 2) * 50);
+      expenseItems.length > 0
+        ? calculateExpenseTotal(expenseItems)
+        : index === 0
+          ? DEFAULT_MANUAL_EXPENSE_EUR
+          : bgnToEur(800 + (index % 2) * 50);
     const profit = turnover * 0.31 - manualExpense * 0.15;
 
     return {
@@ -199,6 +307,7 @@ function buildDemoReports(referenceDate = new Date()): DailyReportWithAttendance
       manualExpense,
       notes: index === 0 ? "Lunch rush was stronger than expected." : null,
       attendanceEntries: buildAttendanceEntries(id, index),
+      expenseItems,
     };
   });
 }
@@ -210,6 +319,7 @@ export function createDemoSnapshot(): RestaurantSnapshot {
     profile: demoProfile,
     employees: demoEmployees,
     reports: buildDemoReports(),
+    expenseCategories: demoExpenseCategories,
     errorMessage: null,
   };
 }

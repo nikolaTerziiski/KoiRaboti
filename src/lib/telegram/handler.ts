@@ -1,234 +1,258 @@
+import { env } from "@/lib/env";
 import { sendMessage, sendTypingAction } from "./api";
-import { findOrCreateTelegramUser, createBusiness, getCategoriesForBusiness } from "./data";
-import { processMessage } from "./gemini";
+import {
+  claimTelegramConnectToken,
+  findOrCreateTelegramUser,
+  getCategoriesForRestaurant,
+  getRestaurantInfo,
+  setDailySummaryEnabled,
+} from "./data";
 import { executeFunctionCall } from "./executor";
+import { processMessage } from "./gemini";
 import { downloadPhoto, uploadReceiptToStorage } from "./receipts";
-import type { TelegramMessage } from "./types";
+import type { ExpenseCategory, TelegramMessage, TelegramUser } from "./types";
 
-/**
- * Main entry point for processing a Telegram message.
- * Handles onboarding, commands, and AI-powered expense tracking.
- */
-export async function handleTelegramMessage(
-  message: TelegramMessage,
-): Promise<void> {
-  const from = message.from;
-  if (!from) return;
-
-  const chatId = message.chat.id;
-  const text = message.text ?? message.caption ?? "";
-
-  try {
-    // 1. Identify or create user
-    const user = await findOrCreateTelegramUser(from);
-
-    // 2. Handle commands first (before AI, to save latency/cost)
-    if (text.startsWith("/")) {
-      const handled = await handleCommand(text, chatId, user.id, user.businessId);
-      if (handled) return;
-    }
-
-    // 3. Onboarding: no business yet
-    if (!user.businessId) {
-      await handleOnboarding(text, chatId, user.id);
-      return;
-    }
-
-    // 4. Show typing indicator
-    await sendTypingAction(chatId);
-
-    // 5. Load context
-    const categories = await getCategoriesForBusiness(user.businessId);
-
-    // 6. Handle photo if present
-    let imageBase64: string | undefined;
-    let imageMimeType: string | undefined;
-    let receiptImagePath: string | undefined;
-
-    if (message.photo && message.photo.length > 0) {
-      // Pick highest resolution (last in array)
-      const largestPhoto = message.photo[message.photo.length - 1];
-      const photoData = await downloadPhoto(largestPhoto.file_id);
-      if (photoData) {
-        imageBase64 = photoData.base64;
-        imageMimeType = photoData.mimeType;
-        // Upload to Supabase Storage
-        const storagePath = await uploadReceiptToStorage(
-          user.businessId,
-          photoData.buffer,
-          photoData.mimeType,
-        );
-        if (storagePath) {
-          receiptImagePath = storagePath;
-        }
-      }
-    }
-
-    // 7. Fetch business name for system prompt
-    const { getSupabaseAdminClient } = await import("@/lib/supabase/admin");
-    const db = getSupabaseAdminClient();
-    const { data: business } = await db
-      .from("businesses")
-      .select("name")
-      .eq("id", user.businessId)
-      .single();
-
-    const businessName = business?.name ?? "Моят бизнес";
-
-    // 8. Call Gemini
-    const geminiResponse = await processMessage({
-      text,
-      imageBase64,
-      imageMimeType,
-      businessName,
-      categories,
-    });
-
-    // 9. Handle response
-    if (geminiResponse.type === "text") {
-      await sendMessage(chatId, geminiResponse.text ?? "");
-      return;
-    }
-
-    // 10. Execute function calls
-    if (geminiResponse.functionCalls) {
-      const results: string[] = [];
-      for (const call of geminiResponse.functionCalls) {
-        const result = await executeFunctionCall({
-          call,
-          businessId: user.businessId,
-          telegramUserId: user.id,
-          categories,
-          receiptImagePath,
-        });
-        results.push(result.message);
-      }
-      await sendMessage(chatId, results.join("\n\n"));
-    }
-  } catch (error) {
-    console.error("[Telegram Handler] Error:", error);
-    await sendMessage(
-      chatId,
-      "Възникна грешка. Моля, опитай отново след малко.",
-    );
+function buildAppProfileLink() {
+  if (!env.appUrl) {
+    return "";
   }
+
+  return `\n\n<a href="${env.appUrl.replace(/\/$/, "")}/profile">Отвори приложението</a>`;
 }
 
-// ---------------------------------------------------------------------------
-// Command handling
-// ---------------------------------------------------------------------------
+function buildLinkedWelcomeMessage(restaurantName: string) {
+  return [
+    `Свързан си с <b>${restaurantName}</b>.`,
+    "Можеш да ми пращаш разходи, снимки на касови бележки и въпроси за бизнеса.",
+    "",
+    "Примери:",
+    "• 48 лв зеленчуци",
+    "• Покажи разходите за тази седмица",
+    "• Как върви payroll този месец?",
+    "",
+    "Команди:",
+    "/categories",
+    "/summary",
+    "/daily_on",
+    "/daily_off",
+    "/help",
+  ].join("\n");
+}
+
+function buildUnlinkedMessage() {
+  return (
+    "Първо свържи Telegram с ресторанта си от KoiRaboti.\n" +
+    "Отвори Профил > Telegram bot и натисни бутона за свързване." +
+    buildAppProfileLink()
+  );
+}
+
+async function runAiFlow(params: {
+  chatId: number;
+  text: string;
+  user: TelegramUser;
+  categories: ExpenseCategory[];
+  restaurantName: string;
+  message: TelegramMessage;
+}) {
+  await sendTypingAction(params.chatId);
+
+  let imageBase64: string | undefined;
+  let imageMimeType: string | undefined;
+  let receiptImagePath: string | undefined;
+
+  if (params.message.photo && params.message.photo.length > 0) {
+    const largestPhoto = params.message.photo[params.message.photo.length - 1];
+    const photoData = await downloadPhoto(largestPhoto.file_id);
+
+    if (photoData) {
+      imageBase64 = photoData.base64;
+      imageMimeType = photoData.mimeType;
+      receiptImagePath =
+        (await uploadReceiptToStorage(
+        params.user.restaurantId!,
+        photoData.buffer,
+        photoData.mimeType,
+      )) ?? undefined;
+    }
+  }
+
+  const geminiResponse = await processMessage({
+    text: params.text,
+    imageBase64,
+    imageMimeType,
+    restaurantName: params.restaurantName,
+    categories: params.categories,
+  });
+
+  if (geminiResponse.type === "text") {
+    await sendMessage(params.chatId, geminiResponse.text ?? "");
+    return;
+  }
+
+  const results: string[] = [];
+  for (const call of geminiResponse.functionCalls ?? []) {
+    const result = await executeFunctionCall({
+      call,
+      restaurantId: params.user.restaurantId!,
+      telegramUserId: params.user.id,
+      categories: params.categories,
+      receiptImagePath,
+    });
+    results.push(result.message);
+  }
+
+  await sendMessage(
+    params.chatId,
+    results.join("\n\n") || "Нямам достатъчно данни, за да помогна точно сега.",
+  );
+}
+
+async function handleStartCommand(
+  text: string,
+  chatId: number,
+  user: TelegramUser,
+): Promise<boolean> {
+  const token = text.split(/\s+/).slice(1).join(" ").trim();
+
+  if (token) {
+    if (user.restaurantId) {
+      const restaurant = await getRestaurantInfo(user.restaurantId);
+      await sendMessage(
+        chatId,
+        `Telegram вече е свързан с <b>${restaurant.name}</b>.\n\n${buildLinkedWelcomeMessage(restaurant.name)}`,
+      );
+      return true;
+    }
+
+    try {
+      const claim = await claimTelegramConnectToken(token, user.id, chatId);
+      await sendMessage(
+        chatId,
+        `Успешно свързах Telegram с <b>${claim.restaurantName}</b>.\n\n${buildLinkedWelcomeMessage(claim.restaurantName)}`,
+      );
+    } catch (error) {
+      await sendMessage(
+        chatId,
+        `${error instanceof Error ? error.message : "Свързването не успя."}\n\n${buildUnlinkedMessage()}`,
+      );
+    }
+
+    return true;
+  }
+
+  if (!user.restaurantId) {
+    await sendMessage(chatId, buildUnlinkedMessage());
+    return true;
+  }
+
+  const restaurant = await getRestaurantInfo(user.restaurantId);
+  await sendMessage(chatId, buildLinkedWelcomeMessage(restaurant.name));
+  return true;
+}
 
 async function handleCommand(
   text: string,
   chatId: number,
-  userId: string,
-  businessId: string | null,
+  user: TelegramUser,
 ): Promise<boolean> {
-  const command = text.split(" ")[0].toLowerCase();
+  const command = text.split(/\s+/)[0]?.toLowerCase() ?? "";
 
   switch (command) {
     case "/start":
-      if (businessId) {
-        await sendMessage(
-          chatId,
-          "Здравей отново! Просто ми пиши разходите си — аз ще ги запиша.\n\n" +
-            "Примери:\n" +
-            '- "50 лв зеленчуци"\n' +
-            '- "Гориво 30 евро"\n' +
-            '- Изпрати снимка на касова бележка\n\n' +
-            "Команди:\n" +
-            "/categories — виж категориите\n" +
-            "/summary — справка за месеца\n" +
-            "/help — помощ",
-        );
-      } else {
-        await sendMessage(
-          chatId,
-          "Здравей! Аз съм бот за проследяване на разходи.\n\n" +
-            "За да започнеш, напиши името на бизнеса си:",
-        );
-      }
-      return true;
-
+      return handleStartCommand(text, chatId, user);
     case "/help":
       await sendMessage(
         chatId,
-        "Как да ме ползваш:\n\n" +
-          "Просто ми пиши разходите — аз ще ги разбера и запиша.\n\n" +
-          "Примери:\n" +
-          '- "23 лв зеленчуци"\n' +
-          '- "Гориво 50"\n' +
-          '- "Платих 100 лв за ток"\n' +
-          "- Изпрати снимка на касова бележка\n\n" +
-          "Команди:\n" +
-          "/categories — виж категориите\n" +
-          "/summary — справка за месеца\n" +
-          "/help — тази помощ",
+        [
+          "Пиши ми свободно на български.",
+          "",
+          "Какво мога:",
+          "• да записвам разходи",
+          "• да обобщавам разходите по категории",
+          "• да показвам днешния отчет",
+          "• да давам attendance, payroll и KPI справки",
+          "",
+          "Примери:",
+          "• 62 лв месо",
+          "• Разходи за март",
+          "• Дай ми KPI за този месец",
+          "• Кои са отворените задачи?",
+        ].join("\n"),
       );
       return true;
+    case "/daily_on":
+      if (!user.restaurantId) {
+        await sendMessage(chatId, buildUnlinkedMessage());
+        return true;
+      }
 
+      await setDailySummaryEnabled(user.id, true);
+      await sendMessage(chatId, "Дневните Telegram обобщения са включени.");
+      return true;
+    case "/daily_off":
+      if (!user.restaurantId) {
+        await sendMessage(chatId, buildUnlinkedMessage());
+        return true;
+      }
+
+      await setDailySummaryEnabled(user.id, false);
+      await sendMessage(chatId, "Дневните Telegram обобщения са изключени.");
+      return true;
     case "/categories":
-      if (!businessId) {
-        await sendMessage(chatId, "Първо създай бизнес. Напиши името му:");
-        return true;
-      }
-      // Delegate to AI for consistent formatting
-      return false;
-
     case "/summary":
-      if (!businessId) {
-        await sendMessage(chatId, "Първо създай бизнес. Напиши името му:");
+      if (!user.restaurantId) {
+        await sendMessage(chatId, buildUnlinkedMessage());
         return true;
       }
-      // Delegate to AI for consistent formatting
       return false;
-
     default:
       return false;
   }
 }
 
-// ---------------------------------------------------------------------------
-// Onboarding (no business yet)
-// ---------------------------------------------------------------------------
-
-async function handleOnboarding(
-  text: string,
-  chatId: number,
-  userId: string,
-): Promise<void> {
-  const name = text.trim();
-
-  if (!name || name.startsWith("/")) {
-    await sendMessage(
-      chatId,
-      "Здравей! Аз съм бот за проследяване на разходи.\n\n" +
-        "За да започнеш, напиши името на бизнеса си:",
-    );
+export async function handleTelegramMessage(message: TelegramMessage): Promise<void> {
+  const from = message.from;
+  if (!from) {
     return;
   }
 
-  if (name.length < 2) {
-    await sendMessage(chatId, "Името трябва да е поне 2 символа. Опитай пак:");
-    return;
-  }
-
-  if (name.length > 100) {
-    await sendMessage(chatId, "Името е прекалено дълго. Опитай с по-кратко:");
-    return;
-  }
+  const chatId = message.chat.id;
+  const text = (message.text ?? message.caption ?? "").trim();
 
   try {
-    const business = await createBusiness(name, userId);
+    const user = await findOrCreateTelegramUser(from, chatId);
+
+    if (text.startsWith("/")) {
+      const handled = await handleCommand(text, chatId, user);
+      if (handled) {
+        return;
+      }
+    }
+
+    if (!user.restaurantId) {
+      await sendMessage(chatId, buildUnlinkedMessage());
+      return;
+    }
+
+    const [categories, restaurant] = await Promise.all([
+      getCategoriesForRestaurant(user.restaurantId),
+      getRestaurantInfo(user.restaurantId),
+    ]);
+
+    await runAiFlow({
+      chatId,
+      text,
+      user,
+      categories,
+      restaurantName: restaurant.name,
+      message,
+    });
+  } catch (error) {
+    console.error("[Telegram Handler] Error:", error);
     await sendMessage(
       chatId,
-      `Бизнес "${business.name}" е създаден!\n\n` +
-        "Добавих стандартни категории разходи. Можеш да ги видиш с /categories\n\n" +
-        "Сега просто ми пиши разходите — аз ще ги разбера и запиша.\n" +
-        'Пример: "50 лв зеленчуци"',
+      "Възникна грешка при обработката. Моля, опитай отново след малко.",
     );
-  } catch (error) {
-    console.error("[Onboarding] Error creating business:", error);
-    await sendMessage(chatId, "Възникна грешка. Моля, опитай отново.");
   }
 }

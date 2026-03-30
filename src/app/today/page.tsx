@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
 import { TodayDashboard } from "@/components/today/today-dashboard";
+import { TrendsDashboard } from "@/components/today/trends-dashboard";
 import { ErrorCard } from "@/components/ui/error-card";
 import { DEFAULT_MANUAL_EXPENSE_EUR } from "@/lib/format";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
@@ -38,6 +39,7 @@ export default async function TodayPage() {
       manualExpense: defaultExpense,
       notes: null,
       attendanceEntries: [],
+      expenseItems: [],
     };
 
   const dashboardVersion = [
@@ -47,6 +49,12 @@ export default async function TodayPage() {
     initialReport.cardAmount,
     initialReport.manualExpense,
     initialReport.notes ?? "",
+    initialReport.expenseItems
+      .map(
+        (item) =>
+          `${item.id}:${item.categoryId ?? ""}:${item.amount}:${item.description ?? ""}:${item.sourceType}`,
+      )
+      .join("|"),
     initialReport.attendanceEntries
       .map(
         (entry) =>
@@ -56,6 +64,7 @@ export default async function TodayPage() {
     snapshot.employees
       .map((employee) => `${employee.id}:${employee.role}:${employee.dailyRate}:${employee.isActive}`)
       .join("|"),
+    snapshot.expenseCategories.map((category) => `${category.id}:${category.name}`).join("|"),
   ].join("::");
 
   return (
@@ -67,14 +76,17 @@ export default async function TodayPage() {
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="today" message={snapshot.errorMessage} />
       ) : (
-        <TodayDashboard
-          key={dashboardVersion}
-          employees={snapshot.employees}
-          initialReport={initialReport}
-          dataMode={snapshot.mode}
-        />
+        <div className="space-y-4">
+          <TrendsDashboard reports={snapshot.reports} />
+          <TodayDashboard
+            key={dashboardVersion}
+            employees={snapshot.employees}
+            expenseCategories={snapshot.expenseCategories}
+            initialReport={initialReport}
+            dataMode={snapshot.mode}
+          />
+        </div>
       )}
     </AppShell>
   );
 }
-

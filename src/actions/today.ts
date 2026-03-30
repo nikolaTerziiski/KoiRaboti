@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { calculateExpenseTotal, type ExpenseItemInput } from "@/lib/expenses";
+import { replaceDailyReportExpenseItems } from "@/lib/expense-persistence";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -29,6 +31,8 @@ type EmployeeRateRow = {
   id: string;
   daily_rate: number | string;
 };
+
+type ExpenseItemPayload = ExpenseItemInput;
 
 function normalizeText(value: FormDataEntryValue | string | null | undefined) {
   const normalized = String(value ?? "").trim();
@@ -73,11 +77,90 @@ function parseAttendancePayload(rawValue: FormDataEntryValue | null): Attendance
   });
 }
 
+function parseExpenseItemsPayload(rawValue: FormDataEntryValue | null): ExpenseItemPayload[] {
+  if (!rawValue) {
+    return [];
+  }
+
+  const parsedValue = JSON.parse(String(rawValue)) as unknown;
+  if (!Array.isArray(parsedValue)) {
+    throw new Error("Expense payload is invalid.");
+  }
+
+  return parsedValue.map((entry) => {
+    const candidate = entry as Partial<ExpenseItemPayload>;
+    const amount = Number(candidate.amount);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("Expense row is missing a valid amount.");
+    }
+
+    return {
+      id: candidate.id,
+      categoryId:
+        candidate.categoryId == null || String(candidate.categoryId).trim().length === 0
+          ? null
+          : String(candidate.categoryId),
+      amount,
+      amountOriginal:
+        candidate.amountOriginal == null ? amount : Number(candidate.amountOriginal),
+      currencyOriginal:
+        candidate.currencyOriginal == null ? "EUR" : String(candidate.currencyOriginal),
+      description: normalizeText(candidate.description),
+      receiptImagePath: normalizeText(candidate.receiptImagePath),
+      receiptOcrText: normalizeText(candidate.receiptOcrText),
+      sourceType: candidate.sourceType === "telegram" ? "telegram" : "web",
+      telegramUserId: normalizeText(candidate.telegramUserId),
+      categoryName: normalizeText(candidate.categoryName),
+      categoryEmoji: normalizeText(candidate.categoryEmoji),
+      createdAt: normalizeText(candidate.createdAt),
+    };
+  });
+}
+
 function revalidateOperationalViews() {
   revalidatePath("/today");
   revalidatePath("/payroll");
   revalidatePath("/reports");
   revalidatePath("/profile");
+}
+
+async function syncDailyReportNotesContext(params: {
+  restaurantId: string;
+  dailyReportId: string;
+  notes: string | null;
+}) {
+  const supabase = await getSupabaseServerClient();
+  if (!supabase) {
+    return;
+  }
+
+  try {
+    if (!params.notes) {
+      await supabase
+        .from("telegram_ai_context_chunks")
+        .delete()
+        .eq("restaurant_id", params.restaurantId)
+        .eq("source_type", "daily_report")
+        .eq("source_id", params.dailyReportId);
+      return;
+    }
+
+    await supabase
+      .from("telegram_ai_context_chunks")
+      .upsert(
+        {
+          restaurant_id: params.restaurantId,
+          source_type: "daily_report",
+          source_id: params.dailyReportId,
+          chunk_text: params.notes,
+          freshness_at: new Date().toISOString(),
+        },
+        { onConflict: "source_type,source_id" },
+      );
+  } catch (error) {
+    console.error("[TodayAction] Failed to sync AI context:", error);
+  }
 }
 
 export async function saveTodayReportAction(
@@ -117,9 +200,32 @@ export async function saveTodayReportAction(
     const turnover = parseNumber(formData.get("turnover"), "Turnover");
     const profit = parseNumber(formData.get("profit"), "Profit");
     const cardAmount = parseNumber(formData.get("cardAmount"), "Card amount");
-    const manualExpense = parseNumber(formData.get("manualExpense"), "Manual expense");
+    const manualExpenseValue = parseNumber(formData.get("manualExpense"), "Manual expense");
     const reportNotes = normalizeText(formData.get("reportNotes"));
     const attendancePayload = parseAttendancePayload(formData.get("attendancePayload"));
+    const parsedExpenseItems = parseExpenseItemsPayload(formData.get("expenseItemsPayload"));
+    const expenseItems =
+      parsedExpenseItems.length > 0
+        ? parsedExpenseItems
+        : manualExpenseValue > 0
+          ? [
+              {
+                categoryId: null,
+                amount: manualExpenseValue,
+                amountOriginal: manualExpenseValue,
+                currencyOriginal: "EUR",
+                description: null,
+                receiptImagePath: null,
+                receiptOcrText: null,
+                sourceType: "web" as const,
+                telegramUserId: null,
+                categoryName: null,
+                categoryEmoji: null,
+                createdAt: null,
+              },
+            ]
+          : [];
+    const manualExpense = calculateExpenseTotal(expenseItems);
 
     const { data: reportRow, error: reportError } = await supabase
       .from("daily_reports")
@@ -143,6 +249,13 @@ export async function saveTodayReportAction(
     if (reportError || !reportRow) {
       throw new Error(reportError?.message || "Daily report could not be saved.");
     }
+
+    await replaceDailyReportExpenseItems(supabase, reportRow.id, expenseItems);
+    await syncDailyReportNotesContext({
+      restaurantId,
+      dailyReportId: reportRow.id,
+      notes: reportNotes,
+    });
 
     const { data: existingRows, error: existingRowsError } = await supabase
       .from("attendance_entries")

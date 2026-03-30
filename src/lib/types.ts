@@ -4,6 +4,7 @@ export type SessionMode = "guest" | "demo" | "supabase";
 export type PayrollPeriod = "first_half" | "second_half";
 export type EmployeeRole = "kitchen" | "service";
 export type PayrollPaymentType = "advance" | "payroll";
+export type ExpenseSourceType = "web" | "telegram";
 
 export interface Restaurant {
   id: string;
@@ -60,8 +61,34 @@ export interface PayrollPayment {
   createdAt: string;
 }
 
+export interface ExpenseCategory {
+  id: string;
+  restaurantId: string;
+  name: string;
+  emoji: string | null;
+  isActive: boolean;
+}
+
+export interface DailyExpenseItem {
+  id: string;
+  dailyReportId: string;
+  categoryId: string | null;
+  amount: number;
+  amountOriginal: number | null;
+  currencyOriginal: string | null;
+  description: string | null;
+  receiptImagePath: string | null;
+  receiptOcrText: string | null;
+  sourceType: ExpenseSourceType;
+  telegramUserId: string | null;
+  categoryName: string | null;
+  categoryEmoji: string | null;
+  createdAt: string | null;
+}
+
 export interface DailyReportWithAttendance extends DailyReport {
   attendanceEntries: AttendanceEntry[];
+  expenseItems: DailyExpenseItem[];
 }
 
 export interface RestaurantSnapshot {
@@ -70,7 +97,7 @@ export interface RestaurantSnapshot {
   profile: Profile | null;
   employees: Employee[];
   reports: DailyReportWithAttendance[];
+  expenseCategories: ExpenseCategory[];
   errorMessage: string | null;
 }
-
 

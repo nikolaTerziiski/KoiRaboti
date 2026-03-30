@@ -32,14 +32,14 @@ export async function downloadPhoto(
  * Returns the storage path, or null on failure.
  */
 export async function uploadReceiptToStorage(
-  businessId: string,
+  restaurantId: string,
   buffer: ArrayBuffer,
   mimeType: string,
 ): Promise<string | null> {
   const db = getSupabaseAdminClient();
   const ext = mimeType === "image/jpeg" ? "jpg" : "png";
   const uniqueId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const filePath = `${businessId}/${uniqueId}.${ext}`;
+  const filePath = `${restaurantId}/${uniqueId}.${ext}`;
 
   const { data, error } = await db.storage
     .from("receipts")

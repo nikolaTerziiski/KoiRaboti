@@ -57,6 +57,10 @@ export function formatBgnCurrencyFromEur(value: number) {
   return bgnFormatter.format(eurToBgn(value));
 }
 
+export function formatCurrencyPair(value: number) {
+  return `${formatCurrency(value)} / ${formatBgnCurrencyFromEur(value)}`;
+}
+
 export function formatCompactBgnCurrencyFromEur(value: number) {
   return compactBgnFormatter.format(eurToBgn(value));
 }

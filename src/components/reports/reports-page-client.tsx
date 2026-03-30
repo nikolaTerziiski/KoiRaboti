@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Download } from "lucide-react";
 import type { ReportActionState } from "@/actions/reports";
 import { saveReportCorrectionAction } from "@/actions/reports";
+import {
+  ExpenseItemsEditor,
+  type ExpenseEditorDraftItem,
+} from "@/components/expenses/expense-items-editor";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
+import { calculateExpenseTotal } from "@/lib/expenses";
 import { useLocale } from "@/lib/i18n/context";
 import { exportReportsToCSV } from "@/lib/csv-export";
 import {
@@ -27,6 +32,7 @@ import {
 import type {
   DailyReportWithAttendance,
   Employee,
+  ExpenseCategory,
   PayUnits,
   SnapshotMode,
 } from "@/lib/types";
@@ -40,6 +46,7 @@ const initialReportActionState: ReportActionState = {
 
 type ReportsPageClientProps = {
   employees: Employee[];
+  expenseCategories: ExpenseCategory[];
   reports: DailyReportWithAttendance[];
   dataMode: SnapshotMode;
 };
@@ -58,12 +65,65 @@ type ReportCorrectionDraft = {
   profit: string;
   cardAmount: string;
   manualExpense: string;
+  expenseItems: ExpenseEditorDraftItem[];
   attendanceEntries: AttendanceCorrectionDraft[];
 };
+
+function buildExpenseDrafts(
+  report: DailyReportWithAttendance,
+  expenseCategories: ExpenseCategory[],
+): ExpenseEditorDraftItem[] {
+  if (report.expenseItems.length > 0) {
+    return report.expenseItems.map((item) => ({
+      id: item.id,
+      categoryId: item.categoryId,
+      amount: String(item.amount),
+      description: item.description ?? "",
+      sourceType: item.sourceType,
+      receiptImagePath: item.receiptImagePath,
+      receiptOcrText: item.receiptOcrText,
+      telegramUserId: item.telegramUserId,
+      amountOriginal: item.amountOriginal,
+      currencyOriginal: item.currencyOriginal,
+      categoryName:
+        item.categoryName ??
+        expenseCategories.find((category) => category.id === item.categoryId)?.name ??
+        null,
+      categoryEmoji:
+        item.categoryEmoji ??
+        expenseCategories.find((category) => category.id === item.categoryId)?.emoji ??
+        null,
+      createdAt: item.createdAt,
+    }));
+  }
+
+  if (report.manualExpense > 0) {
+    return [
+      {
+        id: `fallback-expense-${report.id}`,
+        categoryId: null,
+        amount: String(report.manualExpense),
+        description: "",
+        sourceType: "web",
+        receiptImagePath: null,
+        receiptOcrText: null,
+        telegramUserId: null,
+        amountOriginal: report.manualExpense,
+        currencyOriginal: "EUR",
+        categoryName: null,
+        categoryEmoji: null,
+        createdAt: null,
+      },
+    ];
+  }
+
+  return [];
+}
 
 function buildCorrectionDraft(
   report: DailyReportWithAttendance,
   employees: Employee[],
+  expenseCategories: ExpenseCategory[],
 ): ReportCorrectionDraft {
   return {
     reportId: report.id,
@@ -72,6 +132,7 @@ function buildCorrectionDraft(
     profit: report.profit.toString(),
     cardAmount: report.cardAmount.toString(),
     manualExpense: report.manualExpense.toString(),
+    expenseItems: buildExpenseDrafts(report, expenseCategories),
     attendanceEntries: report.attendanceEntries.map((entry) => {
       const employee = employees.find((item) => item.id === entry.employeeId);
 
@@ -87,6 +148,7 @@ function buildCorrectionDraft(
 
 export function ReportsPageClient({
   employees,
+  expenseCategories,
   reports,
   dataMode,
 }: ReportsPageClientProps) {
@@ -261,7 +323,7 @@ export function ReportsPageClient({
                             setDraft((current) =>
                               current?.reportId === report.id
                                 ? null
-                                : buildCorrectionDraft(report, employees),
+                                : buildCorrectionDraft(report, employees, expenseCategories),
                             )
                           }
                         >
@@ -288,6 +350,7 @@ export function ReportsPageClient({
           <CardContent>
             <form action={formAction} className="space-y-4">
               <input type="hidden" name="reportId" value={draft.reportId} />
+              <input type="hidden" name="manualExpense" value={draft.manualExpense} />
               <input
                 type="hidden"
                 name="attendancePayload"
@@ -296,6 +359,27 @@ export function ReportsPageClient({
                     employeeId: entry.employeeId,
                     payUnits: entry.payUnits,
                     payOverride: entry.payOverride,
+                  })),
+                )}
+              />
+              <input
+                type="hidden"
+                name="expenseItemsPayload"
+                value={JSON.stringify(
+                  draft.expenseItems.map((item) => ({
+                    id: item.id,
+                    categoryId: item.categoryId,
+                    amount: Number(item.amount || 0),
+                    amountOriginal: item.amountOriginal ?? Number(item.amount || 0),
+                    currencyOriginal: item.currencyOriginal ?? "EUR",
+                    description: item.description,
+                    receiptImagePath: item.receiptImagePath,
+                    receiptOcrText: item.receiptOcrText,
+                    sourceType: item.sourceType,
+                    telegramUserId: item.telegramUserId,
+                    categoryName: item.categoryName,
+                    categoryEmoji: item.categoryEmoji,
+                    createdAt: item.createdAt,
                   })),
                 )}
               />
@@ -348,18 +432,36 @@ export function ReportsPageClient({
                   <Input
                     id="edit-expense"
                     name="manualExpense"
-                    inputMode="decimal"
                     value={draft.manualExpense}
-                    onChange={(event) =>
-                      setDraft((current) =>
-                        current
-                          ? { ...current, manualExpense: event.target.value }
-                          : current,
-                      )
-                    }
+                    disabled
+                    readOnly
                   />
                 </div>
               </div>
+
+              <ExpenseItemsEditor
+                locale={locale}
+                categories={expenseCategories}
+                items={draft.expenseItems}
+                onChange={(items) =>
+                  setDraft((current) =>
+                    current
+                      ? {
+                          ...current,
+                          expenseItems: items,
+                          manualExpense: String(
+                            calculateExpenseTotal(
+                              items.map((item) => ({
+                                amount: Number(item.amount || 0),
+                              })),
+                            ),
+                          ),
+                        }
+                      : current,
+                  )
+                }
+                disabled={dataMode === "demo"}
+              />
 
               <div className="space-y-3">
                 {draft.attendanceEntries.map((entry) => (

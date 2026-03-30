@@ -2,24 +2,27 @@
 
 import { useMemo, useState } from "react";
 import { format, startOfMonth } from "date-fns";
-import { LogOut } from "lucide-react";
+import { LogOut, Send } from "lucide-react";
 import { logoutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
+import { env } from "@/lib/env";
+import { formatMonthLabel } from "@/lib/format";
 import { useLocale } from "@/lib/i18n/context";
 import { calculateMonthStats, type MonthStats } from "@/lib/profile-stats";
-import { formatMonthLabel } from "@/lib/format";
-import { cn } from "@/lib/utils";
 import type { DailyReportWithAttendance, Profile, Restaurant, SnapshotMode } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type ProfilePageClientProps = {
   reports: DailyReportWithAttendance[];
   profile: Profile | null;
   restaurant: Restaurant | null;
   dataMode: SnapshotMode;
+  telegramConnectUrl: string | null;
+  telegramLinkedUsersCount: number;
 };
 
 function getCurrentMonthKey() {
@@ -31,6 +34,8 @@ export function ProfilePageClient({
   profile,
   restaurant,
   dataMode,
+  telegramConnectUrl,
+  telegramLinkedUsersCount,
 }: ProfilePageClientProps) {
   const { locale } = useLocale();
   const currentMonthKey = getCurrentMonthKey();
@@ -58,9 +63,7 @@ export function ProfilePageClient({
       laborCostPercentage: locale === "bg" ? "% Труд от оборота" : "Labor cost %",
       profileTitle: locale === "bg" ? "Потребителски профил" : "User profile",
       profileDesc:
-        locale === "bg"
-          ? "Управление на акаунта и сесията."
-          : "Account and session management.",
+        locale === "bg" ? "Управление на акаунта и сесията." : "Account and session management.",
       restaurant: locale === "bg" ? "Ресторант" : "Restaurant",
       email: locale === "bg" ? "Имейл" : "Email",
       reportsSummary: locale === "bg" ? "дни с отчет" : "recorded day(s)",
@@ -81,8 +84,26 @@ export function ProfilePageClient({
         locale === "bg"
           ? "Висок дял на трудовите разходи"
           : "Labor cost share is high",
+      telegramTitle: locale === "bg" ? "Telegram bot" : "Telegram bot",
+      telegramDesc:
+        locale === "bg"
+          ? "Свържи Telegram, за да записваш разходи, да получаваш дневни обобщения и да задаваш въпроси за бизнеса."
+          : "Connect Telegram for expense capture, daily summaries, and ops questions.",
+      telegramConnect: locale === "bg" ? "Свържи в Telegram" : "Connect in Telegram",
+      telegramLinked:
+        locale === "bg"
+          ? `${telegramLinkedUsersCount} свързан(и) Telegram акаунт(а)`
+          : `${telegramLinkedUsersCount} linked Telegram account(s)`,
+      telegramHint:
+        locale === "bg"
+          ? "Бутонът отваря бота с еднократен токен за този ресторант."
+          : "The button opens the bot with a one-time token for this restaurant.",
+      telegramCommands:
+        locale === "bg"
+          ? "Полезни команди: /summary, /categories, /daily_on, /daily_off"
+          : "Useful commands: /summary, /categories, /daily_on, /daily_off",
     }),
-    [dataMode, locale],
+    [dataMode, locale, telegramLinkedUsersCount],
   );
 
   const selectedMonthReports = useMemo(
@@ -221,6 +242,35 @@ export function ProfilePageClient({
           </form>
         </CardContent>
       </Card>
+
+      {telegramConnectUrl && env.telegramBotUsername ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Send className="size-4" />
+              </div>
+              <div>
+                <CardTitle>{labels.telegramTitle}</CardTitle>
+                <CardDescription>{labels.telegramDesc}</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground">
+              <p>{labels.telegramLinked}</p>
+              <p className="mt-1">{labels.telegramHint}</p>
+              <p className="mt-2 font-medium text-foreground">{labels.telegramCommands}</p>
+            </div>
+            <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline" className="w-full">
+                <Send className="size-4" />
+                {labels.telegramConnect}
+              </Button>
+            </a>
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

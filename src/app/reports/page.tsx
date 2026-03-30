@@ -34,6 +34,7 @@ export default async function ReportsPage() {
       ) : (
         <ReportsPageClient
           employees={snapshot.employees}
+          expenseCategories={snapshot.expenseCategories}
           reports={snapshot.reports}
           dataMode={snapshot.mode}
         />

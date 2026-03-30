@@ -1,6 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { calculateExpenseTotal, type ExpenseItemInput } from "@/lib/expenses";
+import { replaceDailyReportExpenseItems } from "@/lib/expense-persistence";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
@@ -29,6 +31,8 @@ type EmployeeRateRow = {
   id: string;
   daily_rate: number | string;
 };
+
+type ExpenseItemPayload = ExpenseItemInput;
 
 function parseNumber(value: FormDataEntryValue | null, fieldName: string) {
   const parsed = Number(value ?? "");
@@ -72,6 +76,47 @@ function parseAttendancePayload(
       employeeId: String(candidate.employeeId),
       payUnits,
       payOverride: String(candidate.payOverride ?? ""),
+    };
+  });
+}
+
+function parseExpenseItemsPayload(rawValue: FormDataEntryValue | null): ExpenseItemPayload[] {
+  if (!rawValue) {
+    return [];
+  }
+
+  const parsedValue = JSON.parse(String(rawValue)) as unknown;
+  if (!Array.isArray(parsedValue)) {
+    throw new Error("Expense payload is invalid.");
+  }
+
+  return parsedValue.map((entry) => {
+    const candidate = entry as Partial<ExpenseItemPayload>;
+    const amount = Number(candidate.amount);
+
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new Error("Expense row is missing a valid amount.");
+    }
+
+    return {
+      id: candidate.id,
+      categoryId:
+        candidate.categoryId == null || String(candidate.categoryId).trim().length === 0
+          ? null
+          : String(candidate.categoryId),
+      amount,
+      amountOriginal:
+        candidate.amountOriginal == null ? amount : Number(candidate.amountOriginal),
+      currencyOriginal:
+        candidate.currencyOriginal == null ? "EUR" : String(candidate.currencyOriginal),
+      description: normalizeText(candidate.description),
+      receiptImagePath: normalizeText(candidate.receiptImagePath),
+      receiptOcrText: normalizeText(candidate.receiptOcrText),
+      sourceType: candidate.sourceType === "telegram" ? "telegram" : "web",
+      telegramUserId: normalizeText(candidate.telegramUserId),
+      categoryName: normalizeText(candidate.categoryName),
+      categoryEmoji: normalizeText(candidate.categoryEmoji),
+      createdAt: normalizeText(candidate.createdAt),
     };
   });
 }
@@ -120,8 +165,31 @@ export async function saveReportCorrectionAction(
     const turnover = parseNumber(formData.get("turnover"), "Turnover");
     const profit = parseNumber(formData.get("profit"), "Profit");
     const cardAmount = parseNumber(formData.get("cardAmount"), "Card amount");
-    const manualExpense = parseNumber(formData.get("manualExpense"), "Manual expense");
+    const manualExpenseValue = parseNumber(formData.get("manualExpense"), "Manual expense");
     const attendancePayload = parseAttendancePayload(formData.get("attendancePayload"));
+    const parsedExpenseItems = parseExpenseItemsPayload(formData.get("expenseItemsPayload"));
+    const expenseItems =
+      parsedExpenseItems.length > 0
+        ? parsedExpenseItems
+        : manualExpenseValue > 0
+          ? [
+              {
+                categoryId: null,
+                amount: manualExpenseValue,
+                amountOriginal: manualExpenseValue,
+                currencyOriginal: "EUR",
+                description: null,
+                receiptImagePath: null,
+                receiptOcrText: null,
+                sourceType: "web" as const,
+                telegramUserId: null,
+                categoryName: null,
+                categoryEmoji: null,
+                createdAt: null,
+              },
+            ]
+          : [];
+    const manualExpense = calculateExpenseTotal(expenseItems);
 
     const { error: reportError } = await supabase
       .from("daily_reports")
@@ -137,6 +205,8 @@ export async function saveReportCorrectionAction(
     if (reportError) {
       throw new Error(reportError.message);
     }
+
+    await replaceDailyReportExpenseItems(supabase, reportId, expenseItems);
 
     if (attendancePayload.length > 0) {
       const { data: existingAttendanceRows, error: existingAttendanceError } = await supabase

@@ -20,7 +20,10 @@ export function MobileNav() {
   ];
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4">
+    <div
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 lg:hidden"
+      style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+    >
       <nav className="pointer-events-auto flex w-full max-w-md items-center justify-between rounded-2xl border border-border bg-card/95 px-3 py-2 shadow-md backdrop-blur sm:max-w-3xl">
         {navItems.map((item) => {
           const isActive = pathname === item.href;

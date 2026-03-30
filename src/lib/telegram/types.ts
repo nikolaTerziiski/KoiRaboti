@@ -2,34 +2,36 @@
 // Bot domain types (camelCase, matching project convention from src/lib/types.ts)
 // ---------------------------------------------------------------------------
 
-export interface Business {
-  id: string;
-  name: string;
-  defaultCurrency: string;
-}
-
 export interface TelegramUser {
   id: string;
   telegramId: number;
-  businessId: string | null;
+  restaurantId: string | null;
   firstName: string | null;
   lastName: string | null;
   username: string | null;
   languageCode: string;
   isAdmin: boolean;
+  chatId: number | null;
+  linkedAt: string | null;
+  lastSeenAt: string | null;
+  dailySummaryEnabled: boolean;
+  summaryTimezone: string;
+  summaryHour: number;
+  lastSummarySentOn: string | null;
 }
 
 export interface ExpenseCategory {
   id: string;
-  businessId: string;
+  restaurantId: string;
   name: string;
   emoji: string | null;
   isActive: boolean;
 }
 
-export interface OperationalExpense {
+export interface TelegramExpenseRecord {
   id: string;
-  businessId: string;
+  dailyReportId: string;
+  restaurantId: string;
   categoryId: string | null;
   telegramUserId: string | null;
   amount: number;
@@ -37,9 +39,28 @@ export interface OperationalExpense {
   currencyOriginal: string;
   description: string | null;
   receiptImagePath: string | null;
+  receiptOcrText: string | null;
   expenseDate: string;
   sourceType: string;
   createdAt: string;
+}
+
+export interface TelegramConnectToken {
+  id: string;
+  restaurantId: string;
+  token: string;
+  expiresAt: string;
+  claimedAt: string | null;
+  claimedByTelegramUserId: string | null;
+}
+
+export interface TelegramAiContextChunk {
+  id: string;
+  restaurantId: string;
+  sourceType: string;
+  sourceId: string;
+  chunkText: string;
+  freshnessAt: string;
 }
 
 // ---------------------------------------------------------------------------
