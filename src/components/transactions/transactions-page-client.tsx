@@ -43,6 +43,15 @@ type TransactionsPageClientProps = {
   dataMode: SnapshotMode;
 };
 
+type TransactionActionsProps = {
+  row: TransactionRow;
+  actionsLabel: string;
+  viewReceiptLabel: string;
+  editLabel: string;
+  deleteLabel: string;
+  onViewReceipt?: () => void;
+};
+
 const MOCK_RECEIPT_URL =
   "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=400&q=80";
 
@@ -91,6 +100,50 @@ function getTransactionMetaLabel(row: TransactionRow, locale: "en" | "bg") {
     : null;
 
   return [sourceLabel, receiptLabel].filter(Boolean).join(" • ");
+}
+
+function TransactionActions({
+  row,
+  actionsLabel,
+  viewReceiptLabel,
+  editLabel,
+  deleteLabel,
+  onViewReceipt,
+}: TransactionActionsProps) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={actionsLabel}
+          className="inline-flex size-10 items-center justify-center rounded-xl border border-slate-200/70 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+        >
+          <MoreHorizontal className="size-4" />
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent className="w-56 rounded-xl">
+        {row.hasReceipt && onViewReceipt ? (
+          <DropdownMenuItem onClick={onViewReceipt}>
+            <ImageIcon className="size-4" />
+            {viewReceiptLabel}
+          </DropdownMenuItem>
+        ) : null}
+
+        <DropdownMenuItem>
+          <Pencil className="size-4" />
+          {editLabel}
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300">
+          <Trash2 className="size-4" />
+          {deleteLabel}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 export function TransactionsPageClient({
@@ -193,48 +246,6 @@ export function TransactionsPageClient({
     link.click();
     document.body.removeChild(link);
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
-  }
-
-  function TransactionActions({ row }: { row: TransactionRow }) {
-    return (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            aria-label={copy.columns.actions}
-            className="inline-flex size-10 items-center justify-center rounded-xl border border-slate-200/70 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-          >
-            <MoreHorizontal className="size-4" />
-          </button>
-        </DropdownMenuTrigger>
-
-        <DropdownMenuContent className="w-56 rounded-xl">
-          {row.hasReceipt ? (
-            <DropdownMenuItem
-              onClick={() => {
-                setSelectedReceipt(MOCK_RECEIPT_URL);
-                setReceiptViewerOpen(true);
-              }}
-            >
-              <ImageIcon className="size-4" />
-              {copy.viewReceipt}
-            </DropdownMenuItem>
-          ) : null}
-
-          <DropdownMenuItem>
-            <Pencil className="size-4" />
-            {copy.edit}
-          </DropdownMenuItem>
-
-          <DropdownMenuSeparator />
-
-          <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300">
-            <Trash2 className="size-4" />
-            {copy.delete}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    );
   }
 
   return (
@@ -405,7 +416,21 @@ export function TransactionsPageClient({
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right align-top">
-                        <TransactionActions row={row} />
+                        <TransactionActions
+                          row={row}
+                          actionsLabel={copy.columns.actions}
+                          viewReceiptLabel={copy.viewReceipt}
+                          editLabel={copy.edit}
+                          deleteLabel={copy.delete}
+                          onViewReceipt={
+                            row.hasReceipt
+                              ? () => {
+                                  setSelectedReceipt(MOCK_RECEIPT_URL);
+                                  setReceiptViewerOpen(true);
+                                }
+                              : undefined
+                          }
+                        />
                       </td>
                     </tr>
                   ))}
@@ -460,7 +485,21 @@ export function TransactionsPageClient({
                           </div>
                         </div>
 
-                        <TransactionActions row={row} />
+                        <TransactionActions
+                          row={row}
+                          actionsLabel={copy.columns.actions}
+                          viewReceiptLabel={copy.viewReceipt}
+                          editLabel={copy.edit}
+                          deleteLabel={copy.delete}
+                          onViewReceipt={
+                            row.hasReceipt
+                              ? () => {
+                                  setSelectedReceipt(MOCK_RECEIPT_URL);
+                                  setReceiptViewerOpen(true);
+                                }
+                              : undefined
+                          }
+                        />
                       </div>
                     </article>
                   ))}
