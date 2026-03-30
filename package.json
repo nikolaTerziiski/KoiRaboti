@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/payroll.test.mjs tests/profile-stats.test.mjs tests/reports-csv.test.mjs"
+    "test": "node --experimental-strip-types --test tests/payroll.test.mjs tests/profile-stats.test.mjs tests/reports-csv.test.mjs tests/telegram-links.test.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

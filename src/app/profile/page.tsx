@@ -7,6 +7,7 @@ import { ProfilePageClient } from "@/components/profile/profile-page-client";
 import { env, hasTelegramBotCredentials } from "@/lib/env";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
 import { getOrCreateTelegramConnectToken, getTelegramLinkStatus } from "@/lib/telegram/data";
+import { buildTelegramBotLink, normalizeTelegramBotUsername } from "@/lib/telegram/links";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Profile — KoiRaboti" };
@@ -27,11 +28,12 @@ export default async function ProfilePage() {
       ? "supabase"
       : "demo";
 
-  let telegramConnectUrl: string | null = env.telegramBotUsername
-    ? `https://t.me/${env.telegramBotUsername}`
+  const telegramBotUsername = normalizeTelegramBotUsername(env.telegramBotUsername);
+  let telegramConnectUrl: string | null = telegramBotUsername
+    ? buildTelegramBotLink(telegramBotUsername)
     : null;
   let telegramLinkedUsersCount = 0;
-  const telegramConfigState = env.telegramBotUsername
+  const telegramConfigState = telegramBotUsername
     ? "connectable"
     : hasTelegramBotCredentials()
       ? "missing_public_username"
@@ -40,7 +42,7 @@ export default async function ProfilePage() {
   if (
     snapshot.mode === "supabase" &&
     snapshot.restaurant &&
-    env.telegramBotUsername &&
+    telegramBotUsername &&
     hasTelegramBotCredentials()
   ) {
     try {
@@ -49,7 +51,7 @@ export default async function ProfilePage() {
         getTelegramLinkStatus(snapshot.restaurant.id),
       ]);
 
-      telegramConnectUrl = `https://t.me/${env.telegramBotUsername}?start=${token.token}`;
+      telegramConnectUrl = buildTelegramBotLink(telegramBotUsername, token.token);
       telegramLinkedUsersCount = linkStatus.linkedUsersCount;
     } catch (error) {
       console.error("[ProfilePage] Telegram connect data failed:", error);
@@ -61,12 +63,15 @@ export default async function ProfilePage() {
       pageKey="profile"
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
       dataMode={dataMode}
+      hidePageHeader
+      contentClassName="max-w-6xl px-0 sm:max-w-6xl sm:px-0"
     >
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="profile" message={snapshot.errorMessage} />
       ) : (
         <ProfilePageClient
           reports={snapshot.reports}
+          employees={snapshot.employees}
           profile={snapshot.profile}
           restaurant={snapshot.restaurant}
           dataMode={snapshot.mode}

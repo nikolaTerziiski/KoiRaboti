@@ -27,9 +27,20 @@ type AppShellProps = {
   sessionMode: "supabase" | "demo";
   dataMode: "supabase" | "demo" | "error";
   children: ReactNode;
+  hidePageHeader?: boolean;
+  contentClassName?: string;
+  mainClassName?: string;
 };
 
-export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellProps) {
+export function AppShell({
+  pageKey,
+  sessionMode,
+  dataMode,
+  children,
+  hidePageHeader = false,
+  contentClassName,
+  mainClassName,
+}: AppShellProps) {
   const pathname = usePathname();
   const { t } = useLocale();
   const page = t.pages[pageKey];
@@ -108,47 +119,54 @@ export function AppShell({ pageKey, sessionMode, dataMode, children }: AppShellP
 
       <div className="flex-1 lg:pl-60">
         <div
-          className="mx-auto w-full max-w-md px-4 pt-5 sm:max-w-3xl sm:px-6 lg:pb-8"
+          className={cn(
+            "mx-auto w-full max-w-md px-4 pt-5 sm:max-w-3xl sm:px-6 lg:pb-8",
+            contentClassName,
+          )}
           style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom))" }}
         >
-          <header className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
-            <div className="flex items-start justify-between gap-4">
-              <div className="space-y-3">
-                <Link href="/today" className="inline-flex items-center gap-2 lg:hidden">
-                  <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Leaf className="size-5" />
-                  </div>
+          {!hidePageHeader ? (
+            <header className="rounded-2xl border border-border bg-card p-4 shadow-sm lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+              <div className="flex items-start justify-between gap-4">
+                <div className="space-y-3">
+                  <Link href="/today" className="inline-flex items-center gap-2 lg:hidden">
+                    <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Leaf className="size-5" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-widest text-primary">
+                        KoiRaboti
+                      </p>
+                      <p className="text-sm text-muted-foreground">{t.shell.subtitle}</p>
+                    </div>
+                  </Link>
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-                      KoiRaboti
+                    <h1 className="text-2xl font-semibold tracking-tight">{page.title}</h1>
+                    <p className="mt-1 max-w-xl text-sm text-muted-foreground">
+                      {page.description}
                     </p>
-                    <p className="text-sm text-muted-foreground">{t.shell.subtitle}</p>
                   </div>
-                </Link>
-                <div>
-                  <h1 className="text-2xl font-semibold tracking-tight">{page.title}</h1>
-                  <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                    {page.description}
-                  </p>
+                </div>
+                <div className="flex flex-col items-end gap-1 lg:hidden">
+                  <LocaleSwitcher />
+                  <form action={logoutAction}>
+                    <Button type="submit" variant="ghost" size="sm">
+                      <LogOut className="size-4" />
+                      {t.shell.logOut}
+                    </Button>
+                  </form>
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-1 lg:hidden">
-                <LocaleSwitcher />
-                <form action={logoutAction}>
-                  <Button type="submit" variant="ghost" size="sm">
-                    <LogOut className="size-4" />
-                    {t.shell.logOut}
-                  </Button>
-                </form>
+              <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
+                <Badge variant="success">{sessionLabel}</Badge>
+                <Badge variant="outline">{dataLabel}</Badge>
               </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2 lg:hidden">
-              <Badge variant="success">{sessionLabel}</Badge>
-              <Badge variant="outline">{dataLabel}</Badge>
-            </div>
-          </header>
+            </header>
+          ) : null}
 
-          <main className="mt-5 flex-1">{children}</main>
+          <main className={cn(hidePageHeader ? "mt-0" : "mt-5", "flex-1", mainClassName)}>
+            {children}
+          </main>
         </div>
       </div>
 
