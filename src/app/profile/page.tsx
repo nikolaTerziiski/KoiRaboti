@@ -73,6 +73,7 @@ export default async function ProfilePage() {
           telegramConnectUrl={telegramConnectUrl}
           telegramLinkedUsersCount={telegramLinkedUsersCount}
           telegramConfigState={telegramConfigState}
+          employeeCount={snapshot.employees.length}
         />
       )}
     </AppShell>

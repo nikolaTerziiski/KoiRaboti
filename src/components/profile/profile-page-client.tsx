@@ -1,38 +1,42 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type ReactNode, useActionState, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { format, startOfMonth } from "date-fns";
 import {
-  Cell,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-} from "recharts";
-import {
-  BarChart3,
   Bot,
-  ChartPie,
-  CircleAlert,
+  Building2,
+  Check,
+  Copy,
+  CreditCard,
   LogOut,
-  Send,
-  UserRound,
+  Mail,
+  Save,
+  Settings,
+  ShieldCheck,
+  Smartphone,
+  Users,
 } from "lucide-react";
+import {
+  type ProfileSettingsActionState,
+  updateRestaurantSettingsAction,
+} from "@/actions/profile";
 import { logoutAction } from "@/actions/auth";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoneyDisplay } from "@/components/ui/money-display";
-import { SelectField } from "@/components/ui/select-field";
-import { formatCurrencyPair, formatMonthLabel } from "@/lib/format";
+import {
+  formatBgnCurrencyFromEur,
+  formatCurrency,
+  formatMonthLabel,
+} from "@/lib/format";
 import { useLocale } from "@/lib/i18n/context";
-import { calculateMonthStats, type MonthStats } from "@/lib/profile-stats";
 import type { DailyReportWithAttendance, Profile, Restaurant, SnapshotMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type TelegramConfigState = "connectable" | "missing_public_username" | "not_configured";
-type ProfileSectionId = "overview" | "expenses" | "telegram" | "account";
+type ProfileTab = "general" | "telegram" | "staff";
 
 type ProfilePageClientProps = {
   reports: DailyReportWithAttendance[];
@@ -42,77 +46,92 @@ type ProfilePageClientProps = {
   telegramConnectUrl: string | null;
   telegramLinkedUsersCount: number;
   telegramConfigState: TelegramConfigState;
+  employeeCount: number;
 };
 
-type ExpenseBreakdownSlice = {
-  key: string;
-  label: string;
-  emoji: string | null;
-  amount: number;
-  count: number;
-  color: string;
+type SectionProps = {
+  title: string;
+  description: string;
+  children: ReactNode;
 };
 
-const PIE_COLORS = [
-  "var(--primary)",
-  "var(--success)",
-  "var(--warning)",
-  "var(--destructive)",
-  "color-mix(in srgb, var(--primary) 55%, var(--warning))",
-  "color-mix(in srgb, var(--success) 70%, white)",
-];
+const initialSettingsState: ProfileSettingsActionState = {
+  status: "idle",
+  message: null,
+  refreshKey: null,
+};
 
-function getCurrentMonthKey() {
-  return format(startOfMonth(new Date()), "yyyy-MM-01");
-}
+function buildTelegramAppUrl(connectUrl: string) {
+  try {
+    const parsedUrl = new URL(connectUrl);
+    const username = parsedUrl.pathname.replace(/^\/+/, "");
 
-function toFiniteNumber(value: unknown) {
-  const candidate = Array.isArray(value) ? value[0] : value;
-  const numericValue =
-    typeof candidate === "number"
-      ? candidate
-      : typeof candidate === "string"
-        ? Number(candidate)
-        : 0;
-
-  return Number.isFinite(numericValue) ? numericValue : 0;
-}
-
-function buildExpenseBreakdown(
-  reports: DailyReportWithAttendance[],
-  locale: "en" | "bg",
-): ExpenseBreakdownSlice[] {
-  const breakdown = new Map<string, ExpenseBreakdownSlice>();
-
-  for (const report of reports) {
-    for (const item of report.expenseItems) {
-      const label =
-        item.categoryName?.trim().length
-          ? item.categoryName.trim()
-          : locale === "bg"
-            ? "Без категория"
-            : "Uncategorized";
-      const key = item.categoryId ?? `${label}:${item.categoryEmoji ?? ""}`;
-      const existing = breakdown.get(key);
-
-      if (existing) {
-        existing.amount += item.amount;
-        existing.count += 1;
-        continue;
-      }
-
-      breakdown.set(key, {
-        key,
-        label,
-        emoji: item.categoryEmoji,
-        amount: item.amount,
-        count: 1,
-        color: PIE_COLORS[breakdown.size % PIE_COLORS.length],
-      });
+    if (!username) {
+      return null;
     }
-  }
 
-  return Array.from(breakdown.values()).sort((left, right) => right.amount - left.amount);
+    const appUrl = new URL("tg://resolve");
+    appUrl.searchParams.set("domain", username);
+
+    const startToken = parsedUrl.searchParams.get("start");
+    if (startToken) {
+      appUrl.searchParams.set("start", startToken);
+    }
+
+    return appUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+function Section({ title, description, children }: SectionProps) {
+  return (
+    <section className="grid grid-cols-1 gap-8 md:grid-cols-[1fr_2fr]">
+      <div>
+        <h3 className="text-base font-bold text-slate-900 dark:text-white">{title}</h3>
+        <p className="mt-1 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+          {description}
+        </p>
+      </div>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  toneClassName,
+  label,
+  value,
+  hint,
+}: {
+  icon: typeof Users;
+  toneClassName: string;
+  label: string;
+  value: string;
+  hint: string;
+}) {
+  return (
+    <div className="flex h-full flex-col justify-between rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="mb-4 flex items-center gap-3">
+        <div
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-full",
+            toneClassName,
+          )}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+        <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+          {label}
+        </span>
+      </div>
+      <div>
+        <h4 className="text-3xl font-extrabold text-slate-900 dark:text-white">{value}</h4>
+        <p className="mt-1 text-sm font-medium text-slate-500 dark:text-slate-400">{hint}</p>
+      </div>
+    </div>
+  );
 }
 
 export function ProfilePageClient({
@@ -123,657 +142,422 @@ export function ProfilePageClient({
   telegramConnectUrl,
   telegramLinkedUsersCount,
   telegramConfigState,
+  employeeCount,
 }: ProfilePageClientProps) {
-  const { t, locale } = useLocale();
-  const currentMonthKey = getCurrentMonthKey();
-  const monthOptions = useMemo(() => {
-    const months = new Set(reports.map((report) => `${report.workDate.slice(0, 7)}-01`));
-    months.add(currentMonthKey);
-
-    return Array.from(months).sort((left, right) => right.localeCompare(left));
-  }, [currentMonthKey, reports]);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonthKey);
-  const [activeSection, setActiveSection] = useState<ProfileSectionId>(
-    telegramConfigState === "connectable" ? "overview" : "telegram",
+  const router = useRouter();
+  const { locale } = useLocale();
+  const refreshedKeyRef = useRef<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ProfileTab>("general");
+  const [restaurantName, setRestaurantName] = useState(restaurant?.name ?? "");
+  const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+  const [settingsState, saveSettingsAction, isSaving] = useActionState(
+    updateRestaurantSettingsAction,
+    initialSettingsState,
   );
 
-  const selectedMonthReports = useMemo(
+  const currentMonthKey = format(startOfMonth(new Date()), "yyyy-MM-01");
+  const currentMonthLabel = formatMonthLabel(currentMonthKey, locale);
+
+  const monthlyExpenses = useMemo(
     () =>
-      reports.filter((report) =>
-        selectedMonth ? report.workDate.startsWith(selectedMonth.slice(0, 7)) : true,
-      ),
-    [reports, selectedMonth],
+      reports
+        .filter((report) => report.workDate.startsWith(currentMonthKey.slice(0, 7)))
+        .reduce((sum, report) => sum + report.manualExpense, 0),
+    [currentMonthKey, reports],
   );
 
-  const stats: MonthStats = useMemo(
-    () => calculateMonthStats(selectedMonthReports),
-    [selectedMonthReports],
-  );
+  useEffect(() => {
+    if (
+      settingsState.status === "success" &&
+      settingsState.refreshKey &&
+      refreshedKeyRef.current !== settingsState.refreshKey
+    ) {
+      refreshedKeyRef.current = settingsState.refreshKey;
+      router.refresh();
+    }
+  }, [router, settingsState]);
 
-  const expenseBreakdown = useMemo(
-    () => buildExpenseBreakdown(selectedMonthReports, locale),
-    [selectedMonthReports, locale],
-  );
+  useEffect(() => {
+    setRestaurantName(restaurant?.name ?? "");
+  }, [restaurant?.name]);
 
-  const monthLabels = useMemo(
-    () => ({
-      overviewTitle: locale === "bg" ? "Статистики" : "Overview",
-      expensesTitle: locale === "bg" ? "Разходи" : "Expenses",
-      telegramNavTitle: "Telegram",
-      accountTitle: locale === "bg" ? "Профил" : "Account",
-      summaryTitle: locale === "bg" ? "Месечен контролен център" : "Monthly control center",
-      summaryDesc:
-        locale === "bg"
-          ? "Профилът вече е подреден като dashboard с вътрешна навигация за статистики, разходи, Telegram и акаунт."
-          : "Your profile is now structured as a dashboard for stats, expenses, Telegram, and account details.",
-      recordedDays: locale === "bg" ? "Дни с отчет" : "Recorded days",
-      totalExpenses: locale === "bg" ? "Общо разходи" : "Total expenses",
-      averageDailyNet: locale === "bg" ? "Средна дневна печалба" : "Average daily net",
-      topCategory: locale === "bg" ? "Водеща категория" : "Top category",
-      noCategoryLeader:
-        locale === "bg" ? "Още няма водеща категория" : "No leading category yet",
-      expenseTitle: locale === "bg" ? "Разходи по категории" : "Expense breakdown",
-      expenseDesc:
-        locale === "bg"
-          ? "Донът графиката и разбивката вдясно показват къде отиват парите през избрания месец."
-          : "The donut chart and the breakdown show where money goes during the selected month.",
-      expenseEmpty:
-        locale === "bg"
-          ? "Няма категоризирани разходи за този месец."
-          : "No categorized expenses have been logged for this month yet.",
-      expenseHint:
-        locale === "bg"
-          ? "Добави разходи от Today или Telegram, за да се появят тук."
-          : "Add expenses from Today or Telegram to see the chart fill up.",
-      categorizedExpenseTitle:
-        locale === "bg" ? "Категоризирани разходи" : "Categorized expenses",
-      coverageTitle:
-        locale === "bg" ? "Покритие на категориите" : "Category coverage",
-      coverageHint:
-        locale === "bg"
-          ? "Каква част от всички разходи вече е разпределена по категории."
-          : "How much of total expenses is already categorized.",
-      expenseRecords: locale === "bg" ? "записа" : "records",
-      telegramTitle:
-        locale === "bg" ? "Конфигурирай Telegram" : "Configure Telegram",
-      telegramDesc:
-        locale === "bg"
-          ? "Свържи Telegram, за да записваш разходи, да получаваш дневни обобщения и да задаваш въпроси за бизнеса."
-          : "Connect Telegram for expense capture, daily summaries, and ops questions.",
-      telegramReady:
-        locale === "bg" ? "Готово за свързване" : "Ready to connect",
-      telegramMissingUsername:
-        locale === "bg"
-          ? "Липсва публичният bot username"
-          : "Missing public bot username",
-      telegramUnavailable:
-        locale === "bg" ? "Telegram не е довършен" : "Telegram is not fully configured",
-      telegramConnect:
-        locale === "bg" ? "Отвори и свържи бота" : "Open and connect the bot",
-      telegramLinked:
-        locale === "bg"
-          ? `${telegramLinkedUsersCount} свързан(и) Telegram акаунт(а)`
-          : `${telegramLinkedUsersCount} linked Telegram account(s)`,
-      telegramHint:
-        locale === "bg"
-          ? "Бутонът отваря бота с еднократен токен за този ресторант."
-          : "The button opens the bot with a one-time token for this restaurant.",
-      telegramMissingUsernameHint:
-        locale === "bg"
-          ? "Добави NEXT_PUBLIC_TELEGRAM_BOT_USERNAME в .env.local, за да се покаже бутонът за свързване."
-          : "Add NEXT_PUBLIC_TELEGRAM_BOT_USERNAME to .env.local to show the connect button.",
-      telegramUnavailableHint:
-        locale === "bg"
-          ? "Провери Telegram env променливите. Профилът ще покаже бутона веднага щом username-ът стане публичен."
-          : "Check the Telegram env vars. The Profile page will show the button once the public username becomes available.",
-      telegramCommands:
-        locale === "bg"
-          ? "Полезни команди: /summary, /categories, /daily_on, /daily_off"
-          : "Useful commands: /summary, /categories, /daily_on, /daily_off",
-      telegramStep1:
-        locale === "bg"
-          ? "Отвори бота от бутона по-долу."
-          : "Open the bot from the button below.",
-      telegramStep2:
-        locale === "bg"
-          ? "Потвърди връзката с еднократния токен."
-          : "Confirm the link with the one-time token.",
-      telegramStep3:
-        locale === "bg"
-          ? "После можеш да добавяш разходи и да получаваш дневни обобщения."
-          : "Then you can add expenses and receive daily summaries.",
-      laborHealthy: locale === "bg" ? "В норма" : "Healthy",
-      laborWatch: locale === "bg" ? "Иска внимание" : "Needs attention",
-    }),
-    [locale, telegramLinkedUsersCount],
-  );
+  const settingsMessage =
+    settingsState.message ??
+    (dataMode === "demo" ? "Промените са изключени в demo режим." : null);
 
-  const monthLabel = formatMonthLabel(selectedMonth, locale);
-  const laborCostRisk = stats.laborCostPercentage > 30;
-  const dataModeLabel = dataMode === "demo" ? t.profile.dataDemo : t.profile.dataLive;
-  const categorizedExpenseTotal = expenseBreakdown.reduce((sum, item) => sum + item.amount, 0);
-  const categoryCoverage =
-    stats.totalExpense > 0 ? Math.min((categorizedExpenseTotal / stats.totalExpense) * 100, 100) : 0;
-  const expenseLeader = expenseBreakdown[0] ?? null;
+  const telegramLinkValue =
+    telegramConnectUrl ??
+    (telegramConfigState === "missing_public_username"
+      ? "Добавете NEXT_PUBLIC_TELEGRAM_BOT_USERNAME в .env.local"
+      : "Telegram не е конфигуриран за този профил");
 
-  const metrics = [
-    {
-      label: t.profile.totalTurnover,
-      value: stats.totalTurnover,
-      className: "border-primary/15 bg-primary/5",
-    },
-    {
-      label: t.profile.netProfit,
-      value: stats.netProfit,
-      className:
-        stats.netProfit >= 0
-          ? "border-success/15 bg-success/5"
-          : "border-destructive/20 bg-destructive/5",
-    },
-    {
-      label: monthLabels.totalExpenses,
-      value: stats.totalExpense,
-      className: "border-sky-500/20 bg-sky-500/10",
-    },
-    {
-      label: t.profile.averageDailyTurnover,
-      value: stats.averageDailyTurnover,
-      className: "border-warning/20 bg-warning/10",
-    },
-    {
-      label: t.profile.laborCost,
-      value: stats.totalLaborCost,
-      className: "border-border bg-muted/60",
-    },
-  ];
+  const telegramStatusLabel =
+    telegramConfigState === "connectable"
+      ? "Активно"
+      : telegramConfigState === "missing_public_username"
+        ? "Липсва username"
+        : "Не е готово";
 
-  const sectionItems = [
+  const telegramStatusCopy =
+    telegramConfigState === "connectable"
+      ? `${telegramLinkedUsersCount} свързан(и) Telegram акаунт(а)`
+      : telegramConfigState === "missing_public_username"
+        ? "Backend-ът е готов, но web бутонът няма публичен bot username."
+        : "Провери Telegram env настройките за този deployment.";
+
+  async function copyInviteLink() {
+    if (!telegramConnectUrl || typeof navigator === "undefined" || !navigator.clipboard) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(telegramConnectUrl);
+    setCopiedInviteLink(true);
+    window.setTimeout(() => setCopiedInviteLink(false), 1600);
+  }
+
+  function openTelegramConnect() {
+    if (typeof window === "undefined" || !telegramConnectUrl) {
+      return;
+    }
+
+    const appUrl = buildTelegramAppUrl(telegramConnectUrl);
+    if (!appUrl) {
+      window.open(telegramConnectUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    let finished = false;
+    const cleanup = () => {
+      if (finished) {
+        return;
+      }
+
+      finished = true;
+      window.clearTimeout(fallbackTimer);
+      window.removeEventListener("blur", handleBlur);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+
+    const handleBlur = () => cleanup();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        cleanup();
+      }
+    };
+
+    const fallbackTimer = window.setTimeout(() => {
+      cleanup();
+      window.open(telegramConnectUrl, "_blank", "noopener,noreferrer");
+    }, 900);
+
+    window.addEventListener("blur", handleBlur, { once: true });
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.location.href = appUrl;
+  }
+
+  const tabs = [
     {
-      id: "overview" as const,
-      label: monthLabels.overviewTitle,
-      icon: BarChart3,
-      activeClass: "bg-primary text-primary-foreground shadow-sm",
-    },
-    {
-      id: "expenses" as const,
-      label: monthLabels.expensesTitle,
-      icon: ChartPie,
-      activeClass: "bg-sky-500/15 text-sky-700",
+      id: "general" as const,
+      label: "Общи данни",
+      icon: Settings,
+      activeClass:
+        "bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-400 shadow-sm border border-slate-200/50",
     },
     {
       id: "telegram" as const,
-      label: monthLabels.telegramNavTitle,
-      icon: Bot,
-      activeClass: "bg-success/15 text-success",
+      label: "Telegram",
+      icon: Smartphone,
+      activeClass:
+        "bg-white dark:bg-slate-800 text-blue-700 dark:text-blue-400 shadow-sm border border-slate-200/50",
     },
     {
-      id: "account" as const,
-      label: monthLabels.accountTitle,
-      icon: UserRound,
-      activeClass: "bg-warning/15 text-warning",
+      id: "staff" as const,
+      label: "Персонал",
+      icon: Users,
+      activeClass:
+        "bg-white dark:bg-slate-800 text-amber-700 dark:text-amber-400 shadow-sm border border-slate-200/50",
     },
   ];
 
-  const telegramBadgeVariant =
-    telegramConfigState === "connectable"
-      ? "success"
-      : telegramConfigState === "missing_public_username"
-        ? "warning"
-        : "outline";
-
-  const telegramStatusTitle =
-    telegramConfigState === "connectable"
-      ? monthLabels.telegramReady
-      : telegramConfigState === "missing_public_username"
-        ? monthLabels.telegramMissingUsername
-        : monthLabels.telegramUnavailable;
-
-  const telegramStatusHint =
-    telegramConfigState === "connectable"
-      ? monthLabels.telegramLinked
-      : telegramConfigState === "missing_public_username"
-        ? monthLabels.telegramMissingUsernameHint
-        : monthLabels.telegramUnavailableHint;
-
   return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-primary/10 via-background to-warning/10">
-        <CardContent className="grid gap-5 p-5 lg:grid-cols-[minmax(0,1.2fr)_320px]">
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={dataMode === "demo" ? "outline" : "success"}>{dataModeLabel}</Badge>
-              <Badge variant="outline">
-                {selectedMonthReports.length > 0
-                  ? `${selectedMonthReports.length} ${t.profile.reportsSummary}`
-                  : t.profile.noReports}
-              </Badge>
-              <Badge variant={telegramBadgeVariant}>{telegramStatusTitle}</Badge>
+    <div className="min-h-screen bg-slate-50/50 p-6 animate-in fade-in duration-500 md:p-12 dark:bg-slate-950">
+      <div className="mx-auto max-w-5xl space-y-10">
+        <div className="space-y-8">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl dark:text-white">
+                Настройки
+              </h1>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                Управление на бизнеса и интеграциите
+              </p>
             </div>
 
-            <div className="space-y-2">
-              <p className="text-sm font-semibold text-primary">{monthLabels.summaryTitle}</p>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-tight text-foreground">
-                  {t.profile.title}
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                  {monthLabels.summaryDesc}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-primary/15 bg-background/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t.profile.totalTurnover}
-                </p>
-                <MoneyDisplay amount={stats.totalTurnover} className="mt-2 text-2xl" compact />
-              </div>
-              <div className="rounded-2xl border border-success/15 bg-background/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {t.profile.netProfit}
-                </p>
-                <MoneyDisplay amount={stats.netProfit} className="mt-2 text-2xl" compact />
-              </div>
-              <div className="rounded-2xl border border-sky-500/20 bg-background/85 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {monthLabels.totalExpenses}
-                </p>
-                <MoneyDisplay amount={stats.totalExpense} className="mt-2 text-2xl" compact />
-              </div>
+            <div className="flex items-center gap-3">
+              <Button
+                type="submit"
+                form="business-settings-form"
+                disabled={isSaving || dataMode === "demo" || !restaurantName.trim()}
+                className="rounded-xl bg-slate-900 px-6 font-bold text-white hover:bg-slate-800"
+              >
+                <Save className="h-4 w-4" />
+                {isSaving ? "Запазване..." : "Save"}
+              </Button>
+              <form action={logoutAction}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  className="rounded-xl border-red-100 bg-white text-red-600 shadow-sm transition-all hover:border-red-200 hover:bg-red-50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Изход
+                </Button>
+              </form>
             </div>
           </div>
 
-          <div className="rounded-2xl border border-border/80 bg-background/90 p-4 backdrop-blur">
-            <div className="space-y-2">
-              <Label htmlFor="profile-month">{t.profile.month}</Label>
-              <SelectField
-                id="profile-month"
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(event.target.value)}
-              >
-                {monthOptions.map((month) => (
-                  <option key={month} value={month}>
-                    {formatMonthLabel(month, locale)}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
+          <div className="flex w-fit items-center gap-2 overflow-x-auto rounded-xl border border-slate-200/60 bg-slate-200/50 p-1 dark:border-slate-800 dark:bg-slate-900">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
 
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-border bg-muted/50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {monthLabel}
-                </p>
-                <p className="mt-2 text-sm text-muted-foreground">{dataModeLabel}</p>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-muted/50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {monthLabels.recordedDays}
-                </p>
-                <p className="mt-2 text-2xl font-semibold text-foreground">{stats.recordedDays}</p>
-              </div>
-
-              <div className="rounded-2xl border border-border bg-muted/50 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {monthLabels.topCategory}
-                </p>
-                <p className="mt-2 text-sm font-semibold text-foreground">
-                  {expenseLeader
-                    ? `${expenseLeader.emoji ? `${expenseLeader.emoji} ` : ""}${expenseLeader.label}`
-                    : monthLabels.noCategoryLeader}
-                </p>
-                {expenseLeader ? (
-                  <MoneyDisplay amount={expenseLeader.amount} className="mt-2" compact />
-                ) : (
-                  <p className="mt-2 text-sm text-muted-foreground">{monthLabels.expenseHint}</p>
-                )}
-              </div>
-            </div>
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={cn(
+                    "flex items-center gap-2 whitespace-nowrap rounded-lg px-6 py-2.5 text-sm font-bold transition-all",
+                    isActive
+                      ? tab.activeClass
+                      : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="sticky top-3 z-10 rounded-2xl border border-border/80 bg-background/95 p-2 shadow-sm backdrop-blur">
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-          {sectionItems.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.id;
-
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActiveSection(section.id)}
-                className={cn(
-                  "flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-semibold transition-colors",
-                  isActive
-                    ? section.activeClass
-                    : "text-muted-foreground hover:bg-secondary/80 hover:text-foreground",
-                )}
-              >
-                <Icon className="size-4" />
-                <span>{section.label}</span>
-              </button>
-            );
-          })}
         </div>
-      </div>
 
-      {activeSection === "overview" ? (
-        <section className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {metrics.map((metric) => (
-              <Card key={metric.label} className={metric.className}>
-                <CardHeader className="pb-2">
-                  <CardDescription>{metric.label}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <MoneyDisplay amount={metric.value} className="text-3xl" />
-                </CardContent>
-              </Card>
-            ))}
+        <div className="space-y-12 pb-24">
+          {activeTab === "general" ? (
+            <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+              <Section
+                title="Профил на бизнеса"
+                description="Това име се показва във вашите отчети и фактури. Имейлът се използва за вход в системата."
+              >
+                <div className="space-y-6 rounded-2xl border border-slate-200/60 bg-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+                  <form id="business-settings-form" action={saveSettingsAction} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Име на обект
+                      </Label>
+                      <div className="relative">
+                        <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          name="restaurantName"
+                          value={restaurantName}
+                          onChange={(event) => setRestaurantName(event.target.value)}
+                          className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pl-11 font-medium focus-visible:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
 
-            <Card className={cn(laborCostRisk ? "border-destructive/20 bg-destructive/5" : "bg-muted/50")}>
-              <CardHeader className="pb-2">
-                <CardDescription>{t.profile.laborCostPercentage}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-end justify-between gap-3">
-                  <p
-                    className={cn(
-                      "text-3xl font-semibold",
-                      laborCostRisk ? "text-destructive" : "text-foreground",
-                    )}
-                  >
-                    {stats.laborCostPercentage.toFixed(1)}%
-                  </p>
-                  <Badge variant={laborCostRisk ? "warning" : "success"}>
-                    {laborCostRisk ? monthLabels.laborWatch : monthLabels.laborHealthy}
-                  </Badge>
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Администратор (Email)
+                      </Label>
+                      <div className="relative">
+                        <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                        <Input
+                          value={profile?.email ?? ""}
+                          disabled
+                          className="h-12 rounded-xl border-slate-200 bg-slate-100/50 pl-11 font-medium text-slate-500"
+                        />
+                      </div>
+                    </div>
+
+                    {settingsMessage ? (
+                      <div
+                        className={cn(
+                          "rounded-xl px-4 py-3 text-sm font-medium",
+                          settingsState.status === "success"
+                            ? "border border-emerald-100 bg-emerald-50 text-emerald-700"
+                            : settingsState.status === "error"
+                              ? "border border-red-100 bg-red-50 text-red-700"
+                              : "border border-slate-200 bg-slate-50 text-slate-500",
+                        )}
+                      >
+                        {settingsMessage}
+                      </div>
+                    ) : null}
+                  </form>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-border">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all",
-                      laborCostRisk ? "bg-destructive" : "bg-success",
-                    )}
-                    style={{ width: `${Math.min(stats.laborCostPercentage, 100)}%` }}
+              </Section>
+
+              <hr className="border-slate-200/60 dark:border-slate-800" />
+
+              <Section
+                title="Текущо състояние"
+                description="Бърз преглед на основните показатели на вашия обект за текущия месец."
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <StatCard
+                    icon={Users}
+                    toneClassName="bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
+                    label="Персонал"
+                    value={`${employeeCount}`}
+                    hint="активни служители"
+                  />
+                  <StatCard
+                    icon={CreditCard}
+                    toneClassName="bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                    label={`Разходи (${currentMonthLabel})`}
+                    value={formatCurrency(monthlyExpenses)}
+                    hint={formatBgnCurrencyFromEur(monthlyExpenses)}
                   />
                 </div>
-                {laborCostRisk ? (
-                  <p className="text-xs text-destructive">{t.profile.laborCostWarning}</p>
-                ) : null}
-              </CardContent>
-            </Card>
-          </div>
+              </Section>
+            </div>
+          ) : null}
 
-          <Card className="border-sky-500/20 bg-sky-500/5">
-            <CardHeader>
-              <CardTitle>{monthLabels.telegramTitle}</CardTitle>
-              <CardDescription>{telegramStatusHint}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3">
-              <Badge variant={telegramBadgeVariant}>{telegramStatusTitle}</Badge>
-              <button
-                type="button"
-                onClick={() => setActiveSection("telegram")}
-                className="inline-flex items-center gap-2 text-sm font-semibold text-primary"
+          {activeTab === "telegram" ? (
+            <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+              <Section
+                title="Telegram Копилот"
+                description="Свържете персоналния си бот, за да въвеждате разходи и да правите бързи справки."
               >
-                <Send className="size-4" />
-                {monthLabels.telegramTitle}
-              </button>
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      {activeSection === "expenses" ? (
-        <section className="space-y-4">
-          <Card className="overflow-hidden border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-background to-primary/5">
-            <CardHeader>
-              <CardTitle>{monthLabels.expenseTitle}</CardTitle>
-              <CardDescription>{monthLabels.expenseDesc}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="rounded-2xl border border-border bg-background/85 p-4">
-                {expenseBreakdown.length > 0 ? (
-                  <div className="relative mx-auto h-[320px] w-full max-w-[360px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Tooltip
-                          formatter={(value, name) => [
-                            formatCurrencyPair(toFiniteNumber(value)),
-                            String(name),
-                          ]}
-                          contentStyle={{
-                            borderRadius: "0.75rem",
-                            border: "1px solid var(--border)",
-                            fontSize: "0.8rem",
-                          }}
-                        />
-                        <Pie
-                          data={expenseBreakdown}
-                          dataKey="amount"
-                          nameKey="label"
-                          innerRadius={78}
-                          outerRadius={116}
-                          paddingAngle={3}
-                          stroke="var(--background)"
-                          strokeWidth={5}
-                        >
-                          {expenseBreakdown.map((slice) => (
-                            <Cell key={slice.key} fill={slice.color} />
-                          ))}
-                        </Pie>
-                      </PieChart>
-                    </ResponsiveContainer>
-
-                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        {monthLabels.categorizedExpenseTitle}
-                      </p>
-                      <MoneyDisplay amount={categorizedExpenseTotal} className="mt-2 text-2xl" />
-                    </div>
+                <div className="relative overflow-hidden rounded-2xl border border-slate-200/60 border-t-4 border-t-blue-500 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="absolute right-6 top-6">
+                    <span className="flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-blue-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+                      {telegramStatusLabel}
+                    </span>
                   </div>
-                ) : (
-                  <div className="flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/30 px-6 text-center">
-                    <p className="text-sm font-medium text-foreground">{monthLabels.expenseEmpty}</p>
-                    <p className="mt-2 text-sm text-muted-foreground">{monthLabels.expenseHint}</p>
-                  </div>
-                )}
-              </div>
 
-              <div className="space-y-3">
-                <div className="rounded-2xl border border-border bg-background/85 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {monthLabels.coverageTitle}
-                  </p>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all"
-                      style={{ width: `${categoryCoverage}%` }}
-                    />
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{monthLabels.coverageHint}</p>
-                </div>
-
-                {expenseBreakdown.length > 0 ? (
-                  expenseBreakdown.map((slice) => {
-                    const share =
-                      categorizedExpenseTotal > 0
-                        ? Math.round((slice.amount / categorizedExpenseTotal) * 100)
-                        : 0;
-
-                    return (
-                      <div
-                        key={slice.key}
-                        className="rounded-2xl border border-border bg-background/85 p-4"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className="size-3 shrink-0 rounded-full"
-                                style={{ backgroundColor: slice.color }}
-                              />
-                              <p className="truncate text-sm font-semibold text-foreground">
-                                {slice.emoji ? `${slice.emoji} ` : ""}
-                                {slice.label}
-                              </p>
-                            </div>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              {slice.count} {monthLabels.expenseRecords}
-                            </p>
-                          </div>
-                          <MoneyDisplay amount={slice.amount} align="end" />
-                        </div>
-
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-border">
-                          <div
-                            className="h-full rounded-full transition-all"
-                            style={{ width: `${share}%`, backgroundColor: slice.color }}
+                  <div className="space-y-6 pt-2">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">
+                        Персонален линк
+                      </Label>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <div className="relative flex-1">
+                          <Input
+                            readOnly
+                            value={telegramLinkValue}
+                            className="h-12 rounded-xl border-slate-200 bg-slate-50/50 pr-12 font-medium text-slate-700"
                           />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={copyInviteLink}
+                            disabled={!telegramConnectUrl}
+                            className="absolute right-1 top-1 h-10 w-10 rounded-xl text-slate-500 hover:bg-slate-100"
+                          >
+                            {copiedInviteLink ? (
+                              <Check className="h-4 w-4" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
                         </div>
-                        <p className="mt-2 text-right text-xs text-muted-foreground">{share}%</p>
+                        <Button
+                          type="button"
+                          onClick={openTelegramConnect}
+                          disabled={!telegramConnectUrl}
+                          className="h-12 rounded-xl bg-blue-600 px-8 font-bold text-white hover:bg-blue-700"
+                        >
+                          <Smartphone className="h-4 w-4" />
+                          Отвори в Telegram
+                        </Button>
                       </div>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-border bg-background/85 p-4 text-sm text-muted-foreground">
-                    {monthLabels.expenseHint}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      {activeSection === "telegram" ? (
-        <section className="space-y-4">
-          <Card className="overflow-hidden border-success/20 bg-gradient-to-br from-success/10 via-background to-primary/5">
-            <CardHeader>
-              <CardTitle>{monthLabels.telegramTitle}</CardTitle>
-              <CardDescription>{monthLabels.telegramDesc}</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4 lg:grid-cols-[minmax(0,1.1fr)_320px]">
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-border bg-background/85 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant={telegramBadgeVariant}>{telegramStatusTitle}</Badge>
-                    {telegramLinkedUsersCount > 0 ? (
-                      <Badge variant="success">{monthLabels.telegramLinked}</Badge>
-                    ) : null}
-                  </div>
-                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{telegramStatusHint}</p>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/85 p-4">
-                  <p className="text-sm font-semibold text-foreground">{monthLabels.telegramCommands}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Badge variant="outline">/summary</Badge>
-                    <Badge variant="outline">/categories</Badge>
-                    <Badge variant="outline">/daily_on</Badge>
-                    <Badge variant="outline">/daily_off</Badge>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-background/85 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 rounded-full bg-warning/15 p-2 text-warning">
-                      <CircleAlert className="size-4" />
                     </div>
-                    <div className="space-y-2 text-sm text-muted-foreground">
-                      <p>{monthLabels.telegramStep1}</p>
-                      <p>{monthLabels.telegramStep2}</p>
-                      <p>{monthLabels.telegramStep3}</p>
+
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <p className="text-sm font-medium text-slate-900">{telegramStatusCopy}</p>
+                      <p className="mt-2 text-sm text-slate-500">
+                        Бутонът опитва да отвори Telegram app първо и пада обратно към web само при нужда.
+                      </p>
                     </div>
                   </div>
                 </div>
-              </div>
+              </Section>
 
-              <div className="rounded-2xl border border-border bg-background/90 p-4">
-                <div className="rounded-2xl bg-muted/50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Telegram
+              <hr className="border-slate-200/60 dark:border-slate-800" />
+
+              <Section
+                title="Достъп за управители"
+                description="Поддържай контролиран достъп и виж текущия статус на свързаните Telegram акаунти."
+              >
+                <div className="flex flex-col items-center justify-center space-y-4 rounded-2xl border border-dashed border-slate-200/60 bg-slate-50 p-8 text-center dark:border-slate-800 dark:bg-slate-900/50">
+                  <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                    <ShieldCheck className="h-6 w-6" />
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                    Защитена връзка
+                  </h4>
+                  <p className="max-w-sm text-sm text-slate-500">
+                    В момента има {telegramLinkedUsersCount} свързан(и) акаунт(а). Следващата стъпка е покани с еднократен код за управители.
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-foreground">{telegramStatusTitle}</p>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{telegramStatusHint}</p>
+                  <Button variant="outline" className="rounded-xl border-slate-300 bg-white font-bold">
+                    Скоро: код за покана
+                  </Button>
                 </div>
+              </Section>
+            </div>
+          ) : null}
 
-                <div className="mt-4 space-y-3">
-                  {telegramConnectUrl ? (
-                    <Button asChild className="w-full">
-                      <a href={telegramConnectUrl} target="_blank" rel="noopener noreferrer">
-                        <Send className="size-4" />
-                        {monthLabels.telegramConnect}
-                      </a>
+          {activeTab === "staff" ? (
+            <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-500">
+              <Section
+                title="Персонал и операции"
+                description="Бързи индикатори за екипа и навигация към детайлните работни екрани."
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <StatCard
+                    icon={Users}
+                    toneClassName="bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
+                    label="Екип"
+                    value={`${employeeCount}`}
+                    hint="общо активни профили"
+                  />
+                  <StatCard
+                    icon={CreditCard}
+                    toneClassName="bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+                    label="Оперативни разходи"
+                    value={formatCurrency(monthlyExpenses)}
+                    hint={currentMonthLabel}
+                  />
+                </div>
+              </Section>
+
+              <hr className="border-slate-200/60 dark:border-slate-800" />
+
+              <Section
+                title="Бързи действия"
+                description="Отвори директно работните екрани за екип и разплащания."
+              >
+                <div className="space-y-4 rounded-2xl border border-slate-200/60 bg-white p-8 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <Button asChild className="h-11 rounded-xl bg-slate-900 px-6 font-bold text-white hover:bg-slate-800">
+                      <Link href="/employees">Към служители</Link>
                     </Button>
-                  ) : null}
-
-                  {telegramConfigState === "connectable" ? (
-                    <div className="rounded-2xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
-                      {monthLabels.telegramHint}
-                    </div>
-                  ) : null}
-
-                  {telegramConfigState === "missing_public_username" ? (
-                    <div className="rounded-2xl border border-warning/20 bg-warning/10 p-4 text-sm text-warning">
-                      <p className="font-semibold">NEXT_PUBLIC_TELEGRAM_BOT_USERNAME</p>
-                      <p className="mt-2">{monthLabels.telegramMissingUsernameHint}</p>
-                    </div>
-                  ) : null}
-
-                  {telegramConfigState === "not_configured" ? (
-                    <div className="rounded-2xl border border-border bg-muted/50 p-4 text-sm text-muted-foreground">
-                      {monthLabels.telegramUnavailableHint}
-                    </div>
-                  ) : null}
+                    <Button asChild variant="outline" className="h-11 rounded-xl border-slate-300 bg-white font-bold">
+                      <Link href="/payroll">Към заплати</Link>
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                    Този таб е подготвен като персонален control room. Ако искаш, следващата стъпка е да добавя и compact roster table тук, по подобие на стила от снимката.
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      ) : null}
-
-      {activeSection === "account" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t.profile.profileTitle}</CardTitle>
-            <CardDescription>{t.profile.profileDesc}</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {profile ? (
-              <div className="space-y-2 rounded-2xl border border-border bg-muted p-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {profile.fullName}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {t.profile.email}: {profile.email}
-                  </p>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {t.profile.restaurant}: {restaurant?.name ?? "KoiRaboti"}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-border bg-muted p-4 text-sm text-muted-foreground">
-                {t.profile.noProfile}
-              </div>
-            )}
-
-            <form action={logoutAction}>
-              <Button type="submit" variant="outline" className="w-full">
-                <LogOut className="size-4" />
-                {t.profile.logout}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
+              </Section>
+            </div>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
