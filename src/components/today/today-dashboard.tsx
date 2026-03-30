@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -83,6 +84,10 @@ const SHIFT_OPTIONS: Array<0 | PayUnits> = [0, 1, 1.5, 2];
 function toNumber(value: string) {
   const numericValue = Number(value);
   return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function formatShiftUnits(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 function buildAttendanceDrafts(
@@ -367,6 +372,26 @@ export function TodayDashboard({
           saveError: "Could not save. Please try again.",
         };
 
+  const attendanceHint =
+    locale === "bg"
+      ? "Избери хората по групи и маркирай колко смени поема всеки."
+      : "Choose people by group and set how many shifts each person is covering today.";
+  const attendanceSummaryLabel = locale === "bg" ? "избрани" : "selected";
+  const shiftsSummaryLabel = locale === "bg" ? "смени" : "shifts";
+  const attendanceLocalDraftNotice =
+    locale === "bg"
+      ? "Промените се пазят локално веднага. Натисни „Запази Присъствия“, за да потвърдиш стъпката."
+      : "Changes are stored locally right away. Click \"Save Attendance\" only to confirm this step.";
+  const attendanceEmptyTitle =
+    locale === "bg"
+      ? "Добави служители, за да маркираш кой е работил днес."
+      : "Add employees first so you can mark who has worked today.";
+  const attendanceEmptyBody =
+    locale === "bg"
+      ? "Използвай страницата Служители, за да създадеш реалния списък и после се върни тук за присъствията."
+      : "Use the Employees page to build your roster, then come back here to assign shifts.";
+  const attendanceEmptyCta = locale === "bg" ? "Отвори Служители" : "Open Employees";
+
   const roleSections = ROLE_ORDER.map((role) => ({
     role,
     title: role === "kitchen" ? t.common.kitchen : t.common.service,
@@ -376,6 +401,10 @@ export function TodayDashboard({
         : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
     entries: attendanceDrafts.filter((entry) => entry.employee.role === role),
   }));
+  const attendanceTileDescription =
+    checkedInCount > 0
+      ? `${checkedInCount} ${attendanceSummaryLabel} · ${formatShiftUnits(totalPayUnits)} ${shiftsSummaryLabel}`
+      : copy.attendance[1];
 
   function closeDialog() {
     setActiveDialog(null);
@@ -657,7 +686,7 @@ export function TodayDashboard({
             <DialogTrigger asChild>
               <TaskTile
                 title={copy.attendance[0]}
-                description={copy.attendance[1]}
+                description={attendanceTileDescription}
                 completed={isAttendanceDone}
                 pendingLabel={copy.pending}
                 doneLabel={copy.done}
@@ -679,33 +708,68 @@ export function TodayDashboard({
               </DialogHeader>
 
               <div className="space-y-5 bg-slate-50/50 p-6 dark:bg-slate-950/80">
+                <div className="rounded-3xl border border-blue-100 bg-blue-50/80 px-4 py-3 text-sm text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-200">
+                  {attendanceHint}
+                </div>
+
                 {attendanceDrafts.length === 0 ? (
-                  <div className="rounded-3xl border border-dashed border-slate-200/70 bg-white px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                    {copy.noEmployees}
+                  <div className="rounded-[1.75rem] border border-dashed border-slate-200/70 bg-white px-6 py-10 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <div className="mx-auto flex max-w-md flex-col items-center gap-4">
+                      <div className="flex size-16 items-center justify-center rounded-3xl bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                        <Users className="size-7" />
+                      </div>
+                      <div className="space-y-2">
+                        <p className="text-lg font-bold text-slate-900 dark:text-white">
+                          {attendanceEmptyTitle}
+                        </p>
+                        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                          {attendanceEmptyBody}
+                        </p>
+                      </div>
+                      <Button
+                        asChild
+                        variant="outline"
+                        className="h-12 rounded-2xl border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:border-emerald-700 dark:hover:text-emerald-400"
+                      >
+                        <Link href="/employees">{attendanceEmptyCta}</Link>
+                      </Button>
+                    </div>
                   </div>
                 ) : (
                   roleSections.map((section) => (
                     <div
                       key={section.role}
-                      className="rounded-3xl border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
+                      className="rounded-[1.75rem] border border-slate-200/70 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
                     >
                       <div className="mb-4 flex items-center justify-between gap-3">
-                        <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
-                          {section.title}
-                        </h3>
+                        <div>
+                          <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-500 dark:text-slate-400">
+                            {section.title}
+                          </h3>
+                          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                            {section.entries.filter((entry) => entry.isPresent).length}/
+                            {section.entries.length} {attendanceSummaryLabel}
+                          </p>
+                        </div>
                         <span
                           className={cn(
                             "inline-flex rounded-full px-3 py-1 text-xs font-semibold",
                             section.badgeClassName,
                           )}
                         >
-                          {section.entries.length}
+                          {formatShiftUnits(
+                            section.entries.reduce(
+                              (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
+                              0,
+                            ),
+                          )}{" "}
+                          {shiftsSummaryLabel}
                         </span>
                       </div>
 
-                      <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                         {section.entries.length === 0 ? (
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
+                          <p className="rounded-3xl border border-dashed border-slate-200/70 bg-slate-50 px-4 py-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
                             {t.today.noEmployeesInRole}
                           </p>
                         ) : null}
@@ -716,16 +780,32 @@ export function TodayDashboard({
                           return (
                             <div
                               key={entry.employee.id}
-                              className="rounded-3xl border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/70"
+                              className={cn(
+                                "rounded-[1.5rem] border p-4 transition-all duration-200",
+                                selectedUnits === 0
+                                  ? "border-slate-200/70 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70"
+                                  : "border-emerald-200 bg-emerald-50/80 shadow-sm ring-1 ring-emerald-500/10 dark:border-emerald-800/80 dark:bg-emerald-900/20",
+                              )}
                             >
-                              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                              <div className="space-y-4">
                                 <div>
                                   <p className="text-base font-semibold text-slate-900 dark:text-white">
                                     {entry.employee.fullName}
                                   </p>
-                                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                                    {t.payroll.shiftsCount}
-                                  </p>
+                                  <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                    <span
+                                      className={cn(
+                                        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
+                                        selectedUnits === 0
+                                          ? "bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-300"
+                                          : "bg-white text-emerald-700 dark:bg-slate-900 dark:text-emerald-400",
+                                      )}
+                                    >
+                                      {selectedUnits === 0
+                                        ? copy.pending
+                                        : `${formatShiftUnits(selectedUnits)} ${shiftsSummaryLabel}`}
+                                    </span>
+                                  </div>
                                 </div>
 
                                 <div className="grid grid-cols-4 gap-2">
@@ -755,6 +835,10 @@ export function TodayDashboard({
                     </div>
                   ))
                 )}
+
+                <div className="rounded-3xl border border-slate-200/70 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                  {attendanceLocalDraftNotice}
+                </div>
 
                 <Button
                   type="button"
