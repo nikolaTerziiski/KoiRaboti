@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useLocale } from "@/lib/i18n/context";
 
 type ErrorCardProps = {
-  pageKey: "today" | "employees" | "payroll" | "reports" | "profile";
+  pageKey: "today" | "transactions" | "employees" | "payroll" | "reports" | "profile";
   message: string;
 };
 

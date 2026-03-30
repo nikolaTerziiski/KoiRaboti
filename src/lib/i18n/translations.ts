@@ -1,5 +1,11 @@
 export type Locale = "en" | "bg";
-export type PageKey = "today" | "employees" | "payroll" | "reports" | "profile";
+export type PageKey =
+  | "today"
+  | "transactions"
+  | "employees"
+  | "payroll"
+  | "reports"
+  | "profile";
 
 const translations = {
   en: {
@@ -14,6 +20,7 @@ const translations = {
     },
     nav: {
       today: "Today",
+      transactions: "Transactions",
       employees: "Employees",
       payroll: "Payroll",
       reports: "Reports",
@@ -38,6 +45,12 @@ const translations = {
         description: "Log daily numbers and staff attendance before payroll closes.",
         errorTitle: "Live data could not be loaded",
         errorDescription: "Supabase env vars are present, so demo fallback is intentionally disabled.",
+      },
+      transactions: {
+        title: "Transactions",
+        description: "Review expenses, receipt history, and every operational purchase in one ledger view.",
+        errorTitle: "Live transaction data could not be loaded",
+        errorDescription: "Supabase env vars are present, so the app is surfacing the load failure.",
       },
       employees: {
         title: "Employees",
@@ -338,6 +351,7 @@ const translations = {
     },
     nav: {
       today: "Днес",
+      transactions: "Транзакции",
       employees: "Служители",
       payroll: "Заплати",
       reports: "Отчети",
@@ -364,6 +378,12 @@ const translations = {
         errorTitle: "Живите данни не могат да се заредят",
         errorDescription:
           "Supabase env vars са налични, затова демо режимът е умишлено изключен.",
+      },
+      transactions: {
+        title: "Транзакции",
+        description: "Прегледай разходите, касовите бележки и всяка оперативна покупка в един ledger изглед.",
+        errorTitle: "Живите данни за транзакциите не могат да се заредят",
+        errorDescription: "Supabase env vars са налични, затова грешката е показана.",
       },
       employees: {
         title: "Служители",
