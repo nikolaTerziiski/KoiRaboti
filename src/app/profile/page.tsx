@@ -6,7 +6,7 @@ import { ErrorCard } from "@/components/ui/error-card";
 import { ProfilePageClient } from "@/components/profile/profile-page-client";
 import { env, hasTelegramBotCredentials } from "@/lib/env";
 import { getRestaurantSnapshot } from "@/lib/supabase/data";
-import { getOrCreateTelegramConnectToken, getTelegramLinkStatus } from "@/lib/telegram/data";
+import { getOrCreateTelegramConnectToken } from "@/lib/telegram/data";
 import { buildTelegramBotLink, normalizeTelegramBotUsername } from "@/lib/telegram/links";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,6 @@ export default async function ProfilePage() {
   let telegramConnectUrl: string | null = telegramBotUsername
     ? buildTelegramBotLink(telegramBotUsername)
     : null;
-  let telegramLinkedUsersCount = 0;
   const telegramConfigState = telegramBotUsername
     ? "connectable"
     : hasTelegramBotCredentials()
@@ -46,13 +45,9 @@ export default async function ProfilePage() {
     hasTelegramBotCredentials()
   ) {
     try {
-      const [token, linkStatus] = await Promise.all([
-        getOrCreateTelegramConnectToken(snapshot.restaurant.id),
-        getTelegramLinkStatus(snapshot.restaurant.id),
-      ]);
+      const token = await getOrCreateTelegramConnectToken(snapshot.restaurant.id);
 
       telegramConnectUrl = buildTelegramBotLink(telegramBotUsername, token.token);
-      telegramLinkedUsersCount = linkStatus.linkedUsersCount;
     } catch (error) {
       console.error("[ProfilePage] Telegram connect data failed:", error);
     }
@@ -64,21 +59,16 @@ export default async function ProfilePage() {
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
       dataMode={dataMode}
       hidePageHeader
-      contentClassName="max-w-6xl px-0 sm:max-w-6xl sm:px-0"
     >
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="profile" message={snapshot.errorMessage} />
       ) : (
         <ProfilePageClient
-          reports={snapshot.reports}
-          employees={snapshot.employees}
           profile={snapshot.profile}
           restaurant={snapshot.restaurant}
           dataMode={snapshot.mode}
           telegramConnectUrl={telegramConnectUrl}
-          telegramLinkedUsersCount={telegramLinkedUsersCount}
           telegramConfigState={telegramConfigState}
-          employeeCount={snapshot.employees.length}
         />
       )}
     </AppShell>
