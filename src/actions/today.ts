@@ -12,8 +12,13 @@ import { isValidPayUnits, normalizeText, parseJsonArray, parseNumber } from "@/l
 export type TodayActionState = {
   status: "idle" | "success" | "error";
   message: string | null;
-  messageKey: "msgSaveSuccess" | "msgSaveError" | null;
+  messageKey:
+    | "msgSaveSuccess"
+    | "msgSaveError"
+    | "msgAttendanceRequired"
+    | null;
   refreshKey: string | null;
+  savedAttendanceCount: number | null;
 };
 
 type AttendancePayload = {
@@ -34,6 +39,9 @@ type EmployeeRateRow = {
 };
 
 type ExpenseItemPayload = ExpenseItemInput;
+
+const ATTENDANCE_REQUIRED_MESSAGE =
+  "Select at least one employee before saving today.";
 
 function parseAttendancePayload(rawValue: FormDataEntryValue | null): AttendancePayload[] {
   const parsedValue = parseJsonArray(rawValue, "Attendance payload");
@@ -150,6 +158,7 @@ export async function saveTodayReportAction(
       message: "Today data cannot be saved in demo mode.",
       messageKey: "msgSaveError",
       refreshKey: null,
+      savedAttendanceCount: null,
     };
   }
 
@@ -160,6 +169,7 @@ export async function saveTodayReportAction(
       message: "Live data connection is unavailable for saving.",
       messageKey: "msgSaveError",
       refreshKey: null,
+      savedAttendanceCount: null,
     };
   }
 
@@ -248,6 +258,10 @@ export async function saveTodayReportAction(
     );
 
     const selectedRows = attendancePayload.filter((entry) => entry.isPresent);
+    if (selectedRows.length === 0) {
+      throw new Error(ATTENDANCE_REQUIRED_MESSAGE);
+    }
+
     const selectedEmployeeIds = selectedRows.map((entry) => entry.employeeId);
     const employeeDailyRates = new Map<string, number>();
 
@@ -342,14 +356,21 @@ export async function saveTodayReportAction(
       message: "Today report and attendance were saved.",
       messageKey: "msgSaveSuccess",
       refreshKey: crypto.randomUUID(),
+      savedAttendanceCount: selectedRows.length,
     };
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Today data could not be saved.";
+
     return {
       status: "error",
-      message:
-        error instanceof Error ? error.message : "Today data could not be saved.",
-      messageKey: "msgSaveError",
+      message,
+      messageKey:
+        message === ATTENDANCE_REQUIRED_MESSAGE
+          ? "msgAttendanceRequired"
+          : "msgSaveError",
       refreshKey: null,
+      savedAttendanceCount: null,
     };
   }
 }

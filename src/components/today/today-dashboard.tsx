@@ -50,6 +50,7 @@ const initialTodayActionState: TodayActionState = {
   message: null,
   messageKey: null,
   refreshKey: null,
+  savedAttendanceCount: null,
 };
 
 type TodayDashboardProps = {
@@ -223,7 +224,7 @@ export function TodayDashboard({
   const router = useRouter();
   const { locale, t } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
-  const readyTimeoutRef = useRef<number | null>(null);
+  const formId = "today-dashboard-form";
   const [actionState, formAction, isPending] = useActionState(
     saveTodayReportAction,
     initialTodayActionState,
@@ -241,16 +242,29 @@ export function TodayDashboard({
     buildExpenseDrafts(expenseCategories, initialReport),
   );
   const [activeDialog, setActiveDialog] = useState<TaskKey | null>(initialTask || null);
-  const [isFinishAttentionActive, setIsFinishAttentionActive] = useState(false);
-  const [isFinanceDone, setIsFinanceDone] = useState(
-    !initialReport.id.startsWith("report-"),
+
+  const totalExpense = calculateExpenseTotal(
+    expenseDrafts.map((item) => ({ amount: toNumber(item.amount) })),
   );
-  const [isAttendanceDone, setIsAttendanceDone] = useState(
-    initialReport.attendanceEntries.length > 0,
+  const checkedInCount = attendanceDrafts.filter((entry) => entry.isPresent).length;
+  const totalPayUnits = attendanceDrafts.reduce(
+    (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
+    0,
   );
-  const [isExpensesDone, setIsExpensesDone] = useState(
-    initialReport.expenseItems.length > 0,
-  );
+  const hasAttendanceSelection = checkedInCount > 0;
+  const hasSavedReport =
+    actionState.status === "success" ? true : !initialReport.id.startsWith("report-");
+  const persistedAttendanceCount =
+    actionState.status === "success" && actionState.savedAttendanceCount !== null
+      ? actionState.savedAttendanceCount
+      : initialReport.attendanceEntries.length;
+  const isFinanceDone = hasSavedReport;
+  const isAttendanceDone = persistedAttendanceCount > 0;
+  const isExpensesDone = hasSavedReport;
+  const allTasksComplete = isFinanceDone && isAttendanceDone && isExpensesDone;
+  const isFinishReady = allTasksComplete && dataMode !== "demo" && hasAttendanceSelection;
+  const completedCount = [isFinanceDone, isAttendanceDone, isExpensesDone].filter(Boolean)
+    .length;
 
   useEffect(() => {
     if (
@@ -261,29 +275,7 @@ export function TodayDashboard({
       refreshedKeyRef.current = actionState.refreshKey;
       router.refresh();
     }
-  }, [actionState, router]);
-
-  const totalExpense = calculateExpenseTotal(
-    expenseDrafts.map((item) => ({ amount: toNumber(item.amount) })),
-  );
-  const checkedInCount = attendanceDrafts.filter((entry) => entry.isPresent).length;
-  const totalPayUnits = attendanceDrafts.reduce(
-    (sum, entry) => sum + (entry.isPresent ? entry.payUnits : 0),
-    0,
-  );
-  const allTasksComplete = isFinanceDone && isAttendanceDone && isExpensesDone;
-  const isFinishReady = allTasksComplete && dataMode !== "demo";
-  const completedCount = [isFinanceDone, isAttendanceDone, isExpensesDone].filter(Boolean)
-    .length;
-
-  useEffect(() => {
-    return () => {
-      if (readyTimeoutRef.current) {
-        window.clearTimeout(readyTimeoutRef.current);
-        readyTimeoutRef.current = null;
-      }
-    };
-  }, []);
+  }, [actionState.refreshKey, actionState.status, router]);
 
   const copy =
     locale === "bg"
@@ -412,43 +404,21 @@ export function TodayDashboard({
     checkedInCount > 0
       ? `${checkedInCount} ${attendanceSummaryLabel} · ${formatShiftUnits(totalPayUnits)} ${shiftsSummaryLabel}`
       : copy.attendance[1];
+  const attendanceRequiredMessage =
+    locale === "bg"
+      ? "Избери поне един служител в секция Персонал, преди да запазиш деня."
+      : "Select at least one employee in Staff before saving today.";
+  const resolvedActionMessage =
+    actionState.messageKey === "msgSaveSuccess"
+      ? copy.saveSuccess
+      : actionState.messageKey === "msgSaveError"
+        ? copy.saveError
+        : actionState.messageKey === "msgAttendanceRequired"
+          ? attendanceRequiredMessage
+          : actionState.message;
+  const isSaveDisabled = isPending || dataMode === "demo" || !hasAttendanceSelection;
 
   function closeDialog() {
-    setActiveDialog(null);
-  }
-
-  function triggerFinishAttention() {
-    if (dataMode === "demo") {
-      return;
-    }
-
-    setIsFinishAttentionActive(true);
-
-    if (readyTimeoutRef.current) {
-      window.clearTimeout(readyTimeoutRef.current);
-    }
-
-    readyTimeoutRef.current = window.setTimeout(() => {
-      setIsFinishAttentionActive(false);
-      readyTimeoutRef.current = null;
-    }, 650);
-  }
-
-  function completeTask(task: TaskKey) {
-    const nextFinanceDone = task === "finance" ? true : isFinanceDone;
-    const nextAttendanceDone = task === "attendance" ? true : isAttendanceDone;
-    const nextExpensesDone = task === "expenses" ? true : isExpensesDone;
-    const willBecomeReady =
-      nextFinanceDone && nextAttendanceDone && nextExpensesDone && !allTasksComplete;
-
-    if (task === "finance") setIsFinanceDone(true);
-    if (task === "attendance") setIsAttendanceDone(true);
-    if (task === "expenses") setIsExpensesDone(true);
-
-    if (willBecomeReady) {
-      triggerFinishAttention();
-    }
-
     setActiveDialog(null);
   }
 
@@ -483,7 +453,7 @@ export function TodayDashboard({
   }
 
   return (
-    <form action={formAction} className="w-full space-y-8">
+    <form id={formId} action={formAction} className="w-full space-y-8">
       <input type="hidden" name="workDate" value={initialReport.workDate} />
       <input type="hidden" name="turnover" value={reportForm.turnover} />
       <input type="hidden" name="profit" value={reportForm.profit} />
@@ -674,12 +644,22 @@ export function TodayDashboard({
                   />
                 </div>
 
+                {isSaveDisabled ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                    {dataMode === "demo" ? copy.demoNote : attendanceRequiredMessage}
+                  </div>
+                ) : null}
+
                 <Button
-                  type="button"
-                  onClick={() => completeTask("finance")}
-                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                  type="submit"
+                  form={formId}
+                  name="submitIntent"
+                  value="finance"
+                  disabled={isSaveDisabled}
+                  aria-busy={isPending}
+                  className="w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
                 >
-                  {copy.finance[4]}
+                  {isPending ? t.common.saving : t.today.confirmFinance}
                 </Button>
               </div>
             </DialogContent>
@@ -774,7 +754,7 @@ export function TodayDashboard({
                         </span>
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      <div className="flex flex-col gap-4">
                         {section.entries.length === 0 ? (
                           <p className="rounded-3xl border border-dashed border-slate-200/70 bg-slate-50 px-4 py-6 text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-400">
                             {t.today.noEmployeesInRole}
@@ -788,52 +768,55 @@ export function TodayDashboard({
                             <div
                               key={entry.employee.id}
                               className={cn(
-                                "rounded-[1.5rem] border p-4 transition-all duration-200",
+                                "flex flex-col gap-4 rounded-[1.5rem] border p-5 transition-all duration-200",
                                 selectedUnits === 0
                                   ? "border-slate-200/70 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/70"
                                   : "border-emerald-200 bg-emerald-50/80 shadow-sm ring-1 ring-emerald-500/10 dark:border-emerald-800/80 dark:bg-emerald-900/20",
                               )}
                             >
-                              <div className="space-y-4">
-                                <div>
-                                  <p className="text-base font-semibold text-slate-900 dark:text-white">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-2">
+                                  <p className="text-lg font-semibold text-slate-900 dark:text-white">
                                     {entry.employee.fullName}
                                   </p>
-                                  <div className="mt-2 flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                                    <span className="inline-flex rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
+                                      EUR {entry.dailyRate.toFixed(2)}
+                                    </span>
                                     <span
                                       className={cn(
-                                        "inline-flex rounded-full px-2.5 py-1 text-xs font-semibold",
+                                        "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold",
                                         selectedUnits === 0
                                           ? "bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-300"
                                           : "bg-white text-emerald-700 dark:bg-slate-900 dark:text-emerald-400",
                                       )}
                                     >
                                       {selectedUnits === 0
-                                        ? copy.pending
+                                        ? t.today.off
                                         : `${formatShiftUnits(selectedUnits)} ${shiftsSummaryLabel}`}
                                     </span>
                                   </div>
                                 </div>
+                              </div>
 
-                                <div className="grid grid-cols-4 gap-2">
-                                  {SHIFT_OPTIONS.map((option) => (
-                                    <button
-                                      key={`${entry.employee.id}-${option}`}
-                                      type="button"
-                                      onClick={() =>
-                                        updateAttendanceSelection(entry.employee.id, option)
-                                      }
-                                      className={cn(
-                                        "h-12 min-w-14 rounded-2xl border text-sm font-bold transition-all",
-                                        selectedUnits === option
-                                          ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
-                                          : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:text-emerald-400",
-                                      )}
-                                    >
-                                      {option}
-                                    </button>
-                                  ))}
-                                </div>
+                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {SHIFT_OPTIONS.map((option) => (
+                                  <button
+                                    key={`${entry.employee.id}-${option}`}
+                                    type="button"
+                                    onClick={() =>
+                                      updateAttendanceSelection(entry.employee.id, option)
+                                    }
+                                    className={cn(
+                                      "min-h-[48px] rounded-2xl border px-4 text-sm font-bold transition-all",
+                                      selectedUnits === option
+                                        ? "border-emerald-500 bg-emerald-600 text-white shadow-sm"
+                                        : "border-slate-200 bg-white text-slate-600 hover:border-emerald-300 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-emerald-700 dark:hover:text-emerald-400",
+                                    )}
+                                  >
+                                    {option}
+                                  </button>
+                                ))}
                               </div>
                             </div>
                           );
@@ -843,16 +826,29 @@ export function TodayDashboard({
                   ))
                 )}
 
-                <div className="rounded-3xl border border-slate-200/70 bg-white px-4 py-3 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-                  {attendanceLocalDraftNotice}
+                <div
+                  className={cn(
+                    "rounded-3xl border px-4 py-3 text-sm shadow-sm",
+                    hasAttendanceSelection
+                      ? "border-slate-200/70 bg-white text-slate-500 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400"
+                      : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200",
+                  )}
+                >
+                  {hasAttendanceSelection
+                    ? attendanceLocalDraftNotice
+                    : attendanceRequiredMessage}
                 </div>
 
                 <Button
-                  type="button"
-                  onClick={() => completeTask("attendance")}
-                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                  type="submit"
+                  form={formId}
+                  name="submitIntent"
+                  value="attendance"
+                  disabled={isSaveDisabled}
+                  aria-busy={isPending}
+                  className="w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
                 >
-                  {copy.attendance[4]}
+                  {isPending ? t.common.saving : t.today.confirmAttendance}
                 </Button>
               </div>
             </DialogContent>
@@ -1024,12 +1020,22 @@ export function TodayDashboard({
                   </Button>
                 </div>
 
+                {isSaveDisabled ? (
+                  <div className="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-200">
+                    {dataMode === "demo" ? copy.demoNote : attendanceRequiredMessage}
+                  </div>
+                ) : null}
+
                 <Button
-                  type="button"
-                  onClick={() => completeTask("expenses")}
-                  className="h-14 w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+                  type="submit"
+                  form={formId}
+                  name="submitIntent"
+                  value="expenses"
+                  disabled={isSaveDisabled}
+                  aria-busy={isPending}
+                  className="w-full rounded-2xl bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
                 >
-                  {copy.expenses[4]}
+                  {isPending ? t.common.saving : t.today.confirmExpenses}
                 </Button>
               </div>
             </DialogContent>
@@ -1086,11 +1092,7 @@ export function TodayDashboard({
                   : "border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-400",
               )}
             >
-              {actionState.messageKey === "msgSaveSuccess"
-                ? copy.saveSuccess
-                : actionState.messageKey === "msgSaveError"
-                  ? copy.saveError
-                  : actionState.message}
+              {resolvedActionMessage}
             </div>
           ) : null}
 
@@ -1109,10 +1111,17 @@ export function TodayDashboard({
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                   {copy.progress}: {completedCount}/3
                 </p>
+                {!hasAttendanceSelection && dataMode !== "demo" ? (
+                  <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                    {attendanceRequiredMessage}
+                  </p>
+                ) : null}
               </div>
 
               <Button
                 type="submit"
+                name="submitIntent"
+                value="finish"
                 size="lg"
                 disabled={!isFinishReady || isPending}
                 aria-busy={isPending}
@@ -1121,7 +1130,6 @@ export function TodayDashboard({
                   isFinishReady
                     ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:bg-emerald-700"
                     : "bg-slate-200 text-slate-500 hover:bg-slate-200",
-                  isFinishAttentionActive && "animate-pulse scale-[1.02]",
                 )}
               >
                 <CheckCircle2 className="size-5" />
