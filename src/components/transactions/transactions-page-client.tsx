@@ -51,6 +51,7 @@ type TransactionActionsProps = {
   viewReceiptLabel: string;
   editLabel: string;
   deleteLabel: string;
+  onDelete?: () => void;
   onViewReceipt?: () => void;
 };
 
@@ -117,41 +118,77 @@ function TransactionActions({
   viewReceiptLabel,
   editLabel,
   deleteLabel,
+  onDelete,
   onViewReceipt,
 }: TransactionActionsProps) {
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          aria-label={actionsLabel}
-          className="inline-flex size-10 items-center justify-center rounded-xl border border-slate-200/70 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
-        >
-          <MoreHorizontal className="size-4" />
-        </button>
-      </DropdownMenuTrigger>
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label={actionsLabel}
+            className="inline-flex size-12 items-center justify-center rounded-xl border border-slate-200/70 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          >
+            <MoreHorizontal className="size-4" />
+          </button>
+        </DropdownMenuTrigger>
 
-      <DropdownMenuContent className="w-56 rounded-xl">
-        {row.hasReceipt && onViewReceipt ? (
-          <DropdownMenuItem onClick={onViewReceipt}>
-            <ImageIcon className="size-4" />
-            {viewReceiptLabel}
+        <DropdownMenuContent className="w-56 rounded-xl">
+          {row.hasReceipt && onViewReceipt ? (
+            <DropdownMenuItem onClick={onViewReceipt}>
+              <ImageIcon className="size-4" />
+              {viewReceiptLabel}
+            </DropdownMenuItem>
+          ) : null}
+
+          <DropdownMenuItem>
+            <Pencil className="size-4" />
+            {editLabel}
           </DropdownMenuItem>
-        ) : null}
 
-        <DropdownMenuItem>
-          <Pencil className="size-4" />
-          {editLabel}
-        </DropdownMenuItem>
+          <DropdownMenuSeparator />
 
-        <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => setIsDeleteDialogOpen(true)}
+            className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300"
+          >
+            <Trash2 className="size-4" />
+            {deleteLabel}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
-        <DropdownMenuItem className="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-400 dark:hover:bg-red-950/40 dark:hover:text-red-300">
-          <Trash2 className="size-4" />
-          {deleteLabel}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="rounded-2xl sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Are you sure you want to delete this transaction?</DialogTitle>
+          </DialogHeader>
+          <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+              className="h-12 rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                onDelete?.();
+                setIsDeleteDialogOpen(false);
+              }}
+              className="h-12 rounded-xl bg-red-600 text-white hover:bg-red-700"
+            >
+              {deleteLabel}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -173,7 +210,7 @@ function LedgerEmptyState({
       {ctaLabel && ctaHref ? (
         <Button
           asChild
-          className="h-11 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
+          className="h-12 rounded-xl bg-emerald-600 px-5 text-white hover:bg-emerald-700"
         >
           <Link href={ctaHref}>{ctaLabel}</Link>
         </Button>
@@ -366,7 +403,7 @@ export function TransactionsPageClient({
                       type="date"
                       value={fromDate}
                       onChange={(event) => setFromDate(event.target.value)}
-                      className="h-11 rounded-xl border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900"
+                      className="h-12 rounded-xl border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900"
                     />
                   </div>
 
@@ -378,7 +415,7 @@ export function TransactionsPageClient({
                       type="date"
                       value={toDate}
                       onChange={(event) => setToDate(event.target.value)}
-                      className="h-11 rounded-xl border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900"
+                      className="h-12 rounded-xl border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900"
                     />
                   </div>
 
@@ -391,7 +428,7 @@ export function TransactionsPageClient({
                         setToDate("");
                       }}
                       disabled={!hasActiveDateFilters}
-                      className="h-11 rounded-xl px-4 text-slate-500 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
+                      className="h-12 rounded-xl px-4 text-slate-500 hover:bg-white hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-white"
                     >
                       {copy.reset}
                     </Button>
@@ -402,179 +439,84 @@ export function TransactionsPageClient({
           </section>
 
           <section className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <div className="hidden md:block">
-              <table className="min-w-full border-collapse">
-                <thead className="bg-slate-50 text-left dark:bg-slate-950/60">
-                  <tr className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
-                    <th className="px-6 py-4">{copy.columns.date}</th>
-                    <th className="px-6 py-4">{copy.columns.description}</th>
-                    <th className="px-6 py-4">{copy.columns.category}</th>
-                    <th className="px-6 py-4 text-right">{copy.columns.amount}</th>
-                    <th className="px-6 py-4 text-right">{copy.columns.actions}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {showNoDataState ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-16 text-center">
-                        <LedgerEmptyState
-                          title={copy.emptyTitle}
-                          copy={copy.emptyCopy}
-                          ctaLabel={copy.emptyCta}
-                          ctaHref="/today?task=expenses"
-                        />
-                      </td>
-                    </tr>
-                  ) : null}
-
-                  {showNoResultsState ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-16 text-center">
-                        <div className="space-y-2">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {copy.noResultsTitle}
-                          </p>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">
-                            {copy.noResultsCopy}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : null}
-
-                  {visibleRows.map((row) => (
-                    <tr
-                      key={row.id}
-                      className="border-t border-slate-200/60 transition-colors hover:bg-slate-50/70 dark:border-slate-800 dark:hover:bg-slate-950/40"
-                    >
-                      <td className="px-6 py-4 align-top text-sm font-medium text-slate-600 dark:text-slate-300">
-                        {formatDateLabel(row.workDate, locale)}
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <div className="space-y-1">
-                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                            {row.description}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {getTransactionMetaLabel(row, locale)}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 align-top">
-                        <span
-                          className={cn(
-                            "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                            getCategoryBadgeClassName(row.categoryLabel),
-                          )}
-                        >
-                          {row.categoryLabel}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right align-top">
-                        <span className="text-sm font-bold text-slate-900 dark:text-white">
-                          {formatCurrency(row.amount)}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right align-top">
-                        <TransactionActions
-                          row={row}
-                          actionsLabel={copy.columns.actions}
-                          viewReceiptLabel={copy.viewReceipt}
-                          editLabel={copy.edit}
-                          deleteLabel={copy.delete}
-                          onViewReceipt={
-                            row.hasReceipt
-                              ? () => {
-                                  setSelectedReceipt(MOCK_RECEIPT_URL);
-                                  setReceiptViewerOpen(true);
-                                }
-                              : undefined
-                          }
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="md:hidden">
-              {showNoDataState ? (
-                <div className="px-5 py-14 text-center">
-                  <LedgerEmptyState
-                    title={copy.emptyTitle}
-                    copy={copy.emptyCopy}
-                    ctaLabel={copy.emptyCta}
-                    ctaHref="/today?task=expenses"
-                  />
+            {showNoDataState ? (
+              <div className="px-5 py-14 text-center md:px-6">
+                <LedgerEmptyState
+                  title={copy.emptyTitle}
+                  copy={copy.emptyCopy}
+                  ctaLabel={copy.emptyCta}
+                  ctaHref="/today?task=expenses"
+                />
+              </div>
+            ) : showNoResultsState ? (
+              <div className="px-5 py-14 text-center md:px-6">
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    {copy.noResultsTitle}
+                  </p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">
+                    {copy.noResultsCopy}
+                  </p>
                 </div>
-              ) : showNoResultsState ? (
-                <div className="px-5 py-14 text-center">
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
-                      {copy.noResultsTitle}
-                    </p>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {copy.noResultsCopy}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="divide-y divide-slate-200/60 dark:divide-slate-800">
-                  {visibleRows.map((row) => (
-                    <article key={row.id} className="px-5 py-4">
-                      <div className="flex items-start gap-3">
-                        <div className="min-w-0 flex-1 space-y-3">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
-                                {row.description}
-                              </p>
-                              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                                {getTransactionMetaLabel(row, locale)}
-                              </p>
-                            </div>
-                            <p className="shrink-0 text-sm font-bold text-slate-900 dark:text-white">
-                              {formatCurrency(row.amount)}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 md:p-5 lg:grid-cols-3">
+                {visibleRows.map((row) => (
+                  <article
+                    key={row.id}
+                    className="rounded-2xl border border-slate-200/70 bg-slate-50/70 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/60"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1 space-y-3">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                              {row.description}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                              {getTransactionMetaLabel(row, locale)}
                             </p>
                           </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                              {formatDateLabel(row.workDate, locale)}
-                            </span>
-                            <span
-                              className={cn(
-                                "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
-                                getCategoryBadgeClassName(row.categoryLabel),
-                              )}
-                            >
-                              {row.categoryLabel}
-                            </span>
-                          </div>
+                          <p className="shrink-0 text-sm font-bold text-slate-900 dark:text-white">
+                            {formatCurrency(row.amount)}
+                          </p>
                         </div>
 
-                        <TransactionActions
-                          row={row}
-                          actionsLabel={copy.columns.actions}
-                          viewReceiptLabel={copy.viewReceipt}
-                          editLabel={copy.edit}
-                          deleteLabel={copy.delete}
-                          onViewReceipt={
-                            row.hasReceipt
-                              ? () => {
-                                  setSelectedReceipt(MOCK_RECEIPT_URL);
-                                  setReceiptViewerOpen(true);
-                                }
-                              : undefined
-                          }
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {formatDateLabel(row.workDate, locale)}
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold",
+                              getCategoryBadgeClassName(row.categoryLabel),
+                            )}
+                          >
+                            {row.categoryLabel}
+                          </span>
+                        </div>
                       </div>
-                    </article>
-                  ))}
-                </div>
-              )}
-            </div>
+
+                      <TransactionActions
+                        row={row}
+                        actionsLabel={copy.columns.actions}
+                        viewReceiptLabel={copy.viewReceipt}
+                        editLabel={copy.edit}
+                        deleteLabel={copy.delete}
+                        onViewReceipt={
+                          row.hasReceipt
+                            ? () => {
+                                setSelectedReceipt(MOCK_RECEIPT_URL);
+                                setReceiptViewerOpen(true);
+                              }
+                            : undefined
+                        }
+                      />
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </div>

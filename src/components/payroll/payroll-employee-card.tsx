@@ -85,69 +85,80 @@ export function PayrollEmployeeCard({
         ? t.payroll.paymentSaved
         : null;
 
+  // UX FIX: Strict visual hierarchy. 
+  // If paid, it fades out to reduce cognitive load. If unpaid, it remains bright white.
   const cardClass = row.isPaid
-    ? "border-green-200 bg-green-50"
-    : row.employee.role === "kitchen"
-      ? "border-purple-200 bg-purple-50"
-      : "border-green-200 bg-green-50";
-
-  const toggleButtonClass = row.isPaid
-    ? "border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-    : "";
+    ? "border-slate-200/60 bg-slate-50/50 opacity-60 grayscale-[0.6] dark:border-slate-800 dark:bg-slate-950/50"
+    : "border-slate-200 bg-white shadow-md dark:border-slate-700 dark:bg-slate-900";
 
   return (
-    <div className={cn("rounded-2xl border p-3", cardClass)}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate font-semibold">{row.employee.fullName}</p>
+    <div className={cn("rounded-[1.5rem] border p-5 transition-all duration-300", cardClass)}>
+      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="truncate text-xl font-extrabold text-slate-900 dark:text-white">
+              {row.employee.fullName}
+            </p>
             {row.isPaid ? (
-              <Badge className="border-green-200 bg-green-100 text-green-700" variant="outline">
+              <Badge className="border-emerald-200 bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700" variant="outline">
+                <CheckCheck className="mr-1.5 size-4" />
                 {t.payroll.paidBadge}
               </Badge>
             ) : null}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {t.payroll.shifts}: {row.totalUnits.toFixed(1)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t.payroll.dates}: {row.workedDates.length > 0 ? row.workedDates.join(", ") : "—"}
-          </p>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <span className="font-semibold bg-slate-100 px-2.5 py-1 rounded-lg dark:bg-slate-800">
+              {row.totalUnits.toFixed(1)} {t.payroll.shifts}
+            </span>
+            <span className="text-xs">
+              {row.workedDates.length > 0 ? row.workedDates.join(", ") : "—"}
+            </span>
+          </div>
         </div>
 
-        <div className="shrink-0 text-right">
-          <p className="text-xs uppercase tracking-wide text-muted-foreground">
-            {t.payroll.earned}
-          </p>
-          <MoneyDisplay amount={row.totalAmount} compact align="end" />
-          {row.advancesTotal > 0 ? (
-            <p className="mt-2 text-xs font-medium text-destructive">
-              {t.payroll.advances}: - {formatCurrency(row.advancesTotal)}
+        <div className="shrink-0 rounded-2xl bg-slate-50 p-4 text-right dark:bg-slate-950/50">
+          <div className="flex justify-between gap-6 sm:flex-col sm:gap-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              {t.payroll.earned}
             </p>
+            <MoneyDisplay amount={row.totalAmount} compact align="end" className="text-lg font-bold text-slate-700 dark:text-slate-300" />
+          </div>
+          
+          {row.advancesTotal > 0 ? (
+            <div className="mt-2 flex justify-between gap-6 sm:flex-col sm:gap-1">
+              <p className="text-xs font-bold uppercase tracking-widest text-rose-500">
+                {t.payroll.advances}
+              </p>
+              <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                - {formatCurrency(row.advancesTotal)}
+              </p>
+            </div>
           ) : null}
-          <p className="mt-2 text-xs uppercase tracking-wide text-muted-foreground">
-            {t.payroll.netToPay}
-          </p>
-          <MoneyDisplay
-            amount={row.netAmountToPay}
-            compact
-            align="end"
-            className={row.netAmountToPay < 0 ? "text-destructive" : undefined}
-            secondaryClassName={row.netAmountToPay < 0 ? "text-destructive/80" : undefined}
-          />
+          
+          <div className="mt-4 flex justify-between items-end gap-6 sm:mt-3 sm:flex-col sm:gap-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              {t.payroll.netToPay}
+            </p>
+            {/* UX FIX: Massive text size for the final payout number */}
+            <MoneyDisplay
+              amount={row.netAmountToPay}
+              compact
+              align="end"
+              className={cn("text-3xl font-black tracking-tight", row.netAmountToPay < 0 ? "text-rose-600" : "text-emerald-600")}
+            />
+          </div>
         </div>
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
         <Button
           type="button"
           variant="outline"
-          size="sm"
-          className="flex-1"
+          className="h-14 flex-1 rounded-xl border-slate-200 text-base font-bold shadow-sm hover:bg-slate-50 dark:border-slate-700"
           onClick={() => setAdvanceOpen((current) => !current)}
-          disabled={dataMode === "demo"}
+          disabled={dataMode === "demo" || row.isPaid}
         >
-          <Banknote className="size-4" />
+          <Banknote className="mr-2 size-5" />
           {t.payroll.advance}
         </Button>
         <form action={paymentFormAction} className="flex-1">
@@ -158,30 +169,36 @@ export function PayrollEmployeeCard({
           <Button
             type="submit"
             variant={row.isPaid ? "outline" : "default"}
-            className={cn("w-full", toggleButtonClass)}
-            size="sm"
+            className={cn(
+              "h-14 w-full rounded-xl text-base font-bold shadow-sm transition-all",
+              row.isPaid 
+                ? "border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200" 
+                : "bg-emerald-600 text-white hover:bg-emerald-700"
+            )}
             disabled={isTogglingPayment || dataMode === "demo"}
             aria-busy={isTogglingPayment}
           >
             {isTogglingPayment ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="mr-2 size-5 animate-spin" />
             ) : row.isPaid ? (
-              <Undo2 className="size-4" />
+              <Undo2 className="mr-2 size-5" />
             ) : (
-              <CheckCheck className="size-4" />
+              <CheckCheck className="mr-2 size-5" />
             )}
-            {row.isPaid ? t.payroll.paid : t.payroll.pay}
+            {row.isPaid ? "Undo Payment" : t.payroll.pay}
           </Button>
         </form>
       </div>
 
       {advanceOpen ? (
-        <form action={advanceFormAction} className="mt-3 space-y-3 rounded-2xl bg-card p-3">
+        <form action={advanceFormAction} className="mt-4 space-y-4 rounded-2xl border border-slate-200/60 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900">
           <input type="hidden" name="employeeId" value={row.employee.id} />
           <input type="hidden" name="payrollMonth" value={payrollMonth} />
           <input type="hidden" name="payrollPeriod" value={payrollPeriod} />
-          <div className="space-y-2">
-            <Label htmlFor={`advance-amount-${row.employee.id}`}>{t.payroll.advanceAmount}</Label>
+          <div className="space-y-3">
+            <Label className="text-sm font-bold text-slate-700 dark:text-slate-300" htmlFor={`advance-amount-${row.employee.id}`}>
+              {t.payroll.advanceAmount}
+            </Label>
             <Input
               id={`advance-amount-${row.employee.id}`}
               name="amount"
@@ -191,13 +208,14 @@ export function PayrollEmployeeCard({
               value={advanceAmount}
               onChange={(event) => setAdvanceAmount(event.target.value)}
               placeholder="0.00"
+              className="h-14 rounded-xl text-center text-xl font-black tracking-widest shadow-inner focus-visible:ring-emerald-500"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             <Button
               type="button"
               variant="ghost"
-              className="flex-1"
+              className="h-12 flex-1 rounded-xl font-bold"
               onClick={() => {
                 setAdvanceOpen(false);
                 setAdvanceAmount("");
@@ -208,21 +226,21 @@ export function PayrollEmployeeCard({
             </Button>
             <Button
               type="submit"
-              className="flex-1"
+              className="h-12 flex-1 rounded-xl bg-slate-900 font-bold text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
               disabled={isAdvancing || dataMode === "demo"}
               aria-busy={isAdvancing}
             >
-              {isAdvancing ? <Loader2 className="size-4 animate-spin" /> : null}
+              {isAdvancing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
               {t.common.save}
             </Button>
           </div>
           {advanceFeedback ? (
             <div
               className={cn(
-                "rounded-lg px-3 py-2 text-xs",
+                "rounded-xl px-4 py-3 text-sm font-semibold",
                 advanceState.status === "error"
-                  ? "border border-destructive/20 bg-destructive/10 text-destructive"
-                  : "border border-success/20 bg-success/10 text-success",
+                  ? "bg-rose-50 text-rose-700 border border-rose-200"
+                  : "bg-emerald-50 text-emerald-700 border border-emerald-200",
               )}
             >
               {advanceFeedback}
@@ -234,19 +252,13 @@ export function PayrollEmployeeCard({
       {paymentFeedback ? (
         <div
           className={cn(
-            "mt-3 rounded-lg px-3 py-2 text-xs",
+            "mt-4 rounded-xl px-4 py-3 text-sm font-semibold",
             paymentState.status === "error"
-              ? "border border-destructive/20 bg-destructive/10 text-destructive"
-              : "border border-success/20 bg-success/10 text-success",
+              ? "bg-rose-50 text-rose-700 border border-rose-200"
+              : "bg-emerald-50 text-emerald-700 border border-emerald-200",
           )}
         >
           {paymentFeedback}
-        </div>
-      ) : null}
-
-      {dataMode === "demo" ? (
-        <div className="mt-3 rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
-          {t.payroll.demoNote}
         </div>
       ) : null}
     </div>
