@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
+import { normalizePayrollWindow } from "@/lib/payroll";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { PayrollPeriod } from "@/lib/types";
 
 export type PayrollPaymentActionState = {
   status: "idle" | "success" | "error";
@@ -31,22 +31,20 @@ function parseNonNegativeAmount(value: FormDataEntryValue | null, fieldName: str
   return parsed;
 }
 
-function parsePayrollMonth(value: FormDataEntryValue | null) {
+function parseIsoDate(value: FormDataEntryValue | null, fieldName: string) {
   const normalized = String(value ?? "").trim();
-  if (!/^\d{4}-\d{2}-01$/.test(normalized)) {
-    throw new Error("Payroll month is invalid.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    throw new Error(`${fieldName} is invalid.`);
   }
 
   return normalized;
 }
 
-function parsePayrollPeriod(value: FormDataEntryValue | null): PayrollPeriod {
-  const normalized = String(value ?? "").trim();
-  if (normalized === "first_half" || normalized === "second_half") {
-    return normalized;
-  }
-
-  throw new Error("Payroll period is invalid.");
+function parsePayrollWindowFromForm(formData: FormData) {
+  return normalizePayrollWindow({
+    startDate: parseIsoDate(formData.get("periodStart"), "Period start"),
+    endDate: parseIsoDate(formData.get("periodEnd"), "Period end"),
+  });
 }
 
 function revalidatePayrollViews() {
@@ -83,8 +81,7 @@ export async function addPayrollAdvanceAction(
     }
 
     const employeeId = String(formData.get("employeeId") ?? "").trim();
-    const payrollMonth = parsePayrollMonth(formData.get("payrollMonth"));
-    const payrollPeriod = parsePayrollPeriod(formData.get("payrollPeriod"));
+    const window = parsePayrollWindowFromForm(formData);
     const amount = parsePositiveAmount(formData.get("amount"), "Advance amount");
 
     if (!employeeId) {
@@ -95,8 +92,8 @@ export async function addPayrollAdvanceAction(
       employee_id: employeeId,
       amount,
       payment_type: "advance",
-      payroll_month: payrollMonth,
-      payroll_period: payrollPeriod,
+      period_start: window.startDate,
+      period_end: window.endDate,
     });
 
     if (error) {
@@ -151,8 +148,7 @@ export async function togglePayrollPaymentAction(
     }
 
     const employeeId = String(formData.get("employeeId") ?? "").trim();
-    const payrollMonth = parsePayrollMonth(formData.get("payrollMonth"));
-    const payrollPeriod = parsePayrollPeriod(formData.get("payrollPeriod"));
+    const window = parsePayrollWindowFromForm(formData);
     const amount = parseNonNegativeAmount(formData.get("amount"), "Payroll amount");
 
     if (!employeeId) {
@@ -163,8 +159,8 @@ export async function togglePayrollPaymentAction(
       .from("payroll_payments")
       .select("id")
       .eq("employee_id", employeeId)
-      .eq("payroll_month", payrollMonth)
-      .eq("payroll_period", payrollPeriod)
+      .eq("period_start", window.startDate)
+      .eq("period_end", window.endDate)
       .eq("payment_type", "payroll");
 
     if (existingError) {
@@ -176,8 +172,8 @@ export async function togglePayrollPaymentAction(
         .from("payroll_payments")
         .delete()
         .eq("employee_id", employeeId)
-        .eq("payroll_month", payrollMonth)
-        .eq("payroll_period", payrollPeriod)
+        .eq("period_start", window.startDate)
+        .eq("period_end", window.endDate)
         .eq("payment_type", "payroll");
 
       if (deleteError) {
@@ -188,7 +184,7 @@ export async function togglePayrollPaymentAction(
 
       return {
         status: "success",
-        message: "Payroll payment removed.",
+        message: "Payroll settlement removed.",
         messageKey: "msgSaveSuccess",
         refreshKey: crypto.randomUUID(),
       };
@@ -198,8 +194,8 @@ export async function togglePayrollPaymentAction(
       employee_id: employeeId,
       amount,
       payment_type: "payroll",
-      payroll_month: payrollMonth,
-      payroll_period: payrollPeriod,
+      period_start: window.startDate,
+      period_end: window.endDate,
     });
 
     if (insertError) {
@@ -210,7 +206,7 @@ export async function togglePayrollPaymentAction(
 
     return {
       status: "success",
-      message: "Payroll payment saved.",
+      message: "Payroll settlement saved.",
       messageKey: "msgSaveSuccess",
       refreshKey: crypto.randomUUID(),
     };

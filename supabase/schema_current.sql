@@ -84,8 +84,9 @@ create table if not exists public.payroll_payments (
   employee_id uuid not null references public.employees (id) on delete cascade,
   amount numeric(10, 4) not null check (amount >= 0),
   payment_type text not null check (payment_type in ('advance', 'payroll')),
-  payroll_month date not null,
-  payroll_period text not null check (payroll_period in ('first_half', 'second_half')),
+  period_start date not null,
+  period_end date not null,
+  check (period_start <= period_end),
   created_at timestamptz not null default timezone('utc', now())
 );
 
@@ -104,8 +105,8 @@ comment on column public.attendance_entries.pay_override is 'Optional custom EUR
 comment on column public.attendance_entries.notes is 'Optional attendance note for the employee on that work date.';
 comment on column public.payroll_payments.amount is 'Stored in EUR. Used for payroll advances and payroll settlement records.';
 comment on column public.payroll_payments.payment_type is 'Advance or payroll settlement.';
-comment on column public.payroll_payments.payroll_month is 'Month key for the payroll period, stored as the first day of the month.';
-comment on column public.payroll_payments.payroll_period is 'Payroll half-month period: first_half or second_half.';
+comment on column public.payroll_payments.period_start is 'Selected payroll window start date for the recorded transaction.';
+comment on column public.payroll_payments.period_end is 'Selected payroll window end date for the recorded transaction.';
 
 drop trigger if exists restaurants_set_updated_at on public.restaurants;
 create trigger restaurants_set_updated_at
@@ -137,11 +138,14 @@ before update on public.attendance_entries
 for each row
 execute procedure public.set_updated_at();
 
+create index if not exists payroll_payments_employee_created_idx
+  on public.payroll_payments (employee_id, created_at desc);
+
 create index if not exists payroll_payments_employee_period_idx
-  on public.payroll_payments (employee_id, payroll_month, payroll_period);
+  on public.payroll_payments (employee_id, period_start, period_end);
 
 create unique index if not exists payroll_payments_unique_payroll
-  on public.payroll_payments (employee_id, payroll_month, payroll_period)
+  on public.payroll_payments (employee_id, period_start, period_end)
   where payment_type = 'payroll';
 
 create or replace function public.get_user_restaurant_id()

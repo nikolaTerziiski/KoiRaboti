@@ -27,6 +27,7 @@ These are kept only as migration history for older databases and should not be u
 - `legacy/patch_add_employee_role.sql`
 - `legacy/patch_add_historical_rate.sql`
 - `legacy/patch_add_payroll_payments.sql`
+- `legacy/patch_payroll_settlement_ranges.sql`
 - `legacy/patch_register_fn.sql`
 - `legacy/patch_simplify_attendance_phone.sql`
 - `legacy/patch_expense_bot_tables.sql`

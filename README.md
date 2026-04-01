@@ -7,9 +7,7 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
 - `/login` for admin sign-in or demo mode
 - `/today` for daily attendance and finance input
 - `/employees` for roster and daily rate management
-- `/payroll` for the two payroll periods:
-  - 1st to 15th
-  - 16th to end of month
+- `/payroll` for flexible payroll settlement ranges with weekly, monthly, and custom views
 - `/reports` for daily report history
 - `/profile` for monthly stats and labor cost overview
 - Green design tokens and reusable cards, buttons, inputs, labels, and selects
@@ -17,7 +15,7 @@ KoiRaboti is a mobile-first internal restaurant app built with Next.js App Route
 - Supabase client helpers, SQL schema, and sample seed data
 - Demo snapshot fallback so the app runs before a live Supabase project is connected
 - Real Supabase persistence for Today, Employees, and report corrections
-- Real Supabase persistence for payroll advances and payroll-period paid status
+- Real Supabase persistence for payroll advances and date-range settlements
 - EUR-first money handling with BGN display at a fixed rate of `1.95583`
 
 ## Stack

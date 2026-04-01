@@ -2,7 +2,11 @@ import { format, startOfMonth } from "date-fns";
 import { syncDailyReportManualExpense } from "@/lib/expense-persistence";
 import { bgnToEur } from "@/lib/format";
 import { calculateMonthStats } from "@/lib/profile-stats";
-import { buildPayrollRows, summarizePayrollRows } from "@/lib/payroll";
+import {
+  buildPayrollRows,
+  getPayrollPresetWindow,
+  summarizePayrollRows,
+} from "@/lib/payroll";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 import type {
   AttendanceEntry,
@@ -10,7 +14,6 @@ import type {
   DailyReportWithAttendance,
   Employee,
   PayrollPayment,
-  PayrollPeriod,
 } from "@/lib/types";
 import type {
   ExpenseCategory,
@@ -120,8 +123,8 @@ interface PayrollPaymentRow {
   employee_id: string;
   amount: number | string;
   payment_type: string;
-  payroll_month: string;
-  payroll_period: PayrollPeriod;
+  period_start: string | null;
+  period_end: string | null;
   created_at: string;
 }
 
@@ -229,8 +232,8 @@ function mapPayrollPayment(row: PayrollPaymentRow): PayrollPayment {
     employeeId: row.employee_id,
     amount: Number(row.amount),
     paymentType: row.payment_type === "advance" ? "advance" : "payroll",
-    payrollMonth: row.payroll_month,
-    payrollPeriod: row.payroll_period,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
     createdAt: row.created_at,
   };
 }
@@ -388,9 +391,8 @@ async function loadRestaurantOperationalData(restaurantId: string) {
       ? { data: [] as PayrollPaymentRow[], error: null }
       : await db
           .from("payroll_payments")
-          .select("id, employee_id, amount, payment_type, payroll_month, payroll_period, created_at")
+          .select("id, employee_id, amount, payment_type, period_start, period_end, created_at")
           .in("employee_id", employeeIds)
-          .order("payroll_month", { ascending: false })
           .order("created_at", { ascending: false });
 
   if (paymentsResponse.error) {
@@ -905,27 +907,30 @@ export async function getAttendanceSummary(params: {
 
 export async function getPayrollStatus(params: {
   restaurantId: string;
-  payrollMonth?: string;
-  payrollPeriod?: PayrollPeriod;
+  startDate?: string;
+  endDate?: string;
 }) {
   const { employees, reports, payments } = await loadRestaurantOperationalData(params.restaurantId);
-  const referenceDate = params.payrollMonth
-    ? new Date(`${params.payrollMonth}T12:00:00.000Z`)
-    : new Date();
-  const payrollMonth =
-    params.payrollMonth ?? format(startOfMonth(referenceDate), "yyyy-MM-01");
-  const payrollPeriod =
-    params.payrollPeriod ?? (referenceDate.getDate() <= 15 ? "first_half" : "second_half");
+  const referenceDateKey =
+    params.endDate ?? params.startDate ?? new Date().toISOString().slice(0, 10);
+  const defaultWindow = getPayrollPresetWindow(
+    "week",
+    new Date(`${referenceDateKey}T12:00:00.000Z`),
+  );
+  const payrollWindow = {
+    startDate: params.startDate ?? params.endDate ?? defaultWindow.startDate,
+    endDate: params.endDate ?? params.startDate ?? defaultWindow.endDate,
+  };
 
-  const rows = buildPayrollRows(reports, employees, payments, payrollPeriod, referenceDate);
+  const rows = buildPayrollRows(reports, employees, payments, payrollWindow);
   const summary = summarizePayrollRows(rows);
 
   return {
-    payrollMonth,
-    payrollPeriod,
+    startDate: payrollWindow.startDate,
+    endDate: payrollWindow.endDate,
     rows,
     summary,
-    unpaidRows: rows.filter((row) => row.netAmountToPay > 0 && !row.isPaid),
+    unpaidRows: rows.filter((row) => row.netAmountToPay > 0 && !row.isSettled),
   };
 }
 

@@ -1,8 +1,8 @@
-﻿import assert from "node:assert/strict";
+import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildPayrollRows,
-  getPayrollPeriodBounds,
+  getPayrollPresetWindow,
   resolveAttendanceAmount,
   summarizePayrollRows,
 } from "../src/lib/payroll.ts";
@@ -39,6 +39,7 @@ function createReport(workDate, attendanceEntries) {
     manualExpense: 0,
     notes: null,
     attendanceEntries,
+    expenseItems: [],
   };
 }
 
@@ -48,8 +49,8 @@ function createPayment(overrides = {}) {
     employeeId: employee.id,
     amount: 10,
     paymentType: "advance",
-    payrollMonth: "2026-03-01",
-    payrollPeriod: "first_half",
+    periodStart: null,
+    periodEnd: null,
     createdAt: "2026-03-01T00:00:00.000Z",
     ...overrides,
   };
@@ -68,32 +69,20 @@ test("resolveAttendanceAmount prefers pay override when present", () => {
   assert.equal(resolveAttendanceAmount(overriddenEntry), 140);
 });
 
-test("buildPayrollRows aggregates only the selected month and period", () => {
+test("buildPayrollRows aggregates only the selected date range", () => {
   const reports = [
     createReport("2026-03-10", [createAttendance({ payUnits: 1 })]),
     createReport("2026-03-16", [createAttendance({ payUnits: 2 })]),
     createReport("2026-04-02", [createAttendance({ payUnits: 1.5 })]),
   ];
 
-  const firstHalfRows = buildPayrollRows(
-    reports,
-    [employee],
-    [],
-    "first_half",
-    new Date("2026-03-20"),
-  );
-  const secondHalfRows = buildPayrollRows(
-    reports,
-    [employee],
-    [],
-    "second_half",
-    new Date("2026-03-20"),
-  );
+  const rows = buildPayrollRows(reports, [employee], [], {
+    startDate: "2026-03-10",
+    endDate: "2026-03-18",
+  });
 
-  assert.equal(firstHalfRows[0]?.totalUnits, 1);
-  assert.equal(firstHalfRows[0]?.totalAmount, 50);
-  assert.equal(secondHalfRows[0]?.totalUnits, 2);
-  assert.equal(secondHalfRows[0]?.totalAmount, 100);
+  assert.equal(rows[0]?.totalUnits, 3);
+  assert.equal(rows[0]?.totalAmount, 150);
 });
 
 test("buildPayrollRows collects worked dates in ascending order", () => {
@@ -103,39 +92,53 @@ test("buildPayrollRows collects worked dates in ascending order", () => {
     createReport("2026-03-03", [createAttendance({ payUnits: 1 })]),
   ];
 
-  const rows = buildPayrollRows(
-    reports,
-    [employee],
-    [],
-    "first_half",
-    new Date("2026-03-10"),
-  );
+  const rows = buildPayrollRows(reports, [employee], [], {
+    startDate: "2026-03-01",
+    endDate: "2026-03-05",
+  });
 
-  assert.deepEqual(rows[0]?.workedDates, [1, 3, 5]);
+  assert.deepEqual(rows[0]?.workedDates, [
+    "2026-03-01",
+    "2026-03-03",
+    "2026-03-05",
+  ]);
 });
 
-test("buildPayrollRows calculates advances, payment status, and net amount", () => {
+test("buildPayrollRows calculates advances, settlements, and exact payment status", () => {
   const reports = [createReport("2026-03-05", [createAttendance({ payUnits: 1 })])];
   const payments = [
-    createPayment({ amount: 20, paymentType: "advance" }),
+    createPayment({ amount: 20, paymentType: "advance", createdAt: "2026-03-05T10:00:00.000Z" }),
     createPayment({
       id: "payment-2",
       amount: 30,
       paymentType: "payroll",
+      periodStart: "2026-03-01",
+      periodEnd: "2026-03-15",
     }),
   ];
 
-  const rows = buildPayrollRows(
-    reports,
-    [employee],
-    payments,
-    "first_half",
-    new Date("2026-03-10"),
-  );
+  const rows = buildPayrollRows(reports, [employee], payments, {
+    startDate: "2026-03-01",
+    endDate: "2026-03-15",
+  });
 
   assert.equal(rows[0]?.advancesTotal, 20);
+  assert.equal(rows[0]?.settlementsTotal, 30);
   assert.equal(rows[0]?.isPaid, true);
-  assert.equal(rows[0]?.netAmountToPay, 30);
+  assert.equal(rows[0]?.isSettled, true);
+  assert.equal(rows[0]?.netAmountToPay, 0);
+});
+
+test("buildPayrollRows surfaces unpaid carryover before the selected range", () => {
+  const reports = [createReport("2026-03-01", [createAttendance({ payUnits: 1 })])];
+
+  const rows = buildPayrollRows(reports, [employee], [], {
+    startDate: "2026-03-10",
+    endDate: "2026-03-15",
+  });
+
+  assert.equal(rows[0]?.totalAmount, 0);
+  assert.equal(rows[0]?.carryoverAmount, 50);
 });
 
 test("summarizePayrollRows returns totals for payroll cards", () => {
@@ -149,8 +152,10 @@ test("summarizePayrollRows returns totals for payroll cards", () => {
     ],
     [employee],
     [],
-    "first_half",
-    new Date("2026-03-10"),
+    {
+      startDate: "2026-03-01",
+      endDate: "2026-03-15",
+    },
   );
 
   const summary = summarizePayrollRows(rows);
@@ -159,24 +164,25 @@ test("summarizePayrollRows returns totals for payroll cards", () => {
   assert.equal(summary.totalUnits, 2.5);
   assert.equal(summary.totalPayroll, 145);
   assert.equal(summary.overrideDays, 1);
+  assert.equal(summary.outstandingTotal, 145);
+  assert.equal(summary.carryoverCount, 0);
 });
 
-test("getPayrollPeriodBounds splits month into first and second half", () => {
-  const firstHalf = getPayrollPeriodBounds("first_half", new Date("2026-04-10"));
-  const secondHalf = getPayrollPeriodBounds("second_half", new Date("2026-04-10"));
+test("getPayrollPresetWindow returns weekly and half-month presets", () => {
+  const week = getPayrollPresetWindow("week", new Date("2026-04-10"));
+  const firstHalf = getPayrollPresetWindow("first_half", new Date("2026-04-10"));
+  const secondHalf = getPayrollPresetWindow("second_half", new Date("2026-04-10"));
 
-  assert.equal(firstHalf.start.getFullYear(), 2026);
-  assert.equal(firstHalf.start.getMonth(), 3);
-  assert.equal(firstHalf.start.getDate(), 1);
-  assert.equal(firstHalf.end.getFullYear(), 2026);
-  assert.equal(firstHalf.end.getMonth(), 3);
-  assert.equal(firstHalf.end.getDate(), 15);
-  assert.equal(secondHalf.start.getFullYear(), 2026);
-  assert.equal(secondHalf.start.getMonth(), 3);
-  assert.equal(secondHalf.start.getDate(), 16);
-  assert.equal(secondHalf.end.getFullYear(), 2026);
-  assert.equal(secondHalf.end.getMonth(), 3);
-  assert.equal(secondHalf.end.getDate(), 30);
+  assert.deepEqual(week, {
+    startDate: "2026-04-06",
+    endDate: "2026-04-12",
+  });
+  assert.deepEqual(firstHalf, {
+    startDate: "2026-04-01",
+    endDate: "2026-04-15",
+  });
+  assert.deepEqual(secondHalf, {
+    startDate: "2026-04-16",
+    endDate: "2026-04-30",
+  });
 });
-
-

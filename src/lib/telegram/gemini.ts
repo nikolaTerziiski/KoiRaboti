@@ -146,17 +146,17 @@ const functionDeclarations: FunctionDeclaration[] = [
   },
   {
     name: "get_payroll_status",
-    description: "Връща статус на payroll за месец и период",
+    description: "Връща статус на payroll за избран диапазон от дати",
     parameters: {
       type: SchemaType.OBJECT,
       properties: {
-        payroll_month: {
+        start_date: {
           type: SchemaType.STRING,
-          description: "Месец като YYYY-MM-01",
+          description: "Начална дата YYYY-MM-DD",
         },
-        payroll_period: {
+        end_date: {
           type: SchemaType.STRING,
-          description: "first_half или second_half",
+          description: "Крайна дата YYYY-MM-DD",
         },
       },
     },

@@ -1,10 +1,14 @@
 ﻿export type PayUnits = 1 | 1.5 | 2;
 export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
-export type PayrollPeriod = "first_half" | "second_half";
 export type EmployeeRole = "kitchen" | "service";
 export type PayrollPaymentType = "advance" | "payroll";
 export type ExpenseSourceType = "web" | "telegram";
+
+export interface PayrollWindow {
+  startDate: string;
+  endDate: string;
+}
 
 export interface Restaurant {
   id: string;
@@ -56,8 +60,8 @@ export interface PayrollPayment {
   employeeId: string;
   amount: number;
   paymentType: PayrollPaymentType;
-  payrollMonth: string;
-  payrollPeriod: PayrollPeriod;
+  periodStart: string | null;
+  periodEnd: string | null;
   createdAt: string;
 }
 

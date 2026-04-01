@@ -80,8 +80,8 @@ function formatReportSummary(report: NonNullable<Awaited<ReturnType<typeof getDa
     .join("\n");
 }
 
-function formatPayrollPeriodLabel(period: string) {
-  return period === "first_half" ? "1-15 число" : "16-края на месеца";
+function formatPayrollRangeLabel(startDate: string, endDate: string) {
+  return `${startDate} - ${endDate}`;
 }
 
 export async function executeFunctionCall(params: {
@@ -413,26 +413,24 @@ async function executeGetPayrollStatus(
 ): Promise<ExecutionResult> {
   const payroll = await getPayrollStatus({
     restaurantId,
-    payrollMonth: (args.payroll_month as string | undefined)?.trim(),
-    payrollPeriod: args.payroll_period as "first_half" | "second_half" | undefined,
+    startDate: (args.start_date as string | undefined)?.trim(),
+    endDate: (args.end_date as string | undefined)?.trim(),
   });
 
   const topRows = payroll.unpaidRows.slice(0, 5);
   const totalPaid = payroll.rows.reduce(
-    (sum, row) => sum + row.advancesTotal + (row.isPaid ? row.netAmountToPay : 0),
+    (sum, row) => sum + row.advancesTotal + row.settlementsTotal,
     0,
   );
   const totalRemaining = payroll.rows.reduce(
-    (sum, row) => sum + (row.isPaid ? 0 : row.netAmountToPay),
+    (sum, row) => sum + Math.max(row.netAmountToPay, 0),
     0,
   );
 
   return {
     success: true,
     message: [
-      `Payroll статус за ${payroll.payrollMonth.slice(0, 7)} (${formatPayrollPeriodLabel(
-        payroll.payrollPeriod,
-      )})`,
+      `Payroll статус за ${formatPayrollRangeLabel(payroll.startDate, payroll.endDate)}`,
       `Начислено: ${formatCurrencyPair(payroll.summary.totalPayroll)}`,
       `Платено: ${formatCurrencyPair(totalPaid)}`,
       `Остава: ${formatCurrencyPair(totalRemaining)}`,

@@ -178,7 +178,6 @@ declare
   v_net_amount numeric(12, 4);
   v_eur_bgn_rate constant numeric(12, 5) := 1.95583;
   v_default_daily_expense constant numeric(12, 4) := 409.0335;
-  v_current_month_start date := date_trunc('month', current_date)::date;
 begin
   if p_user_id is null then
     raise exception 'p_user_id is required.';
@@ -744,11 +743,16 @@ begin
     with period_totals as (
       select
         ae.employee_id,
-        date_trunc('month', dr.work_date)::date as payroll_month,
         case
-          when extract(day from dr.work_date) <= 15 then 'first_half'
-          else 'second_half'
-        end::text as payroll_period,
+          when extract(day from dr.work_date) <= 15
+            then date_trunc('month', dr.work_date)::date
+          else date_trunc('month', dr.work_date)::date + 15
+        end as period_start,
+        case
+          when extract(day from dr.work_date) <= 15
+            then date_trunc('month', dr.work_date)::date + 14
+          else (date_trunc('month', dr.work_date)::date + interval '1 month - 1 day')::date
+        end as period_end,
         round(sum(coalesce(ae.pay_override, ae.daily_rate * ae.pay_units)), 4) as total_amount
       from public.attendance_entries ae
       join public.daily_reports dr on dr.id = ae.daily_report_id
@@ -759,11 +763,11 @@ begin
     select *
     from period_totals
     where total_amount > 0
-    order by payroll_month, payroll_period, employee_id
+    order by period_start, period_end, employee_id
   loop
     v_advance_total := 0;
 
-    if ((extract(day from v_period.payroll_month)::integer + length(v_period.employee_id::text)) % 5) <> 0 then
+    if ((extract(day from v_period.period_start)::integer + length(v_period.employee_id::text)) % 5) <> 0 then
       v_advance_amount := round(
         v_period.total_amount
         * (
@@ -780,21 +784,17 @@ begin
         employee_id,
         amount,
         payment_type,
-        payroll_month,
-        payroll_period,
+        period_start,
+        period_end,
         created_at
       )
       values (
         v_period.employee_id,
         v_advance_amount,
         'advance',
-        v_period.payroll_month,
-        v_period.payroll_period,
-        case
-          when v_period.payroll_period = 'first_half'
-            then timezone('utc', v_period.payroll_month::timestamp) + interval '6 days 15 hours'
-          else timezone('utc', v_period.payroll_month::timestamp) + interval '20 days 15 hours'
-        end
+        v_period.period_start,
+        v_period.period_end,
+        timezone('utc', v_period.period_start::timestamp) + interval '5 days 15 hours'
       );
 
       v_advance_total := v_advance_total + v_advance_amount;
@@ -806,54 +806,41 @@ begin
           employee_id,
           amount,
           payment_type,
-          payroll_month,
-          payroll_period,
+          period_start,
+          period_end,
           created_at
         )
         values (
           v_period.employee_id,
           v_advance_amount,
           'advance',
-          v_period.payroll_month,
-          v_period.payroll_period,
-          case
-            when v_period.payroll_period = 'first_half'
-              then timezone('utc', v_period.payroll_month::timestamp) + interval '11 days 11 hours'
-            else timezone('utc', v_period.payroll_month::timestamp) + interval '25 days 11 hours'
-          end
+          v_period.period_start,
+          v_period.period_end,
+          timezone('utc', v_period.period_start::timestamp) + interval '10 days 11 hours'
         );
 
         v_advance_total := v_advance_total + v_advance_amount;
       end if;
     end if;
 
-    if v_period.payroll_month < v_current_month_start
-      or (
-        v_period.payroll_month = v_current_month_start
-        and v_period.payroll_period = 'first_half'
-        and extract(day from current_date) >= 20
-      ) then
+    if v_period.period_end < current_date then
       v_net_amount := greatest(round(v_period.total_amount - v_advance_total, 4), 0);
 
       insert into public.payroll_payments (
         employee_id,
         amount,
         payment_type,
-        payroll_month,
-        payroll_period,
+        period_start,
+        period_end,
         created_at
       )
       values (
         v_period.employee_id,
         v_net_amount,
         'payroll',
-        v_period.payroll_month,
-        v_period.payroll_period,
-        case
-          when v_period.payroll_period = 'first_half'
-            then timezone('utc', v_period.payroll_month::timestamp) + interval '15 days 19 hours'
-          else date_trunc('month', v_period.payroll_month::timestamp) + interval '1 month - 1 day 19 hours'
-        end
+        v_period.period_start,
+        v_period.period_end,
+        timezone('utc', v_period.period_end::timestamp) + interval '19 hours'
       )
       on conflict do nothing;
     end if;
