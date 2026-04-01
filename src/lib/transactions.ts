@@ -13,6 +13,7 @@ export interface TransactionRow {
   categoryLabel: string;
   amount: number;
   hasReceipt: boolean;
+  receiptImagePath: string | null;
   sourceType: ExpenseSourceType;
 }
 
@@ -57,6 +58,7 @@ export function flattenTransactionRows(
         categoryLabel: normalizeTransactionCategory(item.categoryName),
         amount: item.amount,
         hasReceipt: Boolean(item.receiptImagePath),
+        receiptImagePath: item.receiptImagePath ?? null,
         sourceType: item.sourceType,
       })),
     )
@@ -73,6 +75,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Храна",
       amount: 186.4,
       hasReceipt: true,
+      receiptImagePath: null,
       sourceType: "web",
     },
     {
@@ -83,6 +86,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Комунални",
       amount: 122.95,
       hasReceipt: false,
+      receiptImagePath: null,
       sourceType: "web",
     },
     {
@@ -93,6 +97,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Поддръжка",
       amount: 94.2,
       hasReceipt: true,
+      receiptImagePath: null,
       sourceType: "telegram",
     },
     {
@@ -103,6 +108,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Консумативи",
       amount: 58.75,
       hasReceipt: true,
+      receiptImagePath: null,
       sourceType: "web",
     },
     {
@@ -113,6 +119,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Напитки",
       amount: 73.6,
       hasReceipt: true,
+      receiptImagePath: null,
       sourceType: "telegram",
     },
     {
@@ -123,6 +130,7 @@ export function buildMockTransactionRows(): TransactionRow[] {
       categoryLabel: "Консумативи",
       amount: 41.9,
       hasReceipt: false,
+      receiptImagePath: null,
       sourceType: "web",
     },
   ];

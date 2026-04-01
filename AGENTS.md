@@ -126,7 +126,7 @@ Works for any business type (restaurant, roadside assistance, etc.) — independ
 - `GEMINI_API_KEY` — from Google AI Studio (server-only)
 
 ### Migration
-- `supabase/patch_expense_bot_tables.sql` — creates all bot tables, rewrites operational_expenses, adds RLS policies and seed function
+- `supabase/legacy/patch_expense_bot_tables.sql` — historical patch that created the original bot tables and policies before consolidation into `supabase/schema_current.sql`
 
 ## Scope limits
 - No weekly scheduling in MVP

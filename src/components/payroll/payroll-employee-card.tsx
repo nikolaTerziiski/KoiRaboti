@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MoneyDisplay } from "@/components/ui/money-display";
 import { useLocale } from "@/lib/i18n/context";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -85,82 +84,119 @@ export function PayrollEmployeeCard({
         ? t.payroll.paymentSaved
         : null;
 
-  // UX FIX: Strict visual hierarchy. 
-  // If paid, it fades out to reduce cognitive load. If unpaid, it remains bright white.
-  const cardClass = row.isPaid
-    ? "border-slate-200/60 bg-slate-50/50 opacity-60 grayscale-[0.6] dark:border-slate-800 dark:bg-slate-950/50"
-    : "border-slate-200 bg-white shadow-md dark:border-slate-700 dark:bg-slate-900";
-
   return (
-    <div className={cn("rounded-[1.5rem] border p-5 transition-all duration-300", cardClass)}>
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0 space-y-2">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="truncate text-xl font-extrabold text-slate-900 dark:text-white">
-              {row.employee.fullName}
-            </p>
-            {row.isPaid ? (
-              <Badge className="border-emerald-200 bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700" variant="outline">
-                <CheckCheck className="mr-1.5 size-4" />
-                {t.payroll.paidBadge}
-              </Badge>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            <span className="font-semibold bg-slate-100 px-2.5 py-1 rounded-lg dark:bg-slate-800">
-              {row.totalUnits.toFixed(1)} {t.payroll.shifts}
-            </span>
-            <span className="text-xs">
-              {row.workedDates.length > 0 ? row.workedDates.join(", ") : "—"}
-            </span>
-          </div>
+    <div
+      className={cn(
+        "rounded-2xl border bg-white transition-all duration-200 dark:bg-slate-900",
+        row.isPaid
+          ? "border-emerald-100 dark:border-emerald-900/40"
+          : "border-slate-200 shadow-sm dark:border-slate-700",
+      )}
+    >
+      {/* ── Row 1: Name + meta ───────────────────────────────────── */}
+      <div className="px-4 pt-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <p
+            className={cn(
+              "truncate font-bold",
+              row.isPaid
+                ? "text-slate-400 dark:text-slate-500"
+                : "text-slate-900 dark:text-white",
+            )}
+          >
+            {row.employee.fullName}
+          </p>
+          {row.isPaid && (
+            <Badge
+              variant="outline"
+              className="border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-900/20 dark:text-emerald-400"
+            >
+              <CheckCheck className="mr-1 size-3" />
+              {t.payroll.paidBadge}
+            </Badge>
+          )}
         </div>
 
-        <div className="shrink-0 rounded-2xl bg-slate-50 p-4 text-right dark:bg-slate-950/50">
-          <div className="flex justify-between gap-6 sm:flex-col sm:gap-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.earned}
-            </p>
-            <MoneyDisplay amount={row.totalAmount} compact align="end" className="text-lg font-bold text-slate-700 dark:text-slate-300" />
-          </div>
-          
-          {row.advancesTotal > 0 ? (
-            <div className="mt-2 flex justify-between gap-6 sm:flex-col sm:gap-1">
-              <p className="text-xs font-bold uppercase tracking-widest text-rose-500">
-                {t.payroll.advances}
-              </p>
-              <p className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                - {formatCurrency(row.advancesTotal)}
-              </p>
-            </div>
-          ) : null}
-          
-          <div className="mt-4 flex justify-between items-end gap-6 sm:mt-3 sm:flex-col sm:gap-1">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.netToPay}
-            </p>
-            {/* UX FIX: Massive text size for the final payout number */}
-            <MoneyDisplay
-              amount={row.netAmountToPay}
-              compact
-              align="end"
-              className={cn("text-3xl font-black tracking-tight", row.netAmountToPay < 0 ? "text-rose-600" : "text-emerald-600")}
-            />
-          </div>
+        {/* Shifts + dates */}
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span className="rounded-md bg-slate-100 px-2 py-0.5 font-semibold tabular-nums dark:bg-slate-800">
+            {row.totalUnits.toFixed(1)} {t.payroll.shifts}
+          </span>
+          {row.workedDates.length > 0 && (
+            <span className="truncate">{row.workedDates.join(", ")}</span>
+          )}
         </div>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+      {/* ── Row 2: Financial strip ───────────────────────────────── */}
+      {/* Net to pay gets the dominant column; advances only rendered when non-zero */}
+      <div
+        className={cn(
+          "mt-3 grid divide-x divide-slate-100 border-y border-slate-100 dark:divide-slate-800 dark:border-slate-800",
+          row.advancesTotal > 0 ? "grid-cols-3" : "grid-cols-2",
+        )}
+      >
+        {/* Earned */}
+        <div className="px-3 py-3 text-center">
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            {t.payroll.earned}
+          </p>
+          <p className="mt-1 text-sm font-bold tabular-nums text-slate-700 dark:text-slate-300">
+            {formatCurrency(row.totalAmount)}
+          </p>
+        </div>
+
+        {/* Advances — only rendered when there is something to show */}
+        {row.advancesTotal > 0 && (
+          <div className="px-3 py-3 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-rose-400">
+              {t.payroll.advances}
+            </p>
+            <p className="mt-1 text-sm font-bold tabular-nums text-rose-600 dark:text-rose-400">
+              − {formatCurrency(row.advancesTotal)}
+            </p>
+          </div>
+        )}
+
+        {/* Net to pay — always the rightmost, always the largest number */}
+        <div className="px-3 py-3 text-center">
+          <p
+            className={cn(
+              "text-[10px] font-semibold uppercase tracking-wider",
+              row.isPaid ? "text-slate-400" : "text-emerald-600/80 dark:text-emerald-500/70",
+            )}
+          >
+            {t.payroll.netToPay}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-base font-extrabold tabular-nums leading-tight",
+              row.netAmountToPay < 0
+                ? "text-rose-600 dark:text-rose-400"
+                : row.isPaid
+                  ? "text-slate-400"
+                  : "text-emerald-600 dark:text-emerald-400",
+            )}
+          >
+            {formatCurrency(row.netAmountToPay)}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Row 3: Action buttons ────────────────────────────────── */}
+      <div className="flex gap-2 px-4 py-3">
         <Button
           type="button"
           variant="outline"
-          className="h-14 flex-1 rounded-xl border-slate-200 text-base font-bold shadow-sm hover:bg-slate-50 dark:border-slate-700"
-          onClick={() => setAdvanceOpen((current) => !current)}
+          size="sm"
+          className="h-9 flex-1 rounded-xl text-sm font-semibold"
+          onClick={() => setAdvanceOpen((v) => !v)}
           disabled={dataMode === "demo" || row.isPaid}
         >
-          <Banknote className="mr-2 size-5" />
+          <Banknote className="size-3.5" />
           {t.payroll.advance}
         </Button>
+
         <form action={paymentFormAction} className="flex-1">
           <input type="hidden" name="employeeId" value={row.employee.id} />
           <input type="hidden" name="payrollMonth" value={payrollMonth} />
@@ -168,99 +204,110 @@ export function PayrollEmployeeCard({
           <input type="hidden" name="amount" value={row.netAmountToPay.toString()} />
           <Button
             type="submit"
-            variant={row.isPaid ? "outline" : "default"}
+            size="sm"
             className={cn(
-              "h-14 w-full rounded-xl text-base font-bold shadow-sm transition-all",
-              row.isPaid 
-                ? "border-slate-200 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200" 
-                : "bg-emerald-600 text-white hover:bg-emerald-700"
+              "h-9 w-full rounded-xl text-sm font-semibold transition-all",
+              row.isPaid
+                ? "border border-slate-200 bg-white text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 dark:border-slate-700 dark:bg-transparent"
+                : "bg-emerald-600 text-white hover:bg-emerald-700",
             )}
             disabled={isTogglingPayment || dataMode === "demo"}
             aria-busy={isTogglingPayment}
           >
             {isTogglingPayment ? (
-              <Loader2 className="mr-2 size-5 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : row.isPaid ? (
-              <Undo2 className="mr-2 size-5" />
+              <Undo2 className="size-3.5" />
             ) : (
-              <CheckCheck className="mr-2 size-5" />
+              <CheckCheck className="size-3.5" />
             )}
-            {row.isPaid ? "Undo Payment" : t.payroll.pay}
+            {row.isPaid ? t.payroll.paid : t.payroll.pay}
           </Button>
         </form>
       </div>
 
-      {advanceOpen ? (
-        <form action={advanceFormAction} className="mt-4 space-y-4 rounded-2xl border border-slate-200/60 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900">
-          <input type="hidden" name="employeeId" value={row.employee.id} />
-          <input type="hidden" name="payrollMonth" value={payrollMonth} />
-          <input type="hidden" name="payrollPeriod" value={payrollPeriod} />
-          <div className="space-y-3">
-            <Label className="text-sm font-bold text-slate-700 dark:text-slate-300" htmlFor={`advance-amount-${row.employee.id}`}>
+      {/* ── Advance form (collapsible) ───────────────────────────── */}
+      {advanceOpen && (
+        <div className="mx-4 mb-4 rounded-xl border border-slate-200/60 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
+          <form action={advanceFormAction} className="space-y-3">
+            <input type="hidden" name="employeeId" value={row.employee.id} />
+            <input type="hidden" name="payrollMonth" value={payrollMonth} />
+            <input type="hidden" name="payrollPeriod" value={payrollPeriod} />
+
+            <Label
+              htmlFor={`advance-amount-${row.employee.id}`}
+              className="text-xs font-semibold uppercase tracking-widest text-slate-500"
+            >
               {t.payroll.advanceAmount}
             </Label>
             <Input
               id={`advance-amount-${row.employee.id}`}
               name="amount"
+              type="number"
               inputMode="decimal"
               min="0"
               step="0.01"
               value={advanceAmount}
-              onChange={(event) => setAdvanceAmount(event.target.value)}
+              onChange={(e) => setAdvanceAmount(e.target.value)}
               placeholder="0.00"
-              className="h-14 rounded-xl text-center text-xl font-black tracking-widest shadow-inner focus-visible:ring-emerald-500"
+              className="h-11 rounded-xl text-center text-lg font-bold tracking-widest"
             />
-          </div>
-          <div className="flex gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-12 flex-1 rounded-xl font-bold"
-              onClick={() => {
-                setAdvanceOpen(false);
-                setAdvanceAmount("");
-              }}
-              disabled={isAdvancing}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              type="submit"
-              className="h-12 flex-1 rounded-xl bg-slate-900 font-bold text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
-              disabled={isAdvancing || dataMode === "demo"}
-              aria-busy={isAdvancing}
-            >
-              {isAdvancing ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              {t.common.save}
-            </Button>
-          </div>
-          {advanceFeedback ? (
-            <div
-              className={cn(
-                "rounded-xl px-4 py-3 text-sm font-semibold",
-                advanceState.status === "error"
-                  ? "bg-rose-50 text-rose-700 border border-rose-200"
-                  : "bg-emerald-50 text-emerald-700 border border-emerald-200",
-              )}
-            >
-              {advanceFeedback}
-            </div>
-          ) : null}
-        </form>
-      ) : null}
 
-      {paymentFeedback ? (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-9 flex-1 rounded-xl"
+                onClick={() => {
+                  setAdvanceOpen(false);
+                  setAdvanceAmount("");
+                }}
+                disabled={isAdvancing}
+              >
+                {t.common.cancel}
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-9 flex-1 rounded-xl bg-slate-900 text-white hover:bg-slate-800 dark:bg-slate-100 dark:text-slate-900"
+                disabled={isAdvancing || dataMode === "demo"}
+                aria-busy={isAdvancing}
+              >
+                {isAdvancing ? <Loader2 className="mr-1 size-3.5 animate-spin" /> : null}
+                {t.common.save}
+              </Button>
+            </div>
+
+            {advanceFeedback && (
+              <div
+                className={cn(
+                  "rounded-lg px-3 py-2 text-xs font-semibold",
+                  advanceState.status === "error"
+                    ? "border border-rose-200 bg-rose-50 text-rose-700"
+                    : "border border-emerald-200 bg-emerald-50 text-emerald-700",
+                )}
+              >
+                {advanceFeedback}
+              </div>
+            )}
+          </form>
+        </div>
+      )}
+
+      {/* Payment feedback */}
+      {paymentFeedback && (
         <div
           className={cn(
-            "mt-4 rounded-xl px-4 py-3 text-sm font-semibold",
+            "mx-4 mb-4 rounded-lg px-3 py-2 text-xs font-semibold",
             paymentState.status === "error"
-              ? "bg-rose-50 text-rose-700 border border-rose-200"
-              : "bg-emerald-50 text-emerald-700 border border-emerald-200",
+              ? "border border-rose-200 bg-rose-50 text-rose-700"
+              : "border border-emerald-200 bg-emerald-50 text-emerald-700",
           )}
         >
           {paymentFeedback}
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

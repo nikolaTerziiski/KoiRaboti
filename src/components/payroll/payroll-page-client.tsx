@@ -15,7 +15,7 @@ import {
 import { MoneyDisplay } from "@/components/ui/money-display";
 import { SelectField } from "@/components/ui/select-field";
 import { useLocale } from "@/lib/i18n/context";
-import { formatExchangeRateLabel, formatMonthLabel } from "@/lib/format";
+import { formatMonthLabel } from "@/lib/format";
 import {
   buildPayrollRows,
   getPayrollPeriodLabel,
@@ -60,40 +60,38 @@ export function PayrollPageClient({
 
   const roleSections = ROLE_ORDER.map((role) => {
     const rows = payrollRows.filter((row) => row.employee.role === role);
-    // UX FIX: Removed distracting role-based background colors.
-    const sectionClass = "border-slate-200/70 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/30";
-    const badgeClass = "bg-white text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700";
-
     return {
       role,
       title: role === "kitchen" ? t.common.kitchen : t.common.service,
       rows,
-      sectionClass,
-      badgeClass,
     };
   }).filter((section) => section.rows.length > 0);
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 pb-20">
+    // pb-28 matches app-shell.tsx and clears the mobile nav + safe-area-inset-bottom
+    <div className="mx-auto max-w-5xl space-y-4 pb-28 lg:pb-10">
+
+      {/* ── Period selector ─────────────────────────────────────── */}
       <Card className="overflow-hidden border-slate-200/60 shadow-sm dark:border-slate-800">
-        <CardHeader className="bg-slate-50/50 pb-6 dark:bg-slate-900/50">
-          <CardTitle className="text-2xl font-extrabold text-slate-900 dark:text-white">
-            {t.payroll.window}
-          </CardTitle>
-          <CardDescription className="text-base text-slate-500">
-            {t.payroll.windowDesc}
-          </CardDescription>
+        <CardHeader className="bg-slate-50/50 pb-4 dark:bg-slate-900/50">
+          <CardTitle>{t.payroll.window}</CardTitle>
+          <CardDescription>{t.payroll.windowDesc}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 pt-6">
-          <div className="space-y-3">
-            <label className="text-xs font-bold uppercase tracking-widest text-slate-500" htmlFor="payroll-month">
+        <CardContent className="space-y-4 pt-4">
+
+          {/* Month dropdown */}
+          <div className="space-y-1.5">
+            <label
+              className="text-xs font-semibold uppercase tracking-wider text-slate-500"
+              htmlFor="payroll-month"
+            >
               {t.payroll.month}
             </label>
             <SelectField
               id="payroll-month"
               value={selectedMonth}
-              onChange={(event) => setSelectedMonth(event.target.value)}
-              className="h-14 rounded-2xl text-lg font-semibold shadow-sm"
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="h-12 rounded-xl text-base font-semibold"
             >
               {(monthOptions.length > 0 ? monthOptions : [fallbackMonth]).map((month) => (
                 <option key={month} value={month}>
@@ -102,17 +100,18 @@ export function PayrollPageClient({
               ))}
             </SelectField>
           </div>
-          
-          <div className="grid grid-cols-2 gap-3">
+
+          {/* Period toggle — segmented control */}
+          <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
               variant={period === "first_half" ? "default" : "outline"}
               onClick={() => setPeriod("first_half")}
               className={cn(
-                "h-14 rounded-2xl text-base font-bold transition-all",
-                period === "first_half" 
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md" 
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+                "h-11 rounded-xl font-semibold transition-all",
+                period === "first_half"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
               )}
             >
               {t.payroll.firstHalf}
@@ -122,88 +121,107 @@ export function PayrollPageClient({
               variant={period === "second_half" ? "default" : "outline"}
               onClick={() => setPeriod("second_half")}
               className={cn(
-                "h-14 rounded-2xl text-base font-bold transition-all",
-                period === "second_half" 
-                  ? "bg-emerald-600 text-white hover:bg-emerald-700 shadow-md" 
-                  : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300"
+                "h-11 rounded-xl font-semibold transition-all",
+                period === "second_half"
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
+                  : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
               )}
             >
               {t.payroll.secondHalf}
             </Button>
           </div>
-          
-          <div className="rounded-[1.5rem] bg-emerald-50/50 p-5 border border-emerald-100/50 dark:bg-emerald-950/20 dark:border-emerald-900/30">
-            <p className="text-xs font-bold uppercase tracking-widest text-emerald-600/80 dark:text-emerald-500/80">
+
+          {/* Active period display */}
+          <div className="rounded-2xl border border-emerald-100/60 bg-emerald-50/40 px-4 py-3 dark:border-emerald-900/30 dark:bg-emerald-950/20">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600/80 dark:text-emerald-500/70">
               {t.payroll.activeRange}
             </p>
-            <p className="mt-2 text-xl font-extrabold text-emerald-900 dark:text-emerald-100">
+            <p className="mt-1 text-base font-bold text-emerald-900 dark:text-emerald-100">
               {getPayrollPeriodLabel(period, referenceDate, locale)}
             </p>
-            <p className="mt-2 text-sm text-emerald-700/70 dark:text-emerald-400/70">
+            <p className="mt-0.5 text-xs text-emerald-700/60 dark:text-emerald-400/60">
               {dataMode === "demo" ? t.payroll.demoAttendance : t.payroll.supabaseAttendance}
             </p>
           </div>
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="rounded-3xl border-slate-200/60 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.totalPayroll}
-            </p>
-            <div className="mt-3">
-              <MoneyDisplay amount={summary.totalPayroll} className="text-2xl font-extrabold text-slate-900 dark:text-white" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-slate-200/60 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.staffPaid}
-            </p>
-            <p className="mt-3 text-2xl font-extrabold text-slate-900 dark:text-white">{summary.employeeCount}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-slate-200/60 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.shiftsCount}
-            </p>
-            <p className="mt-3 text-2xl font-extrabold text-slate-900 dark:text-white">{summary.totalUnits.toFixed(1)}</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-3xl border-slate-200/60 shadow-sm dark:border-slate-800">
-          <CardContent className="p-5">
-            <p className="text-xs font-bold uppercase tracking-widest text-slate-500">
-              {t.payroll.overrides}
-            </p>
-            <p className="mt-3 text-2xl font-extrabold text-slate-900 dark:text-white">{summary.overrideDays}</p>
-          </CardContent>
-        </Card>
+      {/* ── Summary KPI row ─────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          {
+            label: t.payroll.totalPayroll,
+            value: <MoneyDisplay amount={summary.totalPayroll} compact />,
+          },
+          {
+            label: t.payroll.staffPaid,
+            value: (
+              <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+                {summary.employeeCount}
+              </p>
+            ),
+          },
+          {
+            label: t.payroll.shiftsCount,
+            value: (
+              <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+                {summary.totalUnits.toFixed(1)}
+              </p>
+            ),
+          },
+          {
+            label: t.payroll.overrides,
+            value: (
+              <p className="mt-2 text-2xl font-extrabold text-slate-900 dark:text-white">
+                {summary.overrideDays}
+              </p>
+            ),
+          },
+        ].map((kpi) => (
+          <Card key={kpi.label} className="border-slate-200/60 shadow-sm dark:border-slate-800">
+            <CardContent className="p-4">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                {kpi.label}
+              </p>
+              {kpi.value}
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
-      <div className="space-y-6">
-        <div className="flex items-center justify-between px-2">
-          <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white">{t.payroll.payrollRows}</h2>
-        </div>
-        
-        {payrollRows.length === 0 ? (
-          <div className="rounded-[2rem] border-2 border-dashed border-slate-200 p-10 text-center text-slate-500 dark:border-slate-800">
+      {/* ── Employee payroll rows ────────────────────────────────── */}
+      <div className="space-y-4">
+        <h2 className="px-1 text-lg font-bold text-slate-900 dark:text-white">
+          {t.payroll.payrollRows}
+        </h2>
+
+        {payrollRows.length === 0 && (
+          <div className="rounded-2xl border-2 border-dashed border-slate-200 p-10 text-center text-sm text-slate-500 dark:border-slate-800">
             {t.payroll.noAttendance}
           </div>
-        ) : null}
+        )}
 
-        {roleSections.map((section) => (
-          <div key={section.role} className={cn("rounded-[2rem] border p-5 md:p-6", section.sectionClass)}>
-            <div className="mb-5 flex items-center justify-between gap-3">
-              <h3 className="text-lg font-extrabold uppercase tracking-wide text-slate-700 dark:text-slate-300">{section.title}</h3>
-              <Badge className={cn("rounded-full px-3 py-1 text-sm font-bold", section.badgeClass)} variant="outline">
-                {section.rows.length}
+        {roleSections.map(({ role, title, rows }) => (
+          <div
+            key={role}
+            className="rounded-2xl border border-slate-200/60 bg-slate-50/40 p-4 dark:border-slate-800 dark:bg-slate-900/30"
+          >
+            {/* Section header */}
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                {title}
+              </span>
+              <Badge
+                variant="outline"
+                className="border-slate-200 bg-white text-xs font-semibold dark:border-slate-700 dark:bg-slate-900"
+              >
+                {rows.length}
               </Badge>
             </div>
-            <div className="space-y-4">
-              {section.rows.map((row) => (
+
+            {/* Cards */}
+            <div className="space-y-3">
+              {rows.map((row) => (
                 <PayrollEmployeeCard
                   key={row.employee.id}
                   row={row}
@@ -212,9 +230,6 @@ export function PayrollPageClient({
                   dataMode={dataMode}
                 />
               ))}
-              {section.rows.length === 0 ? (
-                <p className="text-sm text-slate-500">{t.payroll.noRows}</p>
-              ) : null}
             </div>
           </div>
         ))}

@@ -66,19 +66,95 @@ Open `http://localhost:3000`.
 
 1. Create a Supabase project.
 2. Add the environment variables above to `.env.local`.
-3. Run the SQL in `supabase/schema.sql`.
-4. Run the SQL in `supabase/seed.sql`.
+3. Run the SQL in `supabase/schema_current.sql`.
+4. If you want a realistic sandbox tenant, run `supabase/seed_large.sql` and then a tenant seed such as `supabase/seed_genge_abv_bg.sql`.
 5. Create one admin user in Supabase Auth.
 6. Start the app and sign in from `/login`.
 
-If you already have an older KoiRaboti database, run these patches before using the updated UI:
+Legacy patch files are still in the repo for older databases, but they are no longer part of the recommended setup for a new project:
 
-- `supabase/patch_add_employee_role.sql`
-- `supabase/patch_simplify_attendance_phone.sql`
-- `supabase/patch_add_payroll_payments.sql`
-- `supabase/patch_add_historical_rate.sql`
+- `supabase/legacy/patch_add_employee_role.sql`
+- `supabase/legacy/patch_simplify_attendance_phone.sql`
+- `supabase/legacy/patch_add_payroll_payments.sql`
+- `supabase/legacy/patch_add_historical_rate.sql`
+- `supabase/legacy/patch_register_fn.sql`
+- `supabase/legacy/patch_expense_bot_tables.sql`
+- `supabase/legacy/patch_restaurant_expense_categories.sql`
 
-These patches add the role column, keep phone numbers optional, remove the old `shift_1` / `shift_2` attendance columns, snapshot employee daily rates on attendance rows, and add payroll payment tracking.
+For the current SQL file map, see `supabase/README.md`.
+
+## Backup and sandbox workflow
+
+If you want a disposable backup DB with enough volume to exercise the UI properly, use the scripts in `scripts/`.
+
+### Bootstrap and seed a backup database
+
+Prerequisites:
+
+- PostgreSQL client tools available in `PATH` (`psql`, `pg_dump`)
+- One auth user already created in the target Supabase project
+
+Apply the current schema, Telegram patches, helper functions, and realistic seed data:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\supabase-sandbox.ps1 `
+  -DbUrl "postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres" `
+  -ResetDatabase `
+  -UserId "YOUR_AUTH_USER_UUID" `
+  -UserEmail "owner@example.com" `
+  -RestaurantName "Koi Raboti Sandbox" `
+  -AdminName "Sandbox Owner" `
+  -Months 6 `
+  -EmployeeCount 18 `
+  -ReplaceExistingData
+```
+
+What this gives you:
+
+- 1 restaurant linked to your auth user profile
+- 18 employees with mixed kitchen/service roles and a few inactive staff
+- Daily reports from the start of the chosen month window until today
+- Attendance with 1 / 1.5 / 2 pay units and occasional overrides
+- Expense categories, daily expense items, receipt paths, and Telegram-origin expenses
+- Payroll advances and payroll settlements for closed periods
+- Telegram users, connect tokens, and AI context chunks
+
+The reusable SQL helpers live in `supabase/seed_large.sql`.
+
+### Dump or clone app data
+
+The backup script exports the app-owned `public` schema. By default it skips `public.profiles`, because those rows depend on `auth.users` and usually fail when restored into a different Supabase project.
+
+Create a backup file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\supabase-backup.ps1 `
+  -Mode dump `
+  -SourceDbUrl "postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres"
+```
+
+Clone directly into another target database:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\supabase-backup.ps1 `
+  -Mode clone `
+  -SourceDbUrl "postgresql://postgres:[PASSWORD]@[HOST]:5432/postgres" `
+  -TargetDbUrl "postgresql://postgres:[PASSWORD]@[BACKUP-HOST]:5432/postgres"
+```
+
+If you need to move profile rows too, add `-IncludeProfiles`, but only do that when the target has matching `auth.users` data.
+
+After restoring without profiles, attach your backup auth user to a restaurant with:
+
+```sql
+select public.attach_user_to_restaurant(
+  p_user_id := 'YOUR_AUTH_USER_UUID',
+  p_user_email := 'owner@example.com',
+  p_full_name := 'Sandbox Owner',
+  p_restaurant_id := 'RESTAURANT_UUID',
+  p_force_move := true
+);
+```
 
 ## Validation commands
 
@@ -109,8 +185,9 @@ npm run dev
 |       |-- supabase
 |       `-- ...
 |-- supabase
-|   |-- schema.sql
-|   `-- seed.sql
+|   |-- schema_current.sql
+|   |-- seed_large.sql
+|   `-- legacy
 |-- components.json
 |-- .env.example
 `-- README.md
