@@ -1,4 +1,5 @@
 ﻿import type { SupabaseClient } from "@supabase/supabase-js";
+import { normalizeEmployeePaymentConfig } from "@/lib/employee-payment-schedule";
 import { createDemoSnapshot } from "@/lib/mock-data";
 import type {
   AttendanceEntry,
@@ -17,6 +18,11 @@ type SupabaseRestaurantRow = {
   id: string;
   name: string;
   default_daily_expense: number | string;
+  default_payroll_cadence: string;
+  default_weekly_payday: number | string | null;
+  default_monthly_pay_day: number | string | null;
+  default_twice_monthly_day_1: number | string | null;
+  default_twice_monthly_day_2: number | string | null;
 };
 
 type SupabaseEmployeeRow = {
@@ -28,6 +34,17 @@ type SupabaseEmployeeRow = {
   phone_number: string | null;
   daily_rate: number | string;
   is_active: boolean;
+  use_restaurant_payroll_defaults?: boolean;
+  payroll_cadence?: string | null;
+  weekly_payday?: number | string | null;
+  monthly_pay_day?: number | string | null;
+  twice_monthly_day_1?: number | string | null;
+  twice_monthly_day_2?: number | string | null;
+  payment_schedule?: string | null;
+  payment_day_1?: number | string | null;
+  payment_day_2?: number | string | null;
+  payment_weekday?: number | string | null;
+  balance_starts_from?: string | null;
 };
 
 type SupabaseProfileRow = {
@@ -97,12 +114,46 @@ function mapRestaurant(row: SupabaseRestaurantRow): Restaurant {
     id: row.id,
     name: row.name,
     defaultDailyExpense: Number(row.default_daily_expense),
+    defaultPayrollCadence:
+      row.default_payroll_cadence === "daily" ||
+      row.default_payroll_cadence === "weekly" ||
+      row.default_payroll_cadence === "twice_monthly"
+        ? row.default_payroll_cadence
+        : "monthly",
+    defaultWeeklyPayday:
+      row.default_weekly_payday == null
+        ? null
+        : Number(row.default_weekly_payday),
+    defaultMonthlyPayDay:
+      row.default_monthly_pay_day == null
+        ? null
+        : Number(row.default_monthly_pay_day),
+    defaultTwiceMonthlyDay1:
+      row.default_twice_monthly_day_1 == null
+        ? null
+        : Number(row.default_twice_monthly_day_1),
+    defaultTwiceMonthlyDay2:
+      row.default_twice_monthly_day_2 == null
+        ? null
+        : Number(row.default_twice_monthly_day_2),
   };
 }
 
 function mapEmployee(row: SupabaseEmployeeRow): Employee {
   const fullName = `${row.first_name} ${row.last_name}`.trim();
   const role: EmployeeRole = row.role === "kitchen" ? "kitchen" : "service";
+  const paymentConfig = normalizeEmployeePaymentConfig({
+    paymentSchedule: row.payment_schedule,
+    paymentDay1: row.payment_day_1,
+    paymentDay2: row.payment_day_2,
+    paymentWeekday: row.payment_weekday,
+    balanceStartsFrom: row.balance_starts_from,
+    payrollCadence: row.payroll_cadence,
+    weeklyPayday: row.weekly_payday,
+    monthlyPayDay: row.monthly_pay_day,
+    twiceMonthlyDay1: row.twice_monthly_day_1,
+    twiceMonthlyDay2: row.twice_monthly_day_2,
+  });
 
   return {
     id: row.id,
@@ -114,6 +165,26 @@ function mapEmployee(row: SupabaseEmployeeRow): Employee {
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
     isActive: row.is_active,
+    useRestaurantPayrollDefaults: row.use_restaurant_payroll_defaults ?? true,
+    payrollCadence:
+      row.payroll_cadence === "daily" ||
+      row.payroll_cadence === "weekly" ||
+      row.payroll_cadence === "twice_monthly" ||
+      row.payroll_cadence === "monthly"
+        ? row.payroll_cadence
+        : null,
+    weeklyPayday: row.weekly_payday == null ? null : Number(row.weekly_payday),
+    monthlyPayDay:
+      row.monthly_pay_day == null ? null : Number(row.monthly_pay_day),
+    twiceMonthlyDay1:
+      row.twice_monthly_day_1 == null ? null : Number(row.twice_monthly_day_1),
+    twiceMonthlyDay2:
+      row.twice_monthly_day_2 == null ? null : Number(row.twice_monthly_day_2),
+    paymentSchedule: paymentConfig.paymentSchedule,
+    paymentDay1: paymentConfig.paymentDay1,
+    paymentDay2: paymentConfig.paymentDay2,
+    paymentWeekday: paymentConfig.paymentWeekday,
+    balanceStartsFrom: paymentConfig.balanceStartsFrom,
   };
 }
 
@@ -228,12 +299,14 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
   ] = await Promise.all([
     supabase
       .from("restaurants")
-      .select("id, name, default_daily_expense")
+      .select(
+        "id, name, default_daily_expense, default_payroll_cadence, default_weekly_payday, default_monthly_pay_day, default_twice_monthly_day_1, default_twice_monthly_day_2",
+      )
       .single(),
     supabase.from("profiles").select("id, restaurant_id, full_name, email").single(),
     supabase
       .from("employees")
-      .select("id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active")
+      .select("*")
       .order("last_name")
       .order("first_name"),
     supabase

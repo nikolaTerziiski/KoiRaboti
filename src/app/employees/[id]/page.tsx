@@ -2,15 +2,21 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
 import { AppShell } from "@/components/layout/app-shell";
-import { PayrollPageClient } from "@/components/payroll/payroll-page-client";
+import { EmployeeTimesheetClient } from "@/components/employees/employee-timesheet-client";
 import { ErrorCard } from "@/components/ui/error-card";
 import { demoPayrollPayments } from "@/lib/mock-data";
 import { getRestaurantSnapshot, getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { PayrollPayment } from "@/lib/types";
+import type { EmployeeAttendanceEntry, PayrollPayment } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Payroll - KoiRaboti" };
+export const metadata: Metadata = { title: "Employee Timesheet - KoiRaboti" };
+
+type EmployeeTimesheetPageProps = {
+  params: Promise<{
+    id: string;
+  }>;
+};
 
 type SupabasePayrollPaymentRow = {
   id: string;
@@ -21,7 +27,10 @@ type SupabasePayrollPaymentRow = {
   created_at: string;
 };
 
-export default async function PayrollPage() {
+export default async function EmployeeTimesheetPage({
+  params,
+}: EmployeeTimesheetPageProps) {
+  const { id } = await params;
   const [sessionMode, snapshot] = await Promise.all([
     getSessionMode(),
     getRestaurantSnapshot(),
@@ -34,17 +43,33 @@ export default async function PayrollPage() {
   if (snapshot.errorMessage) {
     return (
       <AppShell
-        pageKey="payroll"
+        pageKey="employees"
         sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
         dataMode="error"
       >
-        <ErrorCard pageKey="payroll" message={snapshot.errorMessage} />
+        <ErrorCard pageKey="employees" message={snapshot.errorMessage} />
       </AppShell>
     );
   }
 
+  const employee = snapshot.employees.find((item) => item.id === id);
+  if (!employee) {
+    redirect("/employees");
+  }
+
+  const attendanceEntries: EmployeeAttendanceEntry[] = snapshot.reports.flatMap((report) =>
+    report.attendanceEntries
+      .filter((entry) => entry.employeeId === employee.id)
+      .map((entry) => ({
+        ...entry,
+        workDate: report.workDate,
+      })),
+  );
+
   let payrollPayments: PayrollPayment[] =
-    snapshot.mode === "demo" ? demoPayrollPayments : [];
+    snapshot.mode === "demo"
+      ? demoPayrollPayments.filter((payment) => payment.employeeId === employee.id)
+      : [];
   let payrollPaymentError: string | null = null;
 
   if (snapshot.mode === "supabase") {
@@ -57,6 +82,7 @@ export default async function PayrollPage() {
       const { data, error } = await supabase
         .from("payroll_payments")
         .select("id, employee_id, amount, payment_type, paid_on, created_at")
+        .eq("employee_id", employee.id)
         .order("paid_on", { ascending: false })
         .order("created_at", { ascending: false });
 
@@ -80,26 +106,26 @@ export default async function PayrollPage() {
   if (payrollPaymentError) {
     return (
       <AppShell
-        pageKey="payroll"
+        pageKey="employees"
         sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
         dataMode="error"
       >
-        <ErrorCard pageKey="payroll" message={payrollPaymentError} />
+        <ErrorCard pageKey="employees" message={payrollPaymentError} />
       </AppShell>
     );
   }
 
   return (
     <AppShell
-      pageKey="payroll"
+      pageKey="employees"
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
-      dataMode={snapshot.mode === "supabase" ? "supabase" : "demo"}
+      dataMode={snapshot.mode}
+      pageTitle={employee.fullName}
     >
-      <PayrollPageClient
-        employees={snapshot.employees}
-        reports={snapshot.reports}
+      <EmployeeTimesheetClient
+        employee={employee}
+        attendanceEntries={attendanceEntries}
         payments={payrollPayments}
-        dataMode={snapshot.mode}
       />
     </AppShell>
   );

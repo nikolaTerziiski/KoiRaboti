@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { DEFAULT_DAILY_EXPENSE_EUR, DEMO_SESSION_COOKIE } from "@/lib/constants";
 import { hasSupabaseCredentials } from "@/lib/env";
+import { parseRestaurantPayrollSettings } from "@/lib/payroll-settings";
 import type { SessionMode } from "@/lib/types";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -173,12 +174,35 @@ export async function onboardingAction(
     };
   }
 
+  let payrollSettings;
+
+  try {
+    payrollSettings = parseRestaurantPayrollSettings({
+      cadence: String(formData.get("defaultPayrollCadence") ?? "").trim(),
+      weeklyPayday: formData.get("defaultWeeklyPayday"),
+      monthlyPayDay: formData.get("defaultMonthlyPayDay"),
+      twiceMonthlyDay1: formData.get("defaultTwiceMonthlyDay1"),
+      twiceMonthlyDay2: formData.get("defaultTwiceMonthlyDay2"),
+    });
+  } catch (error) {
+    return {
+      status: "error",
+      message:
+        error instanceof Error ? error.message : "Payroll settings are invalid.",
+    };
+  }
+
   const { error: rpcError } = await supabase.rpc("register_restaurant", {
     p_user_id: user.id,
     p_user_email: user.email ?? "",
     p_restaurant_name: businessName,
     p_admin_full_name: fullName,
     p_default_daily_expense: DEFAULT_DAILY_EXPENSE_EUR,
+    p_default_payroll_cadence: payrollSettings.defaultPayrollCadence,
+    p_default_weekly_payday: payrollSettings.defaultWeeklyPayday,
+    p_default_monthly_pay_day: payrollSettings.defaultMonthlyPayDay,
+    p_default_twice_monthly_day_1: payrollSettings.defaultTwiceMonthlyDay1,
+    p_default_twice_monthly_day_2: payrollSettings.defaultTwiceMonthlyDay2,
   });
 
   if (rpcError) {

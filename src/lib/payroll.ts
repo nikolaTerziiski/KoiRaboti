@@ -1,18 +1,22 @@
 import {
+  addDays,
   endOfMonth,
   endOfWeek,
   format,
+  getISODay,
   parseISO,
   setDate,
+  startOfDay,
   startOfMonth,
   startOfWeek,
 } from "date-fns";
-import { bg, enUS } from "date-fns/locale";
-import type { Locale } from "@/lib/i18n/translations";
+import { normalizeEmployeePaymentConfig } from "./employee-payment-schedule.ts";
 import type {
   AttendanceEntry,
   DailyReportWithAttendance,
   Employee,
+  EmployeeAttendanceEntry,
+  EmployeePaymentSchedule,
   PayrollPayment,
   PayrollWindow,
 } from "@/lib/types";
@@ -21,23 +25,43 @@ export type PayrollWindowPreset = "week" | "month" | "first_half" | "second_half
 
 export interface PayrollRow {
   employee: Employee;
+  paymentSchedule: EmployeePaymentSchedule;
+  totalShifts: number;
+  grossAmount: number;
+  advancesTotal: number;
+  netAmount: number;
+  isDue: boolean;
+  nextPayday: Date;
+  lastPaidAt: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  workedDays: number;
+  settlementsTotal: number;
   totalUnits: number;
   totalAmount: number;
-  overrideCount: number;
-  workedDates: string[];
-  advancesTotal: number;
-  settlementsTotal: number;
-  exactSettlementTotal: number;
-  carryoverAmount: number;
-  hasOverlappingSettlement: boolean;
-  isPaid: boolean;
-  isSettled: boolean;
   netAmountToPay: number;
+  isSettled: boolean;
 }
 
-function getDateLocale(locale: Locale) {
-  return locale === "bg" ? bg : enUS;
+export interface PayrollSummary {
+  totalPayroll: number;
+  totalUnits: number;
+  employeeCount: number;
+  overrideDays: number;
+  outstandingTotal: number;
+  carryoverCount: number;
+  dueCount: number;
 }
+
+type RunningBalance = {
+  totalShifts: number;
+  grossAmount: number;
+  advancesTotal: number;
+  netAmount: number;
+  periodStart: string | null;
+  periodEnd: string | null;
+  workedDays: number;
+};
 
 function roundPayrollAmount(value: number) {
   return Math.round(value * 10_000) / 10_000;
@@ -47,52 +71,131 @@ function formatDateKey(value: Date) {
   return format(value, "yyyy-MM-dd");
 }
 
-function getIsoDateKey(value: string | null | undefined) {
-  if (!value) {
-    return null;
+function getPaymentDateKey(payment: PayrollPayment) {
+  return payment.paidOn ?? payment.createdAt.slice(0, 10);
+}
+
+function getMostRecentPayrollPayment(payments: PayrollPayment[]) {
+  return payments
+    .filter((payment) => payment.paymentType === "payroll")
+    .sort((left, right) => {
+      const rightDate = getPaymentDateKey(right);
+      const leftDate = getPaymentDateKey(left);
+
+      return (
+        rightDate.localeCompare(leftDate) ||
+        right.createdAt.localeCompare(left.createdAt)
+      );
+    })[0] ?? null;
+}
+
+function resolveReferenceDate(value?: Date | PayrollWindow) {
+  if (value instanceof Date) {
+    return startOfDay(value);
   }
 
-  return value.slice(0, 10);
+  if (value && "endDate" in value) {
+    return startOfDay(parseISO(value.endDate));
+  }
+
+  return startOfDay(new Date());
 }
 
-function isDateWithinWindow(dateKey: string, window: PayrollWindow) {
-  return dateKey >= window.startDate && dateKey <= window.endDate;
+function toAttendanceEntries(
+  reports: DailyReportWithAttendance[],
+  employeeId: string,
+): EmployeeAttendanceEntry[] {
+  const entries: EmployeeAttendanceEntry[] = [];
+
+  for (const report of reports) {
+    const entry = report.attendanceEntries.find(
+      (attendance) => attendance.employeeId === employeeId,
+    );
+
+    if (!entry) {
+      continue;
+    }
+
+    entries.push({
+      ...entry,
+      workDate: report.workDate,
+    });
+  }
+
+  return entries.sort((left, right) => left.workDate.localeCompare(right.workDate));
 }
 
-function isWindowContained(
-  candidate: PayrollWindow,
-  container: PayrollWindow,
+function isEmployeesFirstArgument(
+  first: Employee[] | DailyReportWithAttendance[],
+  second: Employee[] | DailyReportWithAttendance[],
+  reference?: Date | PayrollWindow,
 ) {
+  if (reference && "startDate" in reference) {
+    return false;
+  }
+
+  const firstItem = first[0];
+  if (firstItem && "fullName" in firstItem) {
+    return true;
+  }
+
+  const secondItem = second[0];
+  if (secondItem && "fullName" in secondItem) {
+    return false;
+  }
+
+  return true;
+}
+
+function getCurrentMonthCandidate(referenceDate: Date, targetDay: number) {
+  const monthStart = startOfMonth(referenceDate);
+  const monthEnd = endOfMonth(referenceDate);
+  const safeDay = Math.min(Math.max(targetDay, 1), monthEnd.getDate());
+
+  return startOfDay(setDate(monthStart, safeDay));
+}
+
+function getEarliestActivityDate(
+  attendanceEntries: EmployeeAttendanceEntry[],
+  payments: PayrollPayment[],
+  lowerBound: string,
+) {
+  let earliestDate: string | null = null;
+
+  for (const entry of attendanceEntries) {
+    if (entry.workDate < lowerBound) {
+      continue;
+    }
+
+    if (earliestDate === null || entry.workDate < earliestDate) {
+      earliestDate = entry.workDate;
+    }
+  }
+
+  for (const payment of payments) {
+    if (payment.paymentType !== "advance") {
+      continue;
+    }
+
+    const paymentDate = getPaymentDateKey(payment);
+    if (paymentDate < lowerBound) {
+      continue;
+    }
+
+    if (earliestDate === null || paymentDate < earliestDate) {
+      earliestDate = paymentDate;
+    }
+  }
+
+  return earliestDate;
+}
+
+function compareUpcomingRows(left: PayrollRow, right: PayrollRow) {
   return (
-    candidate.startDate >= container.startDate &&
-    candidate.endDate <= container.endDate
+    left.nextPayday.getTime() - right.nextPayday.getTime() ||
+    right.netAmount - left.netAmount ||
+    left.employee.fullName.localeCompare(right.employee.fullName)
   );
-}
-
-function windowsOverlap(left: PayrollWindow, right: PayrollWindow) {
-  return left.startDate <= right.endDate && right.startDate <= left.endDate;
-}
-
-function getPayrollPaymentWindow(payment: PayrollPayment): PayrollWindow | null {
-  if (!payment.periodStart || !payment.periodEnd) {
-    return null;
-  }
-
-  return normalizePayrollWindow({
-    startDate: payment.periodStart,
-    endDate: payment.periodEnd,
-  });
-}
-
-export function normalizePayrollWindow(window: PayrollWindow): PayrollWindow {
-  if (window.startDate <= window.endDate) {
-    return window;
-  }
-
-  return {
-    startDate: window.endDate,
-    endDate: window.startDate,
-  };
 }
 
 export function resolveAttendanceAmount(entry: AttendanceEntry) {
@@ -132,193 +235,233 @@ export function getPayrollPresetWindow(
   };
 }
 
-export function getPayrollWindowLabel(
-  window: PayrollWindow,
-  locale: Locale = "bg",
-) {
-  const normalizedWindow = normalizePayrollWindow(window);
-  const dateLocale = getDateLocale(locale);
-  const start = parseISO(normalizedWindow.startDate);
-  const end = parseISO(normalizedWindow.endDate);
-  const startLabel = format(start, "d MMM", { locale: dateLocale });
-  const endLabel =
-    start.getFullYear() === end.getFullYear()
-      ? format(end, "d MMM", { locale: dateLocale })
-      : format(end, "d MMM yyyy", { locale: dateLocale });
+export function getNextPayday(employee: Employee, referenceDate: Date) {
+  const config = normalizeEmployeePaymentConfig(employee);
+  const normalizedReferenceDate = startOfDay(referenceDate);
 
-  if (locale === "bg") {
-    return `${startLabel} - ${endLabel}`;
+  if (config.paymentSchedule === "on_demand") {
+    return normalizedReferenceDate;
   }
 
-  return `${startLabel} to ${endLabel}`;
+  if (config.paymentSchedule === "weekly") {
+    const offset =
+      (config.paymentWeekday - getISODay(normalizedReferenceDate) + 7) % 7;
+    return startOfDay(addDays(normalizedReferenceDate, offset));
+  }
+
+  if (config.paymentSchedule === "monthly") {
+    const currentMonthCandidate = getCurrentMonthCandidate(
+      normalizedReferenceDate,
+      config.paymentDay1,
+    );
+
+    if (currentMonthCandidate >= normalizedReferenceDate) {
+      return currentMonthCandidate;
+    }
+
+    return getCurrentMonthCandidate(
+      addDays(endOfMonth(normalizedReferenceDate), 1),
+      config.paymentDay1,
+    );
+  }
+
+  let cursor = normalizedReferenceDate;
+
+  for (let iteration = 0; iteration < 3; iteration += 1) {
+    const firstCandidate = getCurrentMonthCandidate(cursor, config.paymentDay1);
+    if (firstCandidate >= normalizedReferenceDate) {
+      return firstCandidate;
+    }
+
+    const secondCandidate = getCurrentMonthCandidate(cursor, config.paymentDay2);
+    if (secondCandidate >= normalizedReferenceDate) {
+      return secondCandidate;
+    }
+
+    cursor = addDays(endOfMonth(cursor), 1);
+  }
+
+  return getCurrentMonthCandidate(cursor, config.paymentDay2);
+}
+
+export function isDueToday(employee: Employee, referenceDate: Date) {
+  return getNextPayday(employee, referenceDate).getTime() <= startOfDay(referenceDate).getTime();
+}
+
+export function getRunningBalance(
+  employee: Employee,
+  attendanceEntries: EmployeeAttendanceEntry[],
+  payments: PayrollPayment[],
+  referenceDate = new Date(),
+): RunningBalance {
+  const config = normalizeEmployeePaymentConfig(employee);
+  const referenceDateKey = formatDateKey(startOfDay(referenceDate));
+  const mostRecentPayrollPayment = getMostRecentPayrollPayment(payments);
+  const lowerBound =
+    mostRecentPayrollPayment === null
+      ? config.balanceStartsFrom
+      : formatDateKey(
+          addDays(parseISO(getPaymentDateKey(mostRecentPayrollPayment)), 1),
+        ) > config.balanceStartsFrom
+        ? formatDateKey(
+            addDays(parseISO(getPaymentDateKey(mostRecentPayrollPayment)), 1),
+          )
+        : config.balanceStartsFrom;
+
+  const applicableAttendance = attendanceEntries.filter(
+    (entry) =>
+      entry.workDate >= lowerBound &&
+      entry.workDate <= referenceDateKey,
+  );
+  const applicableAdvances = payments.filter((payment) => {
+    if (payment.paymentType !== "advance") {
+      return false;
+    }
+
+    const paymentDate = getPaymentDateKey(payment);
+    return paymentDate >= lowerBound && paymentDate <= referenceDateKey;
+  });
+  const grossAmount = roundPayrollAmount(
+    applicableAttendance.reduce((sum, entry) => sum + resolveAttendanceAmount(entry), 0),
+  );
+  const advancesTotal = roundPayrollAmount(
+    applicableAdvances.reduce((sum, payment) => sum + payment.amount, 0),
+  );
+  const periodStart = getEarliestActivityDate(
+    applicableAttendance,
+    applicableAdvances,
+    lowerBound,
+  );
+  const uniqueWorkedDays = new Set(
+    applicableAttendance.map((entry) => entry.workDate),
+  );
+
+  return {
+    totalShifts: roundPayrollAmount(
+      applicableAttendance.reduce((sum, entry) => sum + entry.payUnits, 0),
+    ),
+    grossAmount,
+    advancesTotal,
+    netAmount: roundPayrollAmount(grossAmount - advancesTotal),
+    periodStart,
+    periodEnd: periodStart ? referenceDateKey : null,
+    workedDays: uniqueWorkedDays.size,
+  };
 }
 
 export function buildPayrollRows(
+  employees: Employee[],
+  reports: DailyReportWithAttendance[],
+  payments?: PayrollPayment[],
+  referenceDate?: Date,
+): PayrollRow[];
+export function buildPayrollRows(
   reports: DailyReportWithAttendance[],
   employees: Employee[],
+  payments?: PayrollPayment[],
+  referenceWindow?: PayrollWindow,
+): PayrollRow[];
+export function buildPayrollRows(
+  first: Employee[] | DailyReportWithAttendance[],
+  second: Employee[] | DailyReportWithAttendance[],
   payments: PayrollPayment[] = [],
-  window: PayrollWindow,
+  reference?: Date | PayrollWindow,
 ): PayrollRow[] {
-  const normalizedWindow = normalizePayrollWindow(window);
+  const employeesFirst = isEmployeesFirstArgument(first, second, reference);
+  const employees = employeesFirst
+    ? (first as Employee[])
+    : (second as Employee[]);
+  const reports = employeesFirst
+    ? (second as DailyReportWithAttendance[])
+    : (first as DailyReportWithAttendance[]);
+  const effectiveReferenceDate = resolveReferenceDate(reference);
 
   return employees
     .map((employee) => {
-      let totalUnits = 0;
-      let totalAmount = 0;
-      let overrideCount = 0;
-      const workedDates: string[] = [];
-      let carryoverEarned = 0;
-
-      for (const report of reports) {
-        const entry = report.attendanceEntries.find(
-          (attendance) => attendance.employeeId === employee.id,
-        );
-
-        if (!entry) {
-          continue;
-        }
-
-        const amount = resolveAttendanceAmount(entry);
-
-        if (report.workDate < normalizedWindow.startDate) {
-          carryoverEarned += amount;
-          continue;
-        }
-
-        if (!isDateWithinWindow(report.workDate, normalizedWindow)) {
-          continue;
-        }
-
-        totalUnits += entry.payUnits;
-        totalAmount += amount;
-        if (entry.payOverride !== null) {
-          overrideCount += 1;
-        }
-        workedDates.push(report.workDate);
-      }
-
-      let advancesTotal = 0;
-      let advancesBeforeWindow = 0;
-      let settlementsTotal = 0;
-      let exactSettlementTotal = 0;
-      let settlementsBeforeWindow = 0;
-      let hasOverlappingSettlement = false;
-
-      for (const payment of payments) {
-        if (payment.employeeId !== employee.id) {
-          continue;
-        }
-
-        if (payment.paymentType === "advance") {
-          const paymentDate = getIsoDateKey(payment.createdAt);
-          if (!paymentDate) {
-            continue;
-          }
-
-          if (paymentDate < normalizedWindow.startDate) {
-            advancesBeforeWindow += payment.amount;
-          }
-
-          if (isDateWithinWindow(paymentDate, normalizedWindow)) {
-            advancesTotal += payment.amount;
-          }
-
-          continue;
-        }
-
-        const paymentWindow = getPayrollPaymentWindow(payment);
-        if (!paymentWindow) {
-          continue;
-        }
-
-        if (paymentWindow.endDate < normalizedWindow.startDate) {
-          settlementsBeforeWindow += payment.amount;
-        }
-
-        if (isWindowContained(paymentWindow, normalizedWindow)) {
-          settlementsTotal += payment.amount;
-        }
-
-        if (
-          paymentWindow.startDate === normalizedWindow.startDate &&
-          paymentWindow.endDate === normalizedWindow.endDate
-        ) {
-          exactSettlementTotal += payment.amount;
-        }
-
-        if (
-          windowsOverlap(paymentWindow, normalizedWindow) &&
-          !isWindowContained(paymentWindow, normalizedWindow) &&
-          !(
-            paymentWindow.startDate === normalizedWindow.startDate &&
-            paymentWindow.endDate === normalizedWindow.endDate
-          )
-        ) {
-          hasOverlappingSettlement = true;
-        }
-      }
-
-      const carryoverAmount = roundPayrollAmount(
-        carryoverEarned - advancesBeforeWindow - settlementsBeforeWindow,
+      const employeeAttendance = toAttendanceEntries(reports, employee.id);
+      const employeePayments = payments.filter(
+        (payment) => payment.employeeId === employee.id,
       );
-      const netAmountToPay = roundPayrollAmount(
-        totalAmount - advancesTotal - settlementsTotal,
+      const balance = getRunningBalance(
+        employee,
+        employeeAttendance,
+        employeePayments,
+        effectiveReferenceDate,
       );
-      const isPaid = exactSettlementTotal > 0;
-      const isSettled = netAmountToPay <= 0.0001;
+      const latestPayrollPayment = getMostRecentPayrollPayment(employeePayments);
+      const lastPaidAt = latestPayrollPayment
+        ? getPaymentDateKey(latestPayrollPayment)
+        : null;
+      const paymentSchedule = normalizeEmployeePaymentConfig(employee).paymentSchedule;
+      const nextPayday = getNextPayday(employee, effectiveReferenceDate);
+      const isSettled = balance.netAmount <= 0.0001;
+      const settlementsTotal = roundPayrollAmount(
+        employeePayments.reduce((sum, payment) => {
+          if (payment.paymentType !== "payroll") {
+            return sum;
+          }
+
+          return sum + payment.amount;
+        }, 0),
+      );
 
       return {
         employee,
-        totalUnits,
-        totalAmount: roundPayrollAmount(totalAmount),
-        overrideCount,
-        workedDates: workedDates.sort((left, right) => left.localeCompare(right)),
-        advancesTotal: roundPayrollAmount(advancesTotal),
-        settlementsTotal: roundPayrollAmount(settlementsTotal),
-        exactSettlementTotal: roundPayrollAmount(exactSettlementTotal),
-        carryoverAmount,
-        hasOverlappingSettlement,
-        isPaid,
+        paymentSchedule,
+        totalShifts: balance.totalShifts,
+        grossAmount: balance.grossAmount,
+        advancesTotal: balance.advancesTotal,
+        netAmount: balance.netAmount,
+        isDue: isDueToday(employee, effectiveReferenceDate),
+        nextPayday,
+        lastPaidAt,
+        periodStart: balance.periodStart,
+        periodEnd: balance.periodEnd,
+        workedDays: balance.workedDays,
+        settlementsTotal,
+        totalUnits: balance.totalShifts,
+        totalAmount: balance.grossAmount,
+        netAmountToPay: balance.netAmount,
         isSettled,
-        netAmountToPay,
-      };
+      } satisfies PayrollRow;
     })
-    .filter(
-      (row) =>
-        row.totalAmount > 0 ||
-        row.advancesTotal > 0 ||
-        row.settlementsTotal > 0 ||
-        row.carryoverAmount > 0 ||
-        row.isPaid ||
-        row.hasOverlappingSettlement,
-    )
     .sort((left, right) => {
-      const rightPriority =
-        Math.max(right.carryoverAmount, 0) + Math.max(right.netAmountToPay, 0);
-      const leftPriority =
-        Math.max(left.carryoverAmount, 0) + Math.max(left.netAmountToPay, 0);
+      const leftDueRank = left.isDue ? 0 : 1;
+      const rightDueRank = right.isDue ? 0 : 1;
 
-      return (
-        rightPriority - leftPriority ||
-        right.totalAmount - left.totalAmount ||
-        left.employee.fullName.localeCompare(right.employee.fullName)
-      );
+      if (leftDueRank !== rightDueRank) {
+        return leftDueRank - rightDueRank;
+      }
+
+      if (left.isDue && right.isDue) {
+        const leftOnDemandRank = left.paymentSchedule === "on_demand" ? 1 : 0;
+        const rightOnDemandRank = right.paymentSchedule === "on_demand" ? 1 : 0;
+
+        return (
+          leftOnDemandRank - rightOnDemandRank ||
+          right.netAmount - left.netAmount ||
+          left.employee.fullName.localeCompare(right.employee.fullName)
+        );
+      }
+
+      return compareUpcomingRows(left, right);
     });
 }
 
-export function summarizePayrollRows(rows: PayrollRow[]) {
+export function summarizePayrollRows(rows: PayrollRow[]): PayrollSummary {
   return {
-    totalPayroll: rows.reduce((sum, row) => sum + row.totalAmount, 0),
-    totalUnits: rows.reduce((sum, row) => sum + row.totalUnits, 0),
+    totalPayroll: roundPayrollAmount(
+      rows.reduce((sum, row) => sum + row.grossAmount, 0),
+    ),
+    totalUnits: roundPayrollAmount(
+      rows.reduce((sum, row) => sum + row.totalShifts, 0),
+    ),
     employeeCount: rows.length,
-    overrideDays: rows.reduce((sum, row) => sum + row.overrideCount, 0),
-    outstandingTotal: rows.reduce(
-      (sum, row) => sum + Math.max(row.netAmountToPay, 0),
-      0,
+    overrideDays: 0,
+    outstandingTotal: roundPayrollAmount(
+      rows.reduce((sum, row) => sum + Math.max(row.netAmount, 0), 0),
     ),
-    carryoverCount: rows.reduce(
-      (sum, row) => sum + (row.carryoverAmount > 0 ? 1 : 0),
-      0,
-    ),
+    carryoverCount: 0,
+    dueCount: rows.filter((row) => row.isDue && row.netAmount > 0.0001).length,
   };
 }

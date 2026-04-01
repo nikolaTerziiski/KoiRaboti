@@ -16,10 +16,12 @@ import {
   type ProfileSettingsActionState,
   updateRestaurantSettingsAction,
 } from "@/actions/profile";
+import { PayrollCadenceFields } from "@/components/payroll/payroll-cadence-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocale } from "@/lib/i18n/context";
+import { buildRestaurantPayrollDraft } from "@/lib/payroll-settings";
 import type { Profile, Restaurant, SnapshotMode } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +53,9 @@ export function ProfilePageClient({
   const refreshedRef = useRef<string | null>(null);
   const copyTimeoutRef = useRef<number | null>(null);
   const [restaurantName, setRestaurantName] = useState(restaurant?.name ?? "");
+  const [payrollDraft, setPayrollDraft] = useState(() =>
+    buildRestaurantPayrollDraft(restaurant),
+  );
   const [copied, setCopied] = useState(false);
   const [state, saveAction, isSaving] = useActionState(
     updateRestaurantSettingsAction,
@@ -83,6 +88,9 @@ export function ProfilePageClient({
           logout: "Изход",
           businessTitle: "Общи данни",
           businessDescription: "Управлявайте основните данни за обекта.",
+          payrollTitle: "Payroll по подразбиране",
+          payrollDescription:
+            "Това е общият график за заплащане, който новите служители наследяват по подразбиране.",
           restaurantName: "Име на обект",
           adminEmail: "Администратор",
           save: "Запази промените",
@@ -109,6 +117,9 @@ export function ProfilePageClient({
           logout: "Sign out",
           businessTitle: "General details",
           businessDescription: "Manage the core business information.",
+          payrollTitle: "Default payroll schedule",
+          payrollDescription:
+            "This is the shared payroll rhythm that new employees inherit by default.",
           restaurantName: "Business name",
           adminEmail: "Administrator",
           save: "Save changes",
@@ -264,6 +275,26 @@ export function ProfilePageClient({
                 />
               </div>
             </div>
+
+            <PayrollCadenceFields
+              idPrefix="profile-restaurant-default-payroll"
+              title={copy.payrollTitle}
+              description={copy.payrollDescription}
+              value={payrollDraft}
+              onChange={(field, nextValue) =>
+                setPayrollDraft((current) => ({
+                  ...current,
+                  [field]: nextValue,
+                }))
+              }
+              fieldNames={{
+                cadence: "defaultPayrollCadence",
+                weeklyPayday: "defaultWeeklyPayday",
+                monthlyPayDay: "defaultMonthlyPayDay",
+                twiceMonthlyDay1: "defaultTwiceMonthlyDay1",
+                twiceMonthlyDay2: "defaultTwiceMonthlyDay2",
+              }}
+            />
 
             {feedback ? (
               <div className={cn("rounded-2xl px-4 py-3 text-sm font-medium", feedbackClassName)}>

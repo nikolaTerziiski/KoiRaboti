@@ -23,6 +23,34 @@ create table if not exists public.restaurants (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   default_daily_expense numeric(12, 4) not null default 409.0335 check (default_daily_expense >= 0),
+  default_payroll_cadence text not null default 'monthly'
+    check (default_payroll_cadence in ('daily', 'weekly', 'twice_monthly', 'monthly')),
+  default_weekly_payday integer default 5
+    check (default_weekly_payday is null or default_weekly_payday between 1 and 7),
+  default_monthly_pay_day integer default 1
+    check (default_monthly_pay_day is null or default_monthly_pay_day between 1 and 31),
+  default_twice_monthly_day_1 integer default 15
+    check (
+      default_twice_monthly_day_1 is null
+      or default_twice_monthly_day_1 between 1 and 31
+    ),
+  default_twice_monthly_day_2 integer default 30
+    check (
+      default_twice_monthly_day_2 is null
+      or default_twice_monthly_day_2 between 1 and 31
+    ),
+  constraint restaurants_default_payroll_schedule_check check (
+    (default_payroll_cadence <> 'weekly' or default_weekly_payday is not null)
+    and (default_payroll_cadence <> 'monthly' or default_monthly_pay_day is not null)
+    and (
+      default_payroll_cadence <> 'twice_monthly'
+      or (
+        default_twice_monthly_day_1 is not null
+        and default_twice_monthly_day_2 is not null
+        and default_twice_monthly_day_1 <> default_twice_monthly_day_2
+      )
+    )
+  ),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -45,6 +73,62 @@ create table if not exists public.employees (
   phone_number text,
   daily_rate numeric(10, 4) not null check (daily_rate >= 0),
   is_active boolean not null default true,
+  use_restaurant_payroll_defaults boolean not null default true,
+  payroll_cadence text
+    check (payroll_cadence is null or payroll_cadence in ('daily', 'weekly', 'twice_monthly', 'monthly')),
+  weekly_payday integer
+    check (weekly_payday is null or weekly_payday between 1 and 7),
+  monthly_pay_day integer
+    check (monthly_pay_day is null or monthly_pay_day between 1 and 31),
+  twice_monthly_day_1 integer
+    check (twice_monthly_day_1 is null or twice_monthly_day_1 between 1 and 31),
+  twice_monthly_day_2 integer
+    check (twice_monthly_day_2 is null or twice_monthly_day_2 between 1 and 31),
+  payment_schedule text not null default 'twice_monthly'
+    check (payment_schedule in ('twice_monthly', 'weekly', 'monthly', 'on_demand')),
+  payment_day_1 integer not null default 1
+    check (payment_day_1 between 1 and 28),
+  payment_day_2 integer not null default 16
+    check (payment_day_2 between 1 and 28),
+  payment_weekday integer not null default 1
+    check (payment_weekday between 1 and 7),
+  balance_starts_from date not null default current_date,
+  constraint employees_payroll_override_required_check check (
+    use_restaurant_payroll_defaults
+    or payroll_cadence is not null
+  ),
+  constraint employees_payroll_schedule_check check (
+    use_restaurant_payroll_defaults
+    or (
+      (payroll_cadence <> 'weekly' or weekly_payday is not null)
+      and (payroll_cadence <> 'monthly' or monthly_pay_day is not null)
+      and (
+        payroll_cadence <> 'twice_monthly'
+        or (
+          twice_monthly_day_1 is not null
+          and twice_monthly_day_2 is not null
+          and twice_monthly_day_1 <> twice_monthly_day_2
+        )
+      )
+    )
+  ),
+  constraint employees_payment_schedule_shape_check check (
+    (
+      payment_schedule = 'weekly'
+      and payment_weekday between 1 and 7
+    )
+    or (
+      payment_schedule = 'monthly'
+      and payment_day_1 between 1 and 28
+    )
+    or (
+      payment_schedule = 'twice_monthly'
+      and payment_day_1 between 1 and 28
+      and payment_day_2 between 1 and 28
+      and payment_day_1 <> payment_day_2
+    )
+    or payment_schedule = 'on_demand'
+  ),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -84,16 +168,20 @@ create table if not exists public.payroll_payments (
   employee_id uuid not null references public.employees (id) on delete cascade,
   amount numeric(10, 4) not null check (amount >= 0),
   payment_type text not null check (payment_type in ('advance', 'payroll')),
-  period_start date not null,
-  period_end date not null,
-  check (period_start <= period_end),
+  period_start date,
+  period_end date,
+  paid_on date not null default current_date,
   created_at timestamptz not null default timezone('utc', now())
 );
 
 comment on column public.restaurants.default_daily_expense is 'Stored in EUR. Used as the initial manual_expense on daily reports.';
+comment on column public.restaurants.default_payroll_cadence is 'Default cadence for payroll due-highlighting and new employees.';
 comment on column public.employees.daily_rate is 'Stored in EUR. The UI also shows BGN using the fixed rate 1.95583.';
 comment on column public.employees.role is 'Employee role used for grouping and color-coding in the UI. Allowed values: kitchen or service.';
 comment on column public.employees.phone_number is 'Optional. Stored as entered. Uniqueness is enforced on the normalised digits-only form per restaurant.';
+comment on column public.employees.use_restaurant_payroll_defaults is 'When true, the employee inherits the restaurant payroll cadence and schedule.';
+comment on column public.employees.payment_schedule is 'Employee payment schedule used to calculate the next payday and due state.';
+comment on column public.employees.balance_starts_from is 'Running balance excludes attendance and advances before this date.';
 comment on column public.daily_reports.turnover is 'Stored in EUR.';
 comment on column public.daily_reports.profit is 'Stored in EUR.';
 comment on column public.daily_reports.card_amount is 'Stored in EUR.';
@@ -103,10 +191,11 @@ comment on column public.attendance_entries.pay_units is 'Number of paid shifts 
 comment on column public.attendance_entries.daily_rate is 'Stored in EUR snapshot of the employee daily_rate at the time the attendance entry is saved.';
 comment on column public.attendance_entries.pay_override is 'Optional custom EUR override for that day.';
 comment on column public.attendance_entries.notes is 'Optional attendance note for the employee on that work date.';
-comment on column public.payroll_payments.amount is 'Stored in EUR. Used for payroll advances and payroll settlement records.';
-comment on column public.payroll_payments.payment_type is 'Advance or payroll settlement.';
-comment on column public.payroll_payments.period_start is 'Selected payroll window start date for the recorded transaction.';
-comment on column public.payroll_payments.period_end is 'Selected payroll window end date for the recorded transaction.';
+comment on column public.payroll_payments.amount is 'Stored in EUR. Used for payroll advances and running-balance reset records.';
+comment on column public.payroll_payments.payment_type is 'Advance or payroll reset payment.';
+comment on column public.payroll_payments.period_start is 'Legacy settlement coverage start date. Unused by running-balance payroll.';
+comment on column public.payroll_payments.period_end is 'Legacy settlement coverage end date. Unused by running-balance payroll.';
+comment on column public.payroll_payments.paid_on is 'Effective payment date for advances and payroll resets.';
 
 drop trigger if exists restaurants_set_updated_at on public.restaurants;
 create trigger restaurants_set_updated_at
@@ -141,13 +230,6 @@ execute procedure public.set_updated_at();
 create index if not exists payroll_payments_employee_created_idx
   on public.payroll_payments (employee_id, created_at desc);
 
-create index if not exists payroll_payments_employee_period_idx
-  on public.payroll_payments (employee_id, period_start, period_end);
-
-create unique index if not exists payroll_payments_unique_payroll
-  on public.payroll_payments (employee_id, period_start, period_end)
-  where payment_type = 'payroll';
-
 create or replace function public.get_user_restaurant_id()
 returns uuid
 language sql
@@ -163,7 +245,12 @@ create or replace function public.register_restaurant(
   p_user_email text,
   p_restaurant_name text,
   p_admin_full_name text,
-  p_default_daily_expense numeric
+  p_default_daily_expense numeric,
+  p_default_payroll_cadence text,
+  p_default_weekly_payday integer,
+  p_default_monthly_pay_day integer,
+  p_default_twice_monthly_day_1 integer,
+  p_default_twice_monthly_day_2 integer
 )
 returns uuid
 language plpgsql
@@ -173,8 +260,24 @@ as $$
 declare
   v_restaurant_id uuid;
 begin
-  insert into public.restaurants (name, default_daily_expense)
-  values (p_restaurant_name, p_default_daily_expense)
+  insert into public.restaurants (
+    name,
+    default_daily_expense,
+    default_payroll_cadence,
+    default_weekly_payday,
+    default_monthly_pay_day,
+    default_twice_monthly_day_1,
+    default_twice_monthly_day_2
+  )
+  values (
+    p_restaurant_name,
+    p_default_daily_expense,
+    p_default_payroll_cadence,
+    p_default_weekly_payday,
+    p_default_monthly_pay_day,
+    p_default_twice_monthly_day_1,
+    p_default_twice_monthly_day_2
+  )
   returning id into v_restaurant_id;
 
   insert into public.profiles (id, restaurant_id, full_name, email)
@@ -184,7 +287,7 @@ begin
 end;
 $$;
 
-grant execute on function public.register_restaurant(uuid, text, text, text, numeric)
+grant execute on function public.register_restaurant(uuid, text, text, text, numeric, text, integer, integer, integer, integer)
   to anon, authenticated;
 
 alter table public.restaurants enable row level security;
@@ -689,7 +792,12 @@ create or replace function public.register_restaurant(
   p_user_email text,
   p_restaurant_name text,
   p_admin_full_name text,
-  p_default_daily_expense numeric
+  p_default_daily_expense numeric,
+  p_default_payroll_cadence text,
+  p_default_weekly_payday integer,
+  p_default_monthly_pay_day integer,
+  p_default_twice_monthly_day_1 integer,
+  p_default_twice_monthly_day_2 integer
 )
 returns uuid
 language plpgsql
@@ -699,8 +807,24 @@ as $$
 declare
   v_restaurant_id uuid;
 begin
-  insert into public.restaurants (name, default_daily_expense)
-  values (p_restaurant_name, p_default_daily_expense)
+  insert into public.restaurants (
+    name,
+    default_daily_expense,
+    default_payroll_cadence,
+    default_weekly_payday,
+    default_monthly_pay_day,
+    default_twice_monthly_day_1,
+    default_twice_monthly_day_2
+  )
+  values (
+    p_restaurant_name,
+    p_default_daily_expense,
+    p_default_payroll_cadence,
+    p_default_weekly_payday,
+    p_default_monthly_pay_day,
+    p_default_twice_monthly_day_1,
+    p_default_twice_monthly_day_2
+  )
   returning id into v_restaurant_id;
 
   insert into public.profiles (id, restaurant_id, full_name, email)

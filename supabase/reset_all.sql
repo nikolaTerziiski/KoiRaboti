@@ -36,7 +36,18 @@ drop function if exists public.attach_user_to_restaurant(
 drop function if exists public.sync_daily_report_manual_expense_from_items() cascade;
 drop function if exists public.seed_restaurant_expense_categories(uuid) cascade;
 drop function if exists public.seed_default_categories(uuid) cascade;
-drop function if exists public.register_restaurant(uuid, text, text, text, numeric) cascade;
+drop function if exists public.register_restaurant(
+  uuid,
+  text,
+  text,
+  text,
+  numeric,
+  text,
+  integer,
+  integer,
+  integer,
+  integer
+) cascade;
 drop function if exists public.register_restaurant(text, text, numeric) cascade;
 drop function if exists public.get_user_restaurant_id() cascade;
 drop function if exists public.set_updated_at() cascade;

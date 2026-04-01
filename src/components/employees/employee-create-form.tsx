@@ -5,6 +5,10 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import type { EmployeeActionState } from "@/actions/employees";
 import { createEmployeeAction } from "@/actions/employees";
+import {
+  EmployeePaymentScheduleFields,
+  type EmployeePaymentScheduleDraft,
+} from "@/components/employees/payment-schedule-fields";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -15,8 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
-import { useLocale } from "@/lib/i18n/context";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
+import { useLocale } from "@/lib/i18n/context";
 import type { SnapshotMode } from "@/lib/types";
 
 const initialEmployeeActionState: EmployeeActionState = {
@@ -31,19 +35,35 @@ type EmployeeCreateFormProps = {
   onSuccess?: () => void;
 };
 
-function createInitialDraft() {
-  return {
-    fullName: "",
-    role: "service" as "kitchen" | "service",
-    phoneNumber: "",
-    dailyRate: "",
-  };
-}
+type EmployeeCreateDraft = {
+  fullName: string;
+  role: "kitchen" | "service";
+  phoneNumber: string;
+  dailyRate: string;
+  balanceStartsFrom: string;
+  payment: EmployeePaymentScheduleDraft;
+};
 
 function toNumber(value: string) {
   const normalizedValue = value.replace(/,/g, ".").trim();
   const numericValue = Number(normalizedValue);
   return Number.isFinite(numericValue) ? numericValue : 0;
+}
+
+function createInitialDraft(): EmployeeCreateDraft {
+  return {
+    fullName: "",
+    role: "service" as "kitchen" | "service",
+    phoneNumber: "",
+    dailyRate: "",
+    balanceStartsFrom: new Date().toISOString().slice(0, 10),
+    payment: {
+      paymentSchedule: "twice_monthly" as const,
+      paymentDay1: "1",
+      paymentDay2: "16",
+      paymentWeekday: 1,
+    },
+  };
 }
 
 export function EmployeeCreateForm({
@@ -57,7 +77,7 @@ export function EmployeeCreateForm({
     createEmployeeAction,
     initialEmployeeActionState,
   );
-  const [draft, setDraft] = useState(createInitialDraft);
+  const [draft, setDraft] = useState<EmployeeCreateDraft>(createInitialDraft);
 
   useEffect(() => {
     if (
@@ -92,6 +112,12 @@ export function EmployeeCreateForm({
 
       <div className="bg-slate-50/50 p-6 dark:bg-slate-950/80">
         <form action={formAction} className="space-y-4">
+          <input
+            type="hidden"
+            name="balanceStartsFrom"
+            value={draft.balanceStartsFrom}
+          />
+
           <div className="space-y-2">
             <Label htmlFor="create-fullName">{t.employees.name}</Label>
             <Input
@@ -157,6 +183,32 @@ export function EmployeeCreateForm({
             <p className="text-xs text-muted-foreground">
               {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
+          </div>
+
+          <div className="space-y-3 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">
+              {t.employees.paymentSchedule}
+            </p>
+
+            <EmployeePaymentScheduleFields
+              idPrefix="create-employee-payment"
+              value={draft.payment}
+              onChange={(field, nextValue) =>
+                setDraft((current) => ({
+                  ...current,
+                  payment: {
+                    ...current.payment,
+                    [field]: nextValue,
+                  } as EmployeePaymentScheduleDraft,
+                }))
+              }
+              fieldNames={{
+                paymentSchedule: "paymentSchedule",
+                paymentDay1: "paymentDay1",
+                paymentDay2: "paymentDay2",
+                paymentWeekday: "paymentWeekday",
+              }}
+            />
           </div>
 
           {actionState.status !== "idle" ? (

@@ -2,34 +2,61 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildPayrollRows,
-  getPayrollPresetWindow,
+  getNextPayday,
+  getRunningBalance,
+  isDueToday,
   resolveAttendanceAmount,
-  summarizePayrollRows,
 } from "../src/lib/payroll.ts";
 
-const employee = {
-  id: "employee-1",
-  fullName: "Test Employee",
-  role: "service",
-  phoneNumber: null,
-  dailyRate: 100,
-  isActive: true,
-};
+function formatLocalDate(date) {
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
 
-function createAttendance(overrides = {}) {
+function createEmployee(overrides = {}) {
   return {
-    id: "attendance-1",
-    dailyReportId: "report-1",
-    employeeId: employee.id,
-    dailyRate: 50,
-    payUnits: 1,
-    payOverride: null,
-    notes: null,
+    id: "employee-1",
+    restaurantId: "restaurant-1",
+    firstName: "Test",
+    lastName: "Employee",
+    fullName: "Test Employee",
+    role: "service",
+    phoneNumber: null,
+    dailyRate: 100,
+    isActive: true,
+    useRestaurantPayrollDefaults: true,
+    payrollCadence: null,
+    weeklyPayday: null,
+    monthlyPayDay: null,
+    twiceMonthlyDay1: null,
+    twiceMonthlyDay2: null,
+    paymentSchedule: "twice_monthly",
+    paymentDay1: 1,
+    paymentDay2: 16,
+    paymentWeekday: 1,
+    balanceStartsFrom: "2026-01-01",
     ...overrides,
   };
 }
 
-function createReport(workDate, attendanceEntries) {
+function createAttendance(employeeId, overrides = {}) {
+  return {
+    id: `attendance-${employeeId}-${overrides.dailyReportId ?? "report-1"}`,
+    dailyReportId: overrides.dailyReportId ?? "report-1",
+    employeeId,
+    dailyRate: 100,
+    payUnits: 1,
+    payOverride: null,
+    notes: null,
+    workDate: "2026-04-01",
+    ...overrides,
+  };
+}
+
+function createReport(workDate, attendanceEntries = []) {
   return {
     id: `report-${workDate}`,
     workDate,
@@ -38,7 +65,10 @@ function createReport(workDate, attendanceEntries) {
     cardAmount: 0,
     manualExpense: 0,
     notes: null,
-    attendanceEntries,
+    attendanceEntries: attendanceEntries.map((entry) => ({
+      ...entry,
+      workDate: undefined,
+    })),
     expenseItems: [],
   };
 }
@@ -46,22 +76,25 @@ function createReport(workDate, attendanceEntries) {
 function createPayment(overrides = {}) {
   return {
     id: "payment-1",
-    employeeId: employee.id,
+    employeeId: "employee-1",
     amount: 10,
     paymentType: "advance",
     periodStart: null,
     periodEnd: null,
-    createdAt: "2026-03-01T00:00:00.000Z",
+    paidOn: "2026-04-01",
+    createdAt: "2026-04-01T10:00:00.000Z",
     ...overrides,
   };
 }
 
 test("resolveAttendanceAmount prefers pay override when present", () => {
-  const standardEntry = createAttendance({
+  const standardEntry = createAttendance("employee-1", {
     payUnits: 1.5,
+    dailyRate: 50,
   });
-  const overriddenEntry = createAttendance({
+  const overriddenEntry = createAttendance("employee-1", {
     payUnits: 2,
+    dailyRate: 50,
     payOverride: 140,
   });
 
@@ -69,120 +102,165 @@ test("resolveAttendanceAmount prefers pay override when present", () => {
   assert.equal(resolveAttendanceAmount(overriddenEntry), 140);
 });
 
-test("buildPayrollRows aggregates only the selected date range", () => {
-  const reports = [
-    createReport("2026-03-10", [createAttendance({ payUnits: 1 })]),
-    createReport("2026-03-16", [createAttendance({ payUnits: 2 })]),
-    createReport("2026-04-02", [createAttendance({ payUnits: 1.5 })]),
-  ];
-
-  const rows = buildPayrollRows(reports, [employee], [], {
-    startDate: "2026-03-10",
-    endDate: "2026-03-18",
+test("getNextPayday returns the correct next twice-monthly date", () => {
+  const employee = createEmployee({
+    paymentSchedule: "twice_monthly",
+    paymentDay1: 1,
+    paymentDay2: 16,
   });
 
-  assert.equal(rows[0]?.totalUnits, 3);
-  assert.equal(rows[0]?.totalAmount, 150);
+  assert.equal(
+    formatLocalDate(getNextPayday(employee, new Date(2026, 3, 2, 12, 0, 0))),
+    "2026-04-16",
+  );
 });
 
-test("buildPayrollRows collects worked dates in ascending order", () => {
-  const reports = [
-    createReport("2026-03-05", [createAttendance({ payUnits: 1 })]),
-    createReport("2026-03-01", [createAttendance({ payUnits: 1 })]),
-    createReport("2026-03-03", [createAttendance({ payUnits: 1 })]),
-  ];
-
-  const rows = buildPayrollRows(reports, [employee], [], {
-    startDate: "2026-03-01",
-    endDate: "2026-03-05",
+test("weekly employees become due on the configured weekday", () => {
+  const employee = createEmployee({
+    paymentSchedule: "weekly",
+    paymentWeekday: 5,
   });
 
-  assert.deepEqual(rows[0]?.workedDates, [
-    "2026-03-01",
-    "2026-03-03",
-    "2026-03-05",
-  ]);
+  assert.equal(
+    formatLocalDate(getNextPayday(employee, new Date(2026, 3, 1, 12, 0, 0))),
+    "2026-04-03",
+  );
+  assert.equal(isDueToday(employee, new Date(2026, 3, 3, 12, 0, 0)), true);
 });
 
-test("buildPayrollRows calculates advances, settlements, and exact payment status", () => {
-  const reports = [createReport("2026-03-05", [createAttendance({ payUnits: 1 })])];
+test("on-demand employees are always due", () => {
+  const employee = createEmployee({
+    paymentSchedule: "on_demand",
+  });
+
+  assert.equal(isDueToday(employee, new Date("2026-04-18T12:00:00.000Z")), true);
+});
+
+test("getRunningBalance respects balance start and payroll reset", () => {
+  const employee = createEmployee({
+    balanceStartsFrom: "2026-04-01",
+  });
+  const attendanceEntries = [
+    createAttendance(employee.id, { workDate: "2026-03-30" }),
+    createAttendance(employee.id, {
+      id: "attendance-2",
+      dailyReportId: "report-2",
+      workDate: "2026-04-01",
+    }),
+    createAttendance(employee.id, {
+      id: "attendance-3",
+      dailyReportId: "report-3",
+      workDate: "2026-04-03",
+      payUnits: 1.5,
+    }),
+  ];
   const payments = [
-    createPayment({ amount: 20, paymentType: "advance", createdAt: "2026-03-05T10:00:00.000Z" }),
     createPayment({
-      id: "payment-2",
-      amount: 30,
+      id: "payroll-reset",
+      employeeId: employee.id,
+      amount: 100,
       paymentType: "payroll",
-      periodStart: "2026-03-01",
-      periodEnd: "2026-03-15",
+      paidOn: "2026-04-01",
+      createdAt: "2026-04-01T20:00:00.000Z",
+    }),
+    createPayment({
+      id: "advance-1",
+      employeeId: employee.id,
+      amount: 30,
+      paymentType: "advance",
+      paidOn: "2026-04-02",
     }),
   ];
 
-  const rows = buildPayrollRows(reports, [employee], payments, {
-    startDate: "2026-03-01",
-    endDate: "2026-03-15",
-  });
-
-  assert.equal(rows[0]?.advancesTotal, 20);
-  assert.equal(rows[0]?.settlementsTotal, 30);
-  assert.equal(rows[0]?.isPaid, true);
-  assert.equal(rows[0]?.isSettled, true);
-  assert.equal(rows[0]?.netAmountToPay, 0);
-});
-
-test("buildPayrollRows surfaces unpaid carryover before the selected range", () => {
-  const reports = [createReport("2026-03-01", [createAttendance({ payUnits: 1 })])];
-
-  const rows = buildPayrollRows(reports, [employee], [], {
-    startDate: "2026-03-10",
-    endDate: "2026-03-15",
-  });
-
-  assert.equal(rows[0]?.totalAmount, 0);
-  assert.equal(rows[0]?.carryoverAmount, 50);
-});
-
-test("summarizePayrollRows returns totals for payroll cards", () => {
-  const rows = buildPayrollRows(
-    [
-      createReport("2026-03-01", [createAttendance({ payUnits: 1 })]),
-      createReport(
-        "2026-03-05",
-        [createAttendance({ payUnits: 1.5, payOverride: 95 })],
-      ),
-    ],
-    [employee],
-    [],
-    {
-      startDate: "2026-03-01",
-      endDate: "2026-03-15",
-    },
+  const balance = getRunningBalance(
+    employee,
+    attendanceEntries,
+    payments,
+    new Date("2026-04-03T12:00:00.000Z"),
   );
 
-  const summary = summarizePayrollRows(rows);
-
-  assert.equal(summary.employeeCount, 1);
-  assert.equal(summary.totalUnits, 2.5);
-  assert.equal(summary.totalPayroll, 145);
-  assert.equal(summary.overrideDays, 1);
-  assert.equal(summary.outstandingTotal, 145);
-  assert.equal(summary.carryoverCount, 0);
+  assert.equal(balance.totalShifts, 1.5);
+  assert.equal(balance.grossAmount, 150);
+  assert.equal(balance.advancesTotal, 30);
+  assert.equal(balance.netAmount, 120);
+  assert.equal(balance.periodStart, "2026-04-02");
+  assert.equal(balance.periodEnd, "2026-04-03");
 });
 
-test("getPayrollPresetWindow returns weekly and half-month presets", () => {
-  const week = getPayrollPresetWindow("week", new Date("2026-04-10"));
-  const firstHalf = getPayrollPresetWindow("first_half", new Date("2026-04-10"));
-  const secondHalf = getPayrollPresetWindow("second_half", new Date("2026-04-10"));
+test("buildPayrollRows sorts due employees before upcoming ones", () => {
+  const dueEmployee = createEmployee({
+    id: "employee-due",
+    firstName: "Due",
+    lastName: "Employee",
+    fullName: "Due Employee",
+    paymentSchedule: "monthly",
+    paymentDay1: 1,
+  });
+  const upcomingEmployee = createEmployee({
+    id: "employee-upcoming",
+    firstName: "Upcoming",
+    lastName: "Employee",
+    fullName: "Upcoming Employee",
+    paymentSchedule: "weekly",
+    paymentWeekday: 5,
+  });
+  const reports = [
+    createReport("2026-04-01", [createAttendance(dueEmployee.id)]),
+    createReport("2026-04-01", [
+      createAttendance(upcomingEmployee.id, {
+        id: "attendance-upcoming",
+        dailyReportId: "report-upcoming",
+      }),
+    ]),
+  ];
+  const rows = buildPayrollRows(
+    [dueEmployee, upcomingEmployee],
+    reports,
+    [],
+    new Date("2026-04-01T12:00:00.000Z"),
+  );
 
-  assert.deepEqual(week, {
-    startDate: "2026-04-06",
-    endDate: "2026-04-12",
-  });
-  assert.deepEqual(firstHalf, {
+  assert.equal(rows[0]?.employee.id, "employee-due");
+  assert.equal(rows[0]?.isDue, true);
+  assert.equal(rows[1]?.employee.id, "employee-upcoming");
+});
+
+test("buildPayrollRows supports legacy argument order for compatibility", () => {
+  const employee = createEmployee();
+  const reports = [createReport("2026-04-01", [createAttendance(employee.id)])];
+  const rows = buildPayrollRows(reports, [employee], [], {
     startDate: "2026-04-01",
-    endDate: "2026-04-15",
+    endDate: "2026-04-01",
   });
-  assert.deepEqual(secondHalf, {
-    startDate: "2026-04-16",
-    endDate: "2026-04-30",
+
+  assert.equal(rows[0]?.employee.id, employee.id);
+  assert.equal(rows[0]?.grossAmount, 100);
+  assert.equal(rows[0]?.netAmountToPay, 100);
+  assert.equal(rows[0]?.isSettled, false);
+});
+
+test("advances reduce the payable balance", () => {
+  const employee = createEmployee({
+    paymentSchedule: "monthly",
+    paymentDay1: 1,
   });
+  const reports = [createReport("2026-04-01", [createAttendance(employee.id)])];
+  const payments = [
+    createPayment({
+      employeeId: employee.id,
+      amount: 35,
+      paymentType: "advance",
+      paidOn: "2026-04-01",
+    }),
+  ];
+  const rows = buildPayrollRows(
+    [employee],
+    reports,
+    payments,
+    new Date("2026-04-01T12:00:00.000Z"),
+  );
+
+  assert.equal(rows[0]?.grossAmount, 100);
+  assert.equal(rows[0]?.advancesTotal, 35);
+  assert.equal(rows[0]?.netAmount, 65);
 });

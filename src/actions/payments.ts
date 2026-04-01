@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
-import { normalizePayrollWindow } from "@/lib/payroll";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -22,34 +21,29 @@ function parsePositiveAmount(value: FormDataEntryValue | null, fieldName: string
   return parsed;
 }
 
-function parseNonNegativeAmount(value: FormDataEntryValue | null, fieldName: string) {
-  const parsed = Number(value ?? "");
-  if (!Number.isFinite(parsed) || parsed < 0) {
-    throw new Error(`${fieldName} must be a valid number greater than or equal to 0.`);
+function getEmployeeId(formData: FormData) {
+  const employeeId = String(formData.get("employeeId") ?? "").trim();
+  if (!employeeId) {
+    throw new Error("Employee id is required.");
   }
 
-  return parsed;
+  return employeeId;
 }
 
-function parseIsoDate(value: FormDataEntryValue | null, fieldName: string) {
-  const normalized = String(value ?? "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    throw new Error(`${fieldName} is invalid.`);
-  }
-
-  return normalized;
-}
-
-function parsePayrollWindowFromForm(formData: FormData) {
-  return normalizePayrollWindow({
-    startDate: parseIsoDate(formData.get("periodStart"), "Period start"),
-    endDate: parseIsoDate(formData.get("periodEnd"), "Period end"),
-  });
-}
-
-function revalidatePayrollViews() {
+function revalidatePayrollViews(employeeId: string) {
   revalidatePath("/payroll");
+  revalidatePath("/employees");
+  revalidatePath(`/employees/${employeeId}`);
   revalidatePath("/profile");
+}
+
+function buildErrorState(message: string): PayrollPaymentActionState {
+  return {
+    status: "error",
+    message,
+    messageKey: "msgSaveError",
+    refreshKey: null,
+  };
 }
 
 export async function addPayrollAdvanceAction(
@@ -57,22 +51,12 @@ export async function addPayrollAdvanceAction(
   formData: FormData,
 ): Promise<PayrollPaymentActionState> {
   if (!hasSupabaseCredentials()) {
-    return {
-      status: "error",
-      message: "Payroll advances cannot be saved in demo mode.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState("Payroll advances cannot be saved in demo mode.");
   }
 
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
-    return {
-      status: "error",
-      message: "Live data connection is unavailable for payroll advances.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState("Live data connection is unavailable for payroll advances.");
   }
 
   try {
@@ -80,27 +64,19 @@ export async function addPayrollAdvanceAction(
       throw new Error("No restaurant found for current user.");
     }
 
-    const employeeId = String(formData.get("employeeId") ?? "").trim();
-    const window = parsePayrollWindowFromForm(formData);
+    const employeeId = getEmployeeId(formData);
     const amount = parsePositiveAmount(formData.get("amount"), "Advance amount");
-
-    if (!employeeId) {
-      throw new Error("Employee id is required.");
-    }
-
     const { error } = await supabase.from("payroll_payments").insert({
       employee_id: employeeId,
       amount,
       payment_type: "advance",
-      period_start: window.startDate,
-      period_end: window.endDate,
     });
 
     if (error) {
       throw new Error(error.message);
     }
 
-    revalidatePayrollViews();
+    revalidatePayrollViews(employeeId);
 
     return {
       status: "success",
@@ -109,13 +85,9 @@ export async function addPayrollAdvanceAction(
       refreshKey: crypto.randomUUID(),
     };
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Payroll advance could not be saved.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState(
+      error instanceof Error ? error.message : "Payroll advance could not be saved.",
+    );
   }
 }
 
@@ -124,22 +96,12 @@ export async function togglePayrollPaymentAction(
   formData: FormData,
 ): Promise<PayrollPaymentActionState> {
   if (!hasSupabaseCredentials()) {
-    return {
-      status: "error",
-      message: "Payroll payments cannot be updated in demo mode.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState("Payroll payments cannot be updated in demo mode.");
   }
 
   const supabase = await getSupabaseServerClient();
   if (!supabase) {
-    return {
-      status: "error",
-      message: "Live data connection is unavailable for payroll payments.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState("Live data connection is unavailable for payroll payments.");
   }
 
   try {
@@ -147,76 +109,64 @@ export async function togglePayrollPaymentAction(
       throw new Error("No restaurant found for current user.");
     }
 
-    const employeeId = String(formData.get("employeeId") ?? "").trim();
-    const window = parsePayrollWindowFromForm(formData);
-    const amount = parseNonNegativeAmount(formData.get("amount"), "Payroll amount");
+    const employeeId = getEmployeeId(formData);
+    const intent = String(formData.get("intent") ?? "pay").trim() === "undo"
+      ? "undo"
+      : "pay";
 
-    if (!employeeId) {
-      throw new Error("Employee id is required.");
-    }
+    if (intent === "undo") {
+      const { data: latestPayment, error: latestPaymentError } = await supabase
+        .from("payroll_payments")
+        .select("id")
+        .eq("employee_id", employeeId)
+        .eq("payment_type", "payroll")
+        .order("paid_on", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    const { data: existingRows, error: existingError } = await supabase
-      .from("payroll_payments")
-      .select("id")
-      .eq("employee_id", employeeId)
-      .eq("period_start", window.startDate)
-      .eq("period_end", window.endDate)
-      .eq("payment_type", "payroll");
+      if (latestPaymentError) {
+        throw new Error(latestPaymentError.message);
+      }
 
-    if (existingError) {
-      throw new Error(existingError.message);
-    }
+      if (!latestPayment) {
+        throw new Error("No payroll payment was found to undo.");
+      }
 
-    if ((existingRows ?? []).length > 0) {
       const { error: deleteError } = await supabase
         .from("payroll_payments")
         .delete()
-        .eq("employee_id", employeeId)
-        .eq("period_start", window.startDate)
-        .eq("period_end", window.endDate)
-        .eq("payment_type", "payroll");
+        .eq("id", latestPayment.id);
 
       if (deleteError) {
         throw new Error(deleteError.message);
       }
+    } else {
+      const amount = parsePositiveAmount(formData.get("amount"), "Payroll amount");
+      const { error: insertError } = await supabase.from("payroll_payments").insert({
+        employee_id: employeeId,
+        amount,
+        payment_type: "payroll",
+      });
 
-      revalidatePayrollViews();
-
-      return {
-        status: "success",
-        message: "Payroll settlement removed.",
-        messageKey: "msgSaveSuccess",
-        refreshKey: crypto.randomUUID(),
-      };
+      if (insertError) {
+        throw new Error(insertError.message);
+      }
     }
 
-    const { error: insertError } = await supabase.from("payroll_payments").insert({
-      employee_id: employeeId,
-      amount,
-      payment_type: "payroll",
-      period_start: window.startDate,
-      period_end: window.endDate,
-    });
-
-    if (insertError) {
-      throw new Error(insertError.message);
-    }
-
-    revalidatePayrollViews();
+    revalidatePayrollViews(employeeId);
 
     return {
       status: "success",
-      message: "Payroll settlement saved.",
+      message: intent === "undo" ? "Payroll payment removed." : "Payroll payment saved.",
       messageKey: "msgSaveSuccess",
       refreshKey: crypto.randomUUID(),
     };
   } catch (error) {
-    return {
-      status: "error",
-      message:
-        error instanceof Error ? error.message : "Payroll payment could not be updated.",
-      messageKey: "msgSaveError",
-      refreshKey: null,
-    };
+    return buildErrorState(
+      error instanceof Error ? error.message : "Payroll payment could not be updated.",
+    );
   }
 }
+
+export const recordPayrollSettlementAction = togglePayrollPaymentAction;

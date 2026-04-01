@@ -7,6 +7,7 @@ import type {
   DailyReportWithAttendance,
   Employee,
   ExpenseCategory,
+  PayrollPayment,
   Profile,
   Restaurant,
   RestaurantSnapshot,
@@ -18,119 +19,150 @@ export const demoRestaurant: Restaurant = {
   id: DEMO_RESTAURANT_ID,
   name: "Demo Restaurant",
   defaultDailyExpense: DEFAULT_MANUAL_EXPENSE_EUR,
+  defaultPayrollCadence: "monthly",
+  defaultWeeklyPayday: 5,
+  defaultMonthlyPayDay: 1,
+  defaultTwiceMonthlyDay1: 15,
+  defaultTwiceMonthlyDay2: 30,
 };
 
-export const demoEmployees: Employee[] = [
-  {
-    id: "emp-1",
+const DEMO_BALANCE_START = "2026-01-01";
+
+function createDemoEmployee(
+  employee: Pick<
+    Employee,
+    | "id"
+    | "firstName"
+    | "lastName"
+    | "fullName"
+    | "role"
+    | "phoneNumber"
+    | "dailyRate"
+    | "paymentSchedule"
+  > &
+    Partial<Pick<Employee, "paymentDay1" | "paymentDay2" | "paymentWeekday">>,
+): Employee {
+  return {
     restaurantId: DEMO_RESTAURANT_ID,
+    isActive: true,
+    useRestaurantPayrollDefaults: true,
+    payrollCadence: null,
+    weeklyPayday: null,
+    monthlyPayDay: null,
+    twiceMonthlyDay1: null,
+    twiceMonthlyDay2: null,
+    paymentDay1: 1,
+    paymentDay2: 16,
+    paymentWeekday: 1,
+    balanceStartsFrom: DEMO_BALANCE_START,
+    ...employee,
+  };
+}
+
+export const demoEmployees: Employee[] = [
+  createDemoEmployee({
+    id: "emp-1",
     firstName: "Ivan",
     lastName: "Petrov",
     fullName: "Ivan Petrov",
     role: "kitchen",
     phoneNumber: "+359 888 100 001",
     dailyRate: bgnToEur(110),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-2",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Maria",
     lastName: "Georgieva",
     fullName: "Maria Georgieva",
     role: "service",
     phoneNumber: "+359 888 100 002",
     dailyRate: bgnToEur(90),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "weekly",
+    paymentWeekday: 5,
+  }),
+  createDemoEmployee({
     id: "emp-3",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Nikolay",
     lastName: "Dimitrov",
     fullName: "Nikolay Dimitrov",
     role: "kitchen",
     phoneNumber: "+359 888 100 003",
     dailyRate: bgnToEur(105),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-4",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Elena",
     lastName: "Stoyanova",
     fullName: "Elena Stoyanova",
     role: "service",
     phoneNumber: "+359 888 100 004",
     dailyRate: bgnToEur(88),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "weekly",
+    paymentWeekday: 5,
+  }),
+  createDemoEmployee({
     id: "emp-5",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Georgi",
     lastName: "Iliev",
     fullName: "Georgi Iliev",
     role: "kitchen",
     phoneNumber: "+359 888 100 005",
     dailyRate: bgnToEur(92),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-6",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Petya",
     lastName: "Ivanova",
     fullName: "Petya Ivanova",
     role: "service",
     phoneNumber: null,
     dailyRate: bgnToEur(85),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "monthly",
+    paymentDay1: 1,
+  }),
+  createDemoEmployee({
     id: "emp-7",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Stoyan",
     lastName: "Kolev",
     fullName: "Stoyan Kolev",
     role: "kitchen",
     phoneNumber: null,
     dailyRate: bgnToEur(87),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-8",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Ralitsa",
     lastName: "Hristova",
     fullName: "Ralitsa Hristova",
     role: "service",
     phoneNumber: "+359 888 100 008",
     dailyRate: bgnToEur(90),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-9",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Dimitar",
     lastName: "Yordanov",
     fullName: "Dimitar Yordanov",
     role: "service",
     phoneNumber: null,
     dailyRate: bgnToEur(80),
-    isActive: true,
-  },
-  {
+    paymentSchedule: "twice_monthly",
+  }),
+  createDemoEmployee({
     id: "emp-10",
-    restaurantId: DEMO_RESTAURANT_ID,
     firstName: "Teodora",
     lastName: "Marinova",
     fullName: "Teodora Marinova",
     role: "kitchen",
     phoneNumber: "+359 888 100 010",
     dailyRate: bgnToEur(120),
-    isActive: true,
-  },
+    paymentSchedule: "twice_monthly",
+  }),
 ];
 
 export const demoProfile: Profile = {
@@ -175,6 +207,79 @@ export const demoExpenseCategories: ExpenseCategory[] = [
     name: "Other",
     emoji: "📦",
     isActive: true,
+  },
+];
+
+export const demoPayrollPayments: PayrollPayment[] = [
+  {
+    id: "payroll-emp-1-2026-03-16",
+    employeeId: "emp-1",
+    amount: bgnToEur(720),
+    paymentType: "payroll",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-16",
+    createdAt: "2026-03-16T19:10:00.000Z",
+  },
+  {
+    id: "advance-emp-1-2026-03-27",
+    employeeId: "emp-1",
+    amount: bgnToEur(120),
+    paymentType: "advance",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-27",
+    createdAt: "2026-03-27T11:20:00.000Z",
+  },
+  {
+    id: "payroll-emp-2-2026-03-27",
+    employeeId: "emp-2",
+    amount: bgnToEur(540),
+    paymentType: "payroll",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-27",
+    createdAt: "2026-03-27T18:00:00.000Z",
+  },
+  {
+    id: "advance-emp-2-2026-03-30",
+    employeeId: "emp-2",
+    amount: bgnToEur(80),
+    paymentType: "advance",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-30",
+    createdAt: "2026-03-30T09:00:00.000Z",
+  },
+  {
+    id: "payroll-emp-4-2026-03-27",
+    employeeId: "emp-4",
+    amount: bgnToEur(460),
+    paymentType: "payroll",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-27",
+    createdAt: "2026-03-27T19:30:00.000Z",
+  },
+  {
+    id: "payroll-emp-6-2026-03-01",
+    employeeId: "emp-6",
+    amount: bgnToEur(530),
+    paymentType: "payroll",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-01",
+    createdAt: "2026-03-01T18:40:00.000Z",
+  },
+  {
+    id: "advance-emp-6-2026-03-22",
+    employeeId: "emp-6",
+    amount: bgnToEur(60),
+    paymentType: "advance",
+    periodStart: null,
+    periodEnd: null,
+    paidOn: "2026-03-22",
+    createdAt: "2026-03-22T13:15:00.000Z",
   },
 ];
 
@@ -282,7 +387,7 @@ function buildExpenseItems(
 function buildDemoReports(referenceDate = new Date()): DailyReportWithAttendance[] {
   const today = startOfDay(referenceDate);
 
-  return Array.from({ length: 8 }, (_, index) => {
+  return Array.from({ length: 32 }, (_, index) => {
     const date = subDays(today, index);
     const workDate = format(date, "yyyy-MM-dd");
     const id = `report-${workDate}`;

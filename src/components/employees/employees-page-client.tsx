@@ -61,7 +61,7 @@ export function EmployeesPageClient({
   const rosterVersion = initialEmployees
     .map(
       (employee) =>
-        `${employee.id}:${employee.fullName}:${employee.role}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}`,
+        `${employee.id}:${employee.fullName}:${employee.role}:${employee.phoneNumber ?? ""}:${employee.dailyRate}:${employee.isActive}:${employee.paymentSchedule ?? ""}:${employee.paymentDay1 ?? ""}:${employee.paymentDay2 ?? ""}:${employee.paymentWeekday ?? ""}:${employee.balanceStartsFrom ?? ""}`,
     )
     .join("|");
   const copy =

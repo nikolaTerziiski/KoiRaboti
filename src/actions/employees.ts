@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { hasSupabaseCredentials } from "@/lib/env";
+import { parseEmployeePaymentScheduleInput } from "@/lib/employee-payment-schedule";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 import type { EmployeeRole } from "@/lib/types";
@@ -59,10 +60,13 @@ function splitFullName(fullName: string) {
   };
 }
 
-function revalidateEmployeeViews() {
+function revalidateEmployeeViews(employeeId?: string) {
   revalidatePath("/employees");
   revalidatePath("/today");
   revalidatePath("/payroll");
+  if (employeeId) {
+    revalidatePath(`/employees/${employeeId}`);
+  }
 }
 
 function buildUnavailableState(
@@ -101,6 +105,13 @@ export async function createEmployeeAction(
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
     const role = parseEmployeeRole(formData.get("role"));
+    const paymentSchedule = parseEmployeePaymentScheduleInput({
+      paymentSchedule: formData.get("paymentSchedule"),
+      paymentDay1: formData.get("paymentDay1"),
+      paymentDay2: formData.get("paymentDay2"),
+      paymentWeekday: formData.get("paymentWeekday"),
+      balanceStartsFrom: formData.get("balanceStartsFrom"),
+    });
     const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase.from("employees").insert({
@@ -111,6 +122,11 @@ export async function createEmployeeAction(
       phone_number: phoneNumber,
       daily_rate: dailyRate,
       is_active: true,
+      payment_schedule: paymentSchedule.paymentSchedule,
+      payment_day_1: paymentSchedule.paymentDay1,
+      payment_day_2: paymentSchedule.paymentDay2,
+      payment_weekday: paymentSchedule.paymentWeekday,
+      balance_starts_from: paymentSchedule.balanceStartsFrom,
     });
 
     if (error) {
@@ -167,6 +183,12 @@ export async function updateEmployeeAction(
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
     const role = parseEmployeeRole(formData.get("role"));
+    const paymentSchedule = parseEmployeePaymentScheduleInput({
+      paymentSchedule: formData.get("paymentSchedule"),
+      paymentDay1: formData.get("paymentDay1"),
+      paymentDay2: formData.get("paymentDay2"),
+      paymentWeekday: formData.get("paymentWeekday"),
+    });
     const { firstName, lastName } = splitFullName(fullName);
 
     const { error } = await supabase
@@ -177,6 +199,10 @@ export async function updateEmployeeAction(
         role,
         phone_number: phoneNumber,
         daily_rate: dailyRate,
+        payment_schedule: paymentSchedule.paymentSchedule,
+        payment_day_1: paymentSchedule.paymentDay1,
+        payment_day_2: paymentSchedule.paymentDay2,
+        payment_weekday: paymentSchedule.paymentWeekday,
       })
       .eq("id", employeeId)
       .eq("restaurant_id", restaurantId);
@@ -194,7 +220,7 @@ export async function updateEmployeeAction(
       throw new Error(error.message);
     }
 
-    revalidateEmployeeViews();
+    revalidateEmployeeViews(employeeId);
 
     return {
       status: "success",
@@ -245,7 +271,7 @@ export async function setEmployeeActiveAction(
       throw new Error(error.message);
     }
 
-    revalidateEmployeeViews();
+    revalidateEmployeeViews(employeeId);
 
     return {
       status: "success",

@@ -79,6 +79,12 @@ interface EmployeeRow {
   phone_number: string | null;
   daily_rate: number | string;
   is_active: boolean;
+  use_restaurant_payroll_defaults: boolean;
+  payroll_cadence: string | null;
+  weekly_payday: number | string | null;
+  monthly_pay_day: number | string | null;
+  twice_monthly_day_1: number | string | null;
+  twice_monthly_day_2: number | string | null;
 }
 
 interface DailyReportRow {
@@ -125,6 +131,7 @@ interface PayrollPaymentRow {
   payment_type: string;
   period_start: string | null;
   period_end: string | null;
+  paid_on: string | null;
   created_at: string;
 }
 
@@ -223,6 +230,21 @@ function mapEmployee(row: EmployeeRow): Employee {
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
     isActive: row.is_active,
+    useRestaurantPayrollDefaults: row.use_restaurant_payroll_defaults,
+    payrollCadence:
+      row.payroll_cadence === "daily" ||
+      row.payroll_cadence === "weekly" ||
+      row.payroll_cadence === "twice_monthly" ||
+      row.payroll_cadence === "monthly"
+        ? row.payroll_cadence
+        : null,
+    weeklyPayday: row.weekly_payday == null ? null : Number(row.weekly_payday),
+    monthlyPayDay:
+      row.monthly_pay_day == null ? null : Number(row.monthly_pay_day),
+    twiceMonthlyDay1:
+      row.twice_monthly_day_1 == null ? null : Number(row.twice_monthly_day_1),
+    twiceMonthlyDay2:
+      row.twice_monthly_day_2 == null ? null : Number(row.twice_monthly_day_2),
   };
 }
 
@@ -234,6 +256,7 @@ function mapPayrollPayment(row: PayrollPaymentRow): PayrollPayment {
     paymentType: row.payment_type === "advance" ? "advance" : "payroll",
     periodStart: row.period_start,
     periodEnd: row.period_end,
+    paidOn: row.paid_on ?? row.created_at.slice(0, 10),
     createdAt: row.created_at,
   };
 }
@@ -363,7 +386,9 @@ async function loadRestaurantOperationalData(restaurantId: string) {
   const [employeesResponse, reportsResponse] = await Promise.all([
     db
       .from("employees")
-      .select("id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active")
+      .select(
+        "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
+      )
       .eq("restaurant_id", restaurantId)
       .order("last_name")
       .order("first_name"),
@@ -391,8 +416,11 @@ async function loadRestaurantOperationalData(restaurantId: string) {
       ? { data: [] as PayrollPaymentRow[], error: null }
       : await db
           .from("payroll_payments")
-          .select("id, employee_id, amount, payment_type, period_start, period_end, created_at")
+          .select(
+            "id, employee_id, amount, payment_type, period_start, period_end, paid_on, created_at",
+          )
           .in("employee_id", employeeIds)
+          .order("paid_on", { ascending: false })
           .order("created_at", { ascending: false });
 
   if (paymentsResponse.error) {
@@ -965,7 +993,9 @@ export async function listEmployeesForRestaurant(restaurantId: string) {
   const db = getSupabaseAdminClient();
   const { data, error } = await db
     .from("employees")
-    .select("id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active")
+    .select(
+      "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
+    )
     .eq("restaurant_id", restaurantId)
     .order("last_name")
     .order("first_name");

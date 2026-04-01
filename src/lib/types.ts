@@ -3,6 +3,16 @@ export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
 export type EmployeeRole = "kitchen" | "service";
 export type PayrollPaymentType = "advance" | "payroll";
+export type EmployeePaymentSchedule =
+  | "twice_monthly"
+  | "weekly"
+  | "monthly"
+  | "on_demand";
+export type PayrollCadence =
+  | "daily"
+  | "weekly"
+  | "twice_monthly"
+  | "monthly";
 export type ExpenseSourceType = "web" | "telegram";
 
 export interface PayrollWindow {
@@ -14,6 +24,11 @@ export interface Restaurant {
   id: string;
   name: string;
   defaultDailyExpense: number;
+  defaultPayrollCadence: PayrollCadence;
+  defaultWeeklyPayday: number | null;
+  defaultMonthlyPayDay: number | null;
+  defaultTwiceMonthlyDay1: number | null;
+  defaultTwiceMonthlyDay2: number | null;
 }
 
 export interface Profile {
@@ -33,6 +48,17 @@ export interface Employee {
   phoneNumber: string | null;
   dailyRate: number;
   isActive: boolean;
+  useRestaurantPayrollDefaults: boolean;
+  payrollCadence: PayrollCadence | null;
+  weeklyPayday: number | null;
+  monthlyPayDay: number | null;
+  twiceMonthlyDay1: number | null;
+  twiceMonthlyDay2: number | null;
+  paymentSchedule?: EmployeePaymentSchedule;
+  paymentDay1?: number;
+  paymentDay2?: number;
+  paymentWeekday?: number;
+  balanceStartsFrom?: string;
 }
 
 export interface DailyReport {
@@ -55,6 +81,10 @@ export interface AttendanceEntry {
   notes: string | null;
 }
 
+export interface EmployeeAttendanceEntry extends AttendanceEntry {
+  workDate: string;
+}
+
 export interface PayrollPayment {
   id: string;
   employeeId: string;
@@ -62,6 +92,7 @@ export interface PayrollPayment {
   paymentType: PayrollPaymentType;
   periodStart: string | null;
   periodEnd: string | null;
+  paidOn: string;
   createdAt: string;
 }
 

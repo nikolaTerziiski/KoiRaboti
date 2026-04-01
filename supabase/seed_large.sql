@@ -207,7 +207,12 @@ begin
       coalesce(nullif(trim(p_user_email), ''), 'sandbox@example.com'),
       coalesce(nullif(trim(p_restaurant_name), ''), 'Koi Raboti Sandbox'),
       coalesce(nullif(trim(p_admin_full_name), ''), 'Sandbox Owner'),
-      v_default_daily_expense
+      v_default_daily_expense,
+      'monthly',
+      5,
+      1,
+      15,
+      30
     )
     into v_restaurant_id;
   else
@@ -303,6 +308,11 @@ begin
     set
       name = coalesce(nullif(trim(p_restaurant_name), ''), name),
       default_daily_expense = v_default_daily_expense,
+      default_payroll_cadence = 'monthly',
+      default_weekly_payday = 5,
+      default_monthly_pay_day = 1,
+      default_twice_monthly_day_1 = 15,
+      default_twice_monthly_day_2 = 30,
       updated_at = timezone('utc', now())
     where id = v_restaurant_id;
 
@@ -421,7 +431,13 @@ begin
       role,
       phone_number,
       daily_rate,
-      is_active
+      is_active,
+      use_restaurant_payroll_defaults,
+      payroll_cadence,
+      weekly_payday,
+      monthly_pay_day,
+      twice_monthly_day_1,
+      twice_monthly_day_2
     )
     values (
       v_restaurant_id,
@@ -430,7 +446,22 @@ begin
       case when mod(v_employee_index, 2) = 1 then 'kitchen' else 'service' end,
       case when mod(v_employee_index, 4) = 0 then null else format('+359 888 21%04s', v_employee_index) end,
       v_daily_rate_eur,
-      v_employee_index <= v_employee_count - 2
+      v_employee_index <= v_employee_count - 2,
+      not (
+        mod(v_employee_index, 6) = 0
+        or mod(v_employee_index, 5) = 0
+        or mod(v_employee_index, 7) = 0
+      ),
+      case
+        when mod(v_employee_index, 6) = 0 then 'daily'
+        when mod(v_employee_index, 5) = 0 then 'weekly'
+        when mod(v_employee_index, 7) = 0 then 'twice_monthly'
+        else null
+      end,
+      case when mod(v_employee_index, 5) = 0 then 5 else null end,
+      null,
+      case when mod(v_employee_index, 7) = 0 then 15 else null end,
+      case when mod(v_employee_index, 7) = 0 then 30 else null end
     );
   end loop;
 
@@ -784,16 +815,14 @@ begin
         employee_id,
         amount,
         payment_type,
-        period_start,
-        period_end,
+        paid_on,
         created_at
       )
       values (
         v_period.employee_id,
         v_advance_amount,
         'advance',
-        v_period.period_start,
-        v_period.period_end,
+        v_period.period_start + 5,
         timezone('utc', v_period.period_start::timestamp) + interval '5 days 15 hours'
       );
 
@@ -806,16 +835,14 @@ begin
           employee_id,
           amount,
           payment_type,
-          period_start,
-          period_end,
+          paid_on,
           created_at
         )
         values (
           v_period.employee_id,
           v_advance_amount,
           'advance',
-          v_period.period_start,
-          v_period.period_end,
+          v_period.period_start + 10,
           timezone('utc', v_period.period_start::timestamp) + interval '10 days 11 hours'
         );
 
@@ -832,6 +859,7 @@ begin
         payment_type,
         period_start,
         period_end,
+        paid_on,
         created_at
       )
       values (
@@ -839,6 +867,7 @@ begin
         v_net_amount,
         'payroll',
         v_period.period_start,
+        v_period.period_end,
         v_period.period_end,
         timezone('utc', v_period.period_end::timestamp) + interval '19 hours'
       )
