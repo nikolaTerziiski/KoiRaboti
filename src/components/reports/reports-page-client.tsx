@@ -49,6 +49,8 @@ type TrendInfo = {
   label: string;
   tone: TrendTone;
   direction: TrendDirection;
+  /** True when the current month has too few days for a meaningful % comparison */
+  suppressed: boolean;
 };
 
 type MetricCardData = {
@@ -120,6 +122,7 @@ type DashboardCopy = {
     rent: string;
     other: string;
   };
+  daysLabel: string;
   weeks: [string, string, string, string];
 };
 
@@ -133,6 +136,9 @@ type AnalyticsTooltipProps = {
   }>;
   label?: string;
 };
+
+/** Suppress trend % when the current month has fewer than this many recorded days */
+const MIN_DAYS_FOR_TREND = 7;
 
 const CHART_COLORS = [
   "var(--color-emerald-500)",
@@ -213,14 +219,27 @@ function getReportExpenseTotal(report: DailyReportWithAttendance) {
 function buildTrendInfo(
   currentValue: number,
   previousValue: number,
+  currentDays: number,
   lowerIsBetter: boolean,
   copy: DashboardCopy,
 ): TrendInfo {
+  // Suppress when the month is too new — a single day vs. 28 days produces
+  // a -97% badge that is technically accurate but meaninglessly alarming.
+  if (currentDays < MIN_DAYS_FOR_TREND) {
+    return {
+      label: `${currentDays} ${copy.daysLabel}`,
+      tone: "neutral",
+      direction: "up",
+      suppressed: true,
+    };
+  }
+
   if (previousValue <= 0) {
     return {
       label: copy.noBaseline,
       tone: "neutral",
       direction: "up",
+      suppressed: false,
     };
   }
 
@@ -237,6 +256,7 @@ function buildTrendInfo(
     label: `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`,
     tone,
     direction: delta < 0 ? "down" : "up",
+    suppressed: false,
   };
 }
 
@@ -360,7 +380,7 @@ function buildMockMetricCards(copy: DashboardCopy): MetricCardData[] {
     {
       title: copy.kpis.revenue,
       valueLabel: formatBgnValue(mockRevenueBgn),
-      trend: { label: "+12.5%", tone: "positive", direction: "up" },
+      trend: { label: "+12.5%", tone: "positive", direction: "up", suppressed: false },
       helperText: copy.kpiHints.revenue,
       icon: Wallet,
       accentClassName:
@@ -369,7 +389,7 @@ function buildMockMetricCards(copy: DashboardCopy): MetricCardData[] {
     {
       title: copy.kpis.expenses,
       valueLabel: formatBgnValue(mockExpensesBgn),
-      trend: { label: "-2.4%", tone: "positive", direction: "down" },
+      trend: { label: "-2.4%", tone: "positive", direction: "down", suppressed: false },
       helperText: copy.kpiHints.expenses,
       icon: PieChartIcon,
       accentClassName:
@@ -378,7 +398,7 @@ function buildMockMetricCards(copy: DashboardCopy): MetricCardData[] {
     {
       title: copy.kpis.netProfit,
       valueLabel: formatBgnValue(mockNetProfitBgn),
-      trend: { label: "+8.1%", tone: "positive", direction: "up" },
+      trend: { label: "+8.1%", tone: "positive", direction: "up", suppressed: false },
       helperText: copy.kpiHints.netProfit,
       icon: BarChart3,
       accentClassName:
@@ -394,6 +414,7 @@ function buildMetricCards(
   monthLabel: string,
   previousMonthLabel: string | null,
 ) {
+  const currentDays = visibleReports.length;
   const currentRevenue = eurToBgn(
     visibleReports.reduce((sum, report) => sum + report.turnover, 0),
   );
@@ -428,7 +449,7 @@ function buildMetricCards(
     {
       title: copy.kpis.revenue,
       valueLabel: formatBgnValue(currentRevenue),
-      trend: buildTrendInfo(currentRevenue, previousRevenue, false, copy),
+      trend: buildTrendInfo(currentRevenue, previousRevenue, currentDays, false, copy),
       helperText: `${copy.selectedMonthHint} ${monthLabel}`,
       icon: Wallet,
       accentClassName:
@@ -437,7 +458,7 @@ function buildMetricCards(
     {
       title: copy.kpis.expenses,
       valueLabel: formatBgnValue(currentExpenses),
-      trend: buildTrendInfo(currentExpenses, previousExpenses, true, copy),
+      trend: buildTrendInfo(currentExpenses, previousExpenses, currentDays, true, copy),
       helperText: comparisonLabel,
       icon: PieChartIcon,
       accentClassName:
@@ -446,7 +467,7 @@ function buildMetricCards(
     {
       title: copy.kpis.netProfit,
       valueLabel: formatBgnValue(currentNetProfit),
-      trend: buildTrendInfo(currentNetProfit, previousNetProfit, false, copy),
+      trend: buildTrendInfo(currentNetProfit, previousNetProfit, currentDays, false, copy),
       helperText: comparisonLabel,
       icon: BarChart3,
       accentClassName:
@@ -462,15 +483,14 @@ function TrendBadge({ trend }: { trend: TrendInfo }) {
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold",
-        trend.tone === "positive" &&
-          "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-        trend.tone === "negative" &&
-          "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
-        trend.tone === "neutral" &&
-          "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
+        trend.suppressed || trend.tone === "neutral"
+          ? "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          : trend.tone === "positive"
+            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
+            : "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400",
       )}
     >
-      <Icon className="size-3.5" />
+      {!trend.suppressed && <Icon className="size-3.5" />}
       {trend.label}
     </span>
   );
@@ -480,27 +500,26 @@ function MetricCard({ metric }: { metric: MetricCardData }) {
   const Icon = metric.icon;
 
   return (
-    <article className="rounded-2xl border border-slate-200/60 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-start justify-between gap-4">
-        <div
-          className={cn(
-            "flex size-12 items-center justify-center rounded-2xl",
-            metric.accentClassName,
-          )}
-        >
-          <Icon className="size-5" />
-        </div>
-        <TrendBadge trend={metric.trend} />
-      </div>
-
-      <div className="mt-6 space-y-2">
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
+    <article className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      {/* Label row — icon demoted to a small accent square */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
           {metric.title}
         </p>
-        <p className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
-          {metric.valueLabel}
-        </p>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <div className={cn("flex size-7 items-center justify-center rounded-lg", metric.accentClassName)}>
+          <Icon className="size-3.5" />
+        </div>
+      </div>
+
+      {/* Value — dominant element */}
+      <p className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+        {metric.valueLabel}
+      </p>
+
+      {/* Trend badge + helper text */}
+      <div className="mt-3 flex items-center justify-between gap-2">
+        <TrendBadge trend={metric.trend} />
+        <p className="truncate text-xs text-slate-400 dark:text-slate-500">
           {metric.helperText}
         </p>
       </div>
@@ -641,6 +660,7 @@ export function ReportsPageClient({
             rent: "Наем",
             other: "Други",
           },
+          daysLabel: "дни",
           weeks: ["Седм. 1", "Седм. 2", "Седм. 3", "Седм. 4"],
         }
       : {
@@ -693,6 +713,7 @@ export function ReportsPageClient({
             rent: "Rent",
             other: "Other",
           },
+          daysLabel: "days",
           weeks: ["Week 1", "Week 2", "Week 3", "Week 4"],
         };
 
@@ -915,8 +936,8 @@ export function ReportsPageClient({
                 <span className="size-2 rounded-full bg-emerald-500" />
                 {copy.legend.revenue}
               </span>
-              <span className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                <span className="size-2 rounded-full bg-blue-500" />
+              <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                <span className="size-2 rounded-full bg-slate-400" />
                 {copy.legend.expenses}
               </span>
             </div>
@@ -942,8 +963,8 @@ export function ReportsPageClient({
                       y1="0"
                       y2="1"
                     >
-                      <stop offset="0%" stopColor="var(--color-sky-400)" />
-                      <stop offset="100%" stopColor="var(--color-sky-600)" />
+                      <stop offset="0%" stopColor="var(--color-slate-300)" />
+                      <stop offset="100%" stopColor="var(--color-slate-500)" />
                     </linearGradient>
                   </defs>
 

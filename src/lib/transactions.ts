@@ -28,6 +28,12 @@ export interface ResolvedTransactionRows {
   isMockData: boolean;
 }
 
+export interface TransactionDayGroup {
+  workDate: string;
+  totalAmount: number;
+  rows: TransactionRow[];
+}
+
 const FALLBACK_DESCRIPTION = "Разход без описание";
 const FALLBACK_CATEGORY = "Без категория";
 
@@ -183,6 +189,36 @@ export function filterTransactionRows(
 
     return true;
   });
+}
+
+export function groupTransactionRowsByDate(
+  rows: TransactionRow[],
+  direction: "asc" | "desc" = "desc",
+): TransactionDayGroup[] {
+  const groups = new Map<string, TransactionRow[]>();
+
+  for (const row of rows) {
+    const existingRows = groups.get(row.workDate);
+
+    if (existingRows) {
+      existingRows.push(row);
+      continue;
+    }
+
+    groups.set(row.workDate, [row]);
+  }
+
+  return Array.from(groups.entries())
+    .sort(([leftDate], [rightDate]) =>
+      direction === "asc"
+        ? leftDate.localeCompare(rightDate)
+        : rightDate.localeCompare(leftDate),
+    )
+    .map(([workDate, groupedRows]) => ({
+      workDate,
+      totalAmount: groupedRows.reduce((sum, row) => sum + row.amount, 0),
+      rows: groupedRows,
+    }));
 }
 
 function escapeCsvCell(value: string) {

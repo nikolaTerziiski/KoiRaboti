@@ -30,6 +30,7 @@ export default async function ReportsPage() {
       pageKey="reports"
       sessionMode={sessionMode === "supabase" ? "supabase" : "demo"}
       dataMode={dataMode}
+      hidePageHeader
     >
       {snapshot.errorMessage ? (
         <ErrorCard pageKey="reports" message={snapshot.errorMessage} />

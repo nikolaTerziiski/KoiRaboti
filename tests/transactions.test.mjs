@@ -6,6 +6,7 @@ import {
   buildTransactionsCsvFilename,
   filterTransactionRows,
   flattenTransactionRows,
+  groupTransactionRowsByDate,
   resolveTransactionRows,
 } from "../src/lib/transactions.ts";
 
@@ -114,6 +115,52 @@ test("filterTransactionRows applies text and inclusive date filters", () => {
   assert.deepEqual(
     filtered.map((row) => row.id),
     ["maintenance-row"],
+  );
+});
+
+test("groupTransactionRowsByDate chunks rows and calculates daily totals", () => {
+  const rows = flattenTransactionRows([
+    createReport("2026-03-29", [
+      createExpense({
+        id: "day-two-first",
+        amount: 18.5,
+        createdAt: "2026-03-29T07:00:00.000Z",
+      }),
+    ]),
+    createReport("2026-03-30", [
+      createExpense({
+        id: "day-one-first",
+        amount: 12.25,
+        createdAt: "2026-03-30T08:00:00.000Z",
+      }),
+      createExpense({
+        id: "day-one-second",
+        amount: 31.75,
+        createdAt: "2026-03-30T09:15:00.000Z",
+      }),
+    ]),
+  ]);
+
+  const grouped = groupTransactionRowsByDate(rows);
+
+  assert.deepEqual(
+    grouped.map((group) => ({
+      workDate: group.workDate,
+      totalAmount: group.totalAmount,
+      rowIds: group.rows.map((row) => row.id),
+    })),
+    [
+      {
+        workDate: "2026-03-30",
+        totalAmount: 44,
+        rowIds: ["day-one-second", "day-one-first"],
+      },
+      {
+        workDate: "2026-03-29",
+        totalAmount: 18.5,
+        rowIds: ["day-two-first"],
+      },
+    ],
   );
 });
 

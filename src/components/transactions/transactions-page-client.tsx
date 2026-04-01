@@ -1,8 +1,11 @@
 "use client";
 
+import { format, isSameYear, isToday, isYesterday, parseISO } from "date-fns";
+import { bg, enUS } from "date-fns/locale";
 import Link from "next/link";
 import { useDeferredValue, useState, useCallback } from "react";
 import {
+  Bot,
   Calendar,
   ChevronLeft,
   ChevronRight,
@@ -10,14 +13,21 @@ import {
   Eye,
   HelpCircle,
   Image as ImageIcon,
+  Package,
+  Paperclip,
   MoreHorizontal,
   Pencil,
   ReceiptText,
   Search,
   SortAsc,
+  Store,
   Trash2,
+  Truck,
+  UtensilsCrossed,
+  Wrench,
   X,
   Loader2,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +50,9 @@ import {
   buildTransactionsCsvContent,
   buildTransactionsCsvFilename,
   filterTransactionRows,
+  groupTransactionRowsByDate,
   resolveTransactionRows,
+  type TransactionDayGroup,
   type TransactionRow,
 } from "@/lib/transactions";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -72,10 +84,177 @@ function getCategoryBadgeClassName(categoryLabel: string) {
     return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
   if (n.includes("транс") || n.includes("transport"))
     return "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
+  if (n.includes("храна") || n.includes("напит") || n.includes("food"))
+    return "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+  if (n.includes("комун") || n.includes("ток") || n.includes("вода") || n.includes("utilities"))
+    return "bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+  if (n.includes("подд") || n.includes("ремонт") || n.includes("maintenance"))
+    return "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+  if (n.includes("транс") || n.includes("transport"))
+    return "bg-violet-50 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400";
   return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
 }
 
 // ── Sort ───────────────────────────────────────────────────────────────────
+function getDateFnsLocale(locale: "bg" | "en") {
+  return locale === "bg" ? bg : enUS;
+}
+
+function formatTransactionDayTitle(workDate: string, locale: "bg" | "en") {
+  const date = parseISO(workDate);
+
+  if (isToday(date)) {
+    return locale === "bg" ? "Днес" : "Today";
+  }
+
+  if (isYesterday(date)) {
+    return locale === "bg" ? "Вчера" : "Yesterday";
+  }
+
+  return format(date, isSameYear(date, new Date()) ? "d MMMM" : "d MMMM yyyy", {
+    locale: getDateFnsLocale(locale),
+  });
+}
+
+function formatTransactionTime(createdAt: string | null, locale: "bg" | "en") {
+  if (!createdAt) {
+    return locale === "bg" ? "Без час" : "No time";
+  }
+
+  return new Intl.DateTimeFormat(locale === "bg" ? "bg-BG" : "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(createdAt));
+}
+
+function formatTransactionId(id: string) {
+  return `#${id.slice(0, 8)}`;
+}
+
+function formatExpenseCount(count: number, locale: "bg" | "en") {
+  if (locale === "bg") {
+    return `${count} ${count === 1 ? "разход" : "разхода"}`;
+  }
+
+  return `${count} ${count === 1 ? "expense" : "expenses"}`;
+}
+
+function formatDayCount(count: number, locale: "bg" | "en") {
+  if (locale === "bg") {
+    return `${count} ${count === 1 ? "ден" : "дни"}`;
+  }
+
+  return `${count} ${count === 1 ? "day" : "days"}`;
+}
+
+function getTransactionIconKey(row: TransactionRow) {
+  const n = row.categoryLabel.toLocaleLowerCase("bg-BG");
+  if (n.includes("храна") || n.includes("напит") || n.includes("food")) {
+    return "food";
+  }
+
+  if (
+    n.includes("комун") ||
+    n.includes("ток") ||
+    n.includes("вода") ||
+    n.includes("utilities")
+  ) {
+    return "utilities";
+  }
+
+  if (n.includes("подд") || n.includes("ремонт") || n.includes("maintenance")) {
+    return "maintenance";
+  }
+
+  if (n.includes("транс") || n.includes("transport")) {
+    return "transport";
+  }
+
+  if (
+    n.includes("консум") ||
+    n.includes("suppl") ||
+    n.includes("inventory") ||
+    n.includes("package")
+  ) {
+    return "supplies";
+  }
+
+  if (n.includes("наем") || n.includes("rent")) {
+    return "rent";
+  }
+
+  if (n.includes("Ñ…Ñ€Ð°Ð½Ð°") || n.includes("Ð½Ð°Ð¿Ð¸Ñ‚") || n.includes("food")) {
+    return "food";
+  }
+
+  if (
+    n.includes("ÐºÐ¾Ð¼ÑƒÐ½") ||
+    n.includes("Ñ‚Ð¾Ðº") ||
+    n.includes("Ð²Ð¾Ð´Ð°") ||
+    n.includes("utilities")
+  ) {
+    return "utilities";
+  }
+
+  if (n.includes("Ð¿Ð¾Ð´Ð´") || n.includes("Ñ€ÐµÐ¼Ð¾Ð½Ñ‚") || n.includes("maintenance")) {
+    return "maintenance";
+  }
+
+  if (n.includes("Ñ‚Ñ€Ð°Ð½Ñ") || n.includes("transport")) {
+    return "transport";
+  }
+
+  if (
+    n.includes("ÐºÐ¾Ð½ÑÑƒÐ¼") ||
+    n.includes("suppl") ||
+    n.includes("inventory") ||
+    n.includes("package")
+  ) {
+    return "supplies";
+  }
+
+  if (n.includes("Ð½Ð°ÐµÐ¼") || n.includes("rent")) {
+    return "rent";
+  }
+
+  return row.sourceType === "telegram" ? "telegram" : "web";
+}
+
+function TransactionIcon({ row }: { row: TransactionRow }) {
+  const iconClassName = "size-5";
+  const iconKey = getTransactionIconKey(row);
+
+  if (iconKey === "food") {
+    return <UtensilsCrossed className={iconClassName} />;
+  }
+
+  if (iconKey === "utilities") {
+    return <Zap className={iconClassName} />;
+  }
+
+  if (iconKey === "maintenance") {
+    return <Wrench className={iconClassName} />;
+  }
+
+  if (iconKey === "transport") {
+    return <Truck className={iconClassName} />;
+  }
+
+  if (iconKey === "supplies") {
+    return <Package className={iconClassName} />;
+  }
+
+  if (iconKey === "rent") {
+    return <Store className={iconClassName} />;
+  }
+
+  if (iconKey === "telegram") {
+    return <Bot className={iconClassName} />;
+  }
+
+  return <ReceiptText className={iconClassName} />;
+}
+
 function sortRows(rows: TransactionRow[], field: SortField, dir: SortDir) {
   return [...rows].sort((a, b) => {
     let cmp = 0;
@@ -104,13 +283,15 @@ function resolveReceiptUrl(
 function SourcePill({ sourceType, locale }: { sourceType: TransactionRow["sourceType"]; locale: "bg" | "en" }) {
   if (sourceType === "telegram") {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
-        ✈ Telegram
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-600 dark:bg-blue-900/30 dark:text-blue-400">
+        <Bot className="size-3" />
+        Telegram
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+    <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+      <ReceiptText className="size-3" />
       {locale === "bg" ? "Уеб" : "Web"}
     </span>
   );
@@ -195,6 +376,141 @@ function RowActions({
 }
 
 // ── Receipt viewer dialog ──────────────────────────────────────────────────
+type TransactionRowActionLabels = {
+  actions: string;
+  viewReceipt: string;
+  edit: string;
+  delete: string;
+};
+
+type TransactionGroupLabels = TransactionRowActionLabels & {
+  dailyTotal: string;
+};
+
+function TransactionFeedRow({
+  row,
+  locale,
+  isMockData,
+  labels,
+  onViewReceipt,
+}: {
+  row: TransactionRow;
+  locale: "bg" | "en";
+  isMockData: boolean;
+  labels: TransactionRowActionLabels;
+  onViewReceipt: () => void;
+}) {
+  const canViewReceipt = row.hasReceipt || isMockData;
+
+  return (
+    <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-3 px-4 py-4 sm:gap-4 sm:px-5">
+      <div className="flex size-10 items-center justify-center rounded-full bg-slate-100 text-slate-500 ring-1 ring-slate-200/70 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-700">
+        <TransactionIcon row={row} />
+      </div>
+
+      <div className="min-w-0">
+        <p className="break-words text-[15px] font-semibold leading-5 text-slate-900 dark:text-white sm:text-base">
+          {row.description}
+        </p>
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500 dark:text-slate-400">
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-[10px] font-semibold",
+              getCategoryBadgeClassName(row.categoryLabel),
+            )}
+          >
+            {row.categoryLabel}
+          </span>
+          <SourcePill sourceType={row.sourceType} locale={locale} />
+          <span>{formatTransactionTime(row.createdAt, locale)}</span>
+          <span className="font-mono text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
+            {formatTransactionId(row.id)}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-end gap-2">
+        <p className="whitespace-nowrap text-[15px] font-bold tabular-nums text-slate-900 dark:text-white sm:text-base">
+          {formatCurrency(row.amount)}
+        </p>
+
+        <div className="flex items-center gap-1">
+          {canViewReceipt && (
+            <button
+              type="button"
+              onClick={onViewReceipt}
+              aria-label={labels.viewReceipt}
+              title={labels.viewReceipt}
+              className="inline-flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-slate-800 dark:hover:text-emerald-400"
+            >
+              <Paperclip className="size-4" />
+            </button>
+          )}
+
+          <RowActions
+            row={row}
+            isMockData={isMockData}
+            labels={labels}
+            onViewReceipt={onViewReceipt}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionDailyGroupCard({
+  group,
+  locale,
+  isMockData,
+  labels,
+  onViewReceipt,
+}: {
+  group: TransactionDayGroup;
+  locale: "bg" | "en";
+  isMockData: boolean;
+  labels: TransactionGroupLabels;
+  onViewReceipt: (row: TransactionRow) => void;
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-start justify-between gap-4 border-b border-slate-100 bg-slate-50/80 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/60 sm:px-5">
+        <div className="min-w-0">
+          <h2 className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">
+            {formatTransactionDayTitle(group.workDate, locale)}
+          </h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            {formatDateLabel(group.workDate, locale)} · {formatExpenseCount(group.rows.length, locale)}
+          </p>
+        </div>
+
+        <div className="text-right">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+            {labels.dailyTotal}
+          </p>
+          <p className="mt-1 text-base font-bold tabular-nums text-slate-900 dark:text-white sm:text-lg">
+            {formatCurrency(group.totalAmount)}
+          </p>
+        </div>
+      </div>
+
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {group.rows.map((row) => (
+          <TransactionFeedRow
+            key={row.id}
+            row={row}
+            locale={locale}
+            isMockData={isMockData}
+            labels={labels}
+            onViewReceipt={() => onViewReceipt(row)}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ReceiptDialog({
   open,
   onClose,
@@ -415,12 +731,26 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
 
   const { rows, isMockData } = resolveTransactionRows(reports, dataMode);
 
-  // Pipeline: filter → sort → paginate
-  const filtered = filterTransactionRows(rows, { searchQuery: deferredQuery, fromDate, toDate });
-  const sorted = sortRows(filtered, sortField, sortDir);
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  // Pipeline: filter -> group by day -> sort rows within each day -> paginate groups
+  const filtered = filterTransactionRows(rows, {
+    searchQuery: deferredQuery,
+    fromDate,
+    toDate,
+  });
+  const grouped = groupTransactionRowsByDate(
+    filtered,
+    sortField === "date" ? sortDir : "desc",
+  ).map((group) => ({
+    ...group,
+    rows: sortRows(group.rows, sortField, sortDir),
+  }));
+  const flatRowsForExport = grouped.flatMap((group) => group.rows);
+  const totalPages = Math.max(1, Math.ceil(grouped.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const paginated = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const paginatedGroups = grouped.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   const hasActiveDateFilters = Boolean(fromDate || toDate);
   const showEmpty = !isMockData && rows.length === 0;
@@ -438,9 +768,11 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
   }
 
   function exportCsv() {
-    if (sorted.length === 0 || typeof window === "undefined") return;
+    if (flatRowsForExport.length === 0 || typeof window === "undefined") return;
     const label = locale === "bg" ? "Транзакции" : "Transactions";
-    const blob = new Blob([buildTransactionsCsvContent(sorted)], { type: "text/csv;charset=utf-8;" });
+    const blob = new Blob([buildTransactionsCsvContent(flatRowsForExport)], {
+      type: "text/csv;charset=utf-8;",
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -482,6 +814,7 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
           emptyTitle: "Няма транзакции",
           emptyCopy: "Добави първия разход от дневния отчет.",
           emptyCta: "Добави разход",
+          dailyTotal: "Общо за деня",
         }
       : {
           title: "Transactions",
@@ -511,6 +844,7 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
           emptyTitle: "No transactions",
           emptyCopy: "Add your first expense from the daily report.",
           emptyCta: "Add expense",
+          dailyTotal: "Daily total",
         };
 
   const sortLabels: Record<SortField, string> = {
@@ -556,7 +890,7 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
             <Button
               type="button"
               onClick={exportCsv}
-              disabled={sorted.length === 0}
+              disabled={flatRowsForExport.length === 0}
               className="h-10 shrink-0 rounded-xl bg-emerald-600 px-4 text-sm text-white hover:bg-emerald-700"
             >
               <Download className="size-4" />
@@ -682,16 +1016,16 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
           </div>
 
           {/* ── Results counter ───────────────────────────────────────── */}
-          {sorted.length > 0 && (
+          {filtered.length > 0 && (
             <div className="flex items-center justify-between px-1 text-xs text-slate-500">
               <span>
-                {copy.showing}{" "}
                 <strong className="text-slate-700 dark:text-slate-300">
-                  {(safePage - 1) * PAGE_SIZE + 1}–{Math.min(safePage * PAGE_SIZE, sorted.length)}
+                  {formatExpenseCount(filtered.length, locale)}
                 </strong>{" "}
-                {copy.of}{" "}
-                <strong className="text-slate-700 dark:text-slate-300">{sorted.length}</strong>{" "}
-                {copy.results}
+                <span className="text-slate-400">·</span>{" "}
+                <strong className="text-slate-700 dark:text-slate-300">
+                  {formatDayCount(grouped.length, locale)}
+                </strong>
               </span>
               <span>
                 {copy.pageLabel} {safePage} / {totalPages}
@@ -699,117 +1033,40 @@ export function TransactionsPageClient({ reports, dataMode }: TransactionsPageCl
             </div>
           )}
 
-          {/* ── Table + card list ─────────────────────────────────────── */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-
-            {showEmpty ? (
+          {/* ── Daily transaction groups ──────────────────────────────── */}
+          {showEmpty ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <EmptyState
                 title={copy.emptyTitle}
                 copy={copy.emptyCopy}
                 ctaLabel={copy.emptyCta}
                 ctaHref="/today?task=expenses"
               />
-            ) : showNoResults ? (
+            </div>
+          ) : showNoResults ? (
+            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
               <EmptyState title={copy.noResultsTitle} copy={copy.noResultsCopy} />
-            ) : (
-              <>
-                {/* Desktop table — md and up */}
-                <table className="hidden min-w-full border-collapse text-sm md:table">
-                  <thead className="bg-slate-50/80 dark:bg-slate-950/60">
-                    <tr className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                      <th className="px-5 py-3 text-left">Дата</th>
-                      <th className="px-5 py-3 text-left">Описание</th>
-                      <th className="px-5 py-3 text-left">Категория</th>
-                      <th className="px-5 py-3 text-right">Сума</th>
-                      <th className="px-3 py-3 text-right" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginated.map((row) => (
-                      <tr
-                        key={row.id}
-                        className="border-t border-slate-100 transition-colors hover:bg-slate-50/60 dark:border-slate-800 dark:hover:bg-slate-950/30"
-                      >
-                        <td className="whitespace-nowrap px-5 py-3.5 text-xs font-medium text-slate-500">
-                          {formatDateLabel(row.workDate, locale)}
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <p className="font-semibold text-slate-900 dark:text-white">{row.description}</p>
-                          <div className="mt-1 flex items-center gap-1.5">
-                            <SourcePill sourceType={row.sourceType} locale={locale} />
-                            {row.hasReceipt && (
-                              <span className="text-[10px] text-slate-400">🧾</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <span className={cn("rounded-full px-2.5 py-1 text-xs font-semibold", getCategoryBadgeClassName(row.categoryLabel))}>
-                            {row.categoryLabel}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-right font-bold tabular-nums text-slate-900 dark:text-white">
-                          {formatCurrency(row.amount)}
-                        </td>
-                        <td className="px-3 py-3.5 text-right">
-                          <RowActions
-                            row={row}
-                            isMockData={isMockData}
-                            labels={{ actions: copy.actions, viewReceipt: copy.viewReceipt, edit: copy.edit, delete: copy.delete }}
-                            onViewReceipt={() => setReceiptRow(row)}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {/* Mobile list — below md */}
-                <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
-                  {paginated.map((row) => (
-                    <div key={row.id} className="flex items-start gap-3 px-4 py-3.5">
-                      <div className="min-w-0 flex-1">
-                        {/* Line 1: description + amount */}
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="truncate font-semibold text-slate-900 dark:text-white">
-                            {row.description}
-                          </p>
-                          <p className="shrink-0 font-bold tabular-nums text-slate-900 dark:text-white">
-                            {formatCurrency(row.amount)}
-                          </p>
-                        </div>
-                        {/* Line 2: date + category + source */}
-                        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <span className="text-xs text-slate-400">
-                            {formatDateLabel(row.workDate, locale)}
-                          </span>
-                          <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold", getCategoryBadgeClassName(row.categoryLabel))}>
-                            {row.categoryLabel}
-                          </span>
-                          <SourcePill sourceType={row.sourceType} locale={locale} />
-                          {row.hasReceipt && (
-                            <button
-                              type="button"
-                              onClick={() => setReceiptRow(row)}
-                              className="text-[11px] text-slate-400 hover:text-emerald-600 transition-colors"
-                              title={copy.viewReceipt}
-                            >
-                              🧾
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <RowActions
-                        row={row}
-                        isMockData={isMockData}
-                        labels={{ actions: copy.actions, viewReceipt: copy.viewReceipt, edit: copy.edit, delete: copy.delete }}
-                        onViewReceipt={() => setReceiptRow(row)}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {paginatedGroups.map((group) => (
+                <TransactionDailyGroupCard
+                  key={group.workDate}
+                  group={group}
+                  locale={locale}
+                  isMockData={isMockData}
+                  labels={{
+                    actions: copy.actions,
+                    viewReceipt: copy.viewReceipt,
+                    edit: copy.edit,
+                    delete: copy.delete,
+                    dailyTotal: copy.dailyTotal,
+                  }}
+                  onViewReceipt={setReceiptRow}
+                />
+              ))}
+            </div>
+          )}
 
           {/* ── Pagination ────────────────────────────────────────────── */}
           <Pagination page={safePage} totalPages={totalPages} onPage={setPage} />
