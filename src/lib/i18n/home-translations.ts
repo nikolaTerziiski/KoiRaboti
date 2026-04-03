@@ -53,12 +53,23 @@ type ProofDialogStep = {
   description: string;
 };
 
+type SocialProofItem = {
+  value: string;
+  label: string;
+};
+
+type FooterLink = {
+  label: string;
+  href: string;
+};
+
 export type HomeTranslations = {
   hero: {
     badge: string;
     title: string;
     description: string;
     note: string;
+    pricingBadge: string;
     primaryCta: string;
     secondaryCta: string;
     bento: {
@@ -67,11 +78,21 @@ export type HomeTranslations = {
       payroll: HeroCardCopy;
     };
   };
+  socialProof: {
+    eyebrow: string;
+    headline: string;
+    stats: SocialProofItem[];
+    founderNote: string;
+  };
   story: {
     eyebrow: string;
     title: string;
     description: string;
     scenes: StoryScene[];
+  };
+  darkBand: {
+    stat: string;
+    caption: string;
   };
   workflow: {
     eyebrow: string;
@@ -111,16 +132,20 @@ export type HomeTranslations = {
     secondaryCta: string;
   };
   footerDescription: string;
+  footerMadeIn: string;
+  footerLinks: FooterLink[];
+  footerContact: string;
 };
 
 export const homeTranslations: Record<Locale, HomeTranslations> = {
   en: {
     hero: {
       badge: "Restaurant costs, finally under control",
-      title: "Daily restaurant costs, attendance, and payroll in one place.",
+      title: "Stop guessing where the money went after the shift ends.",
       description:
-        "Log receipts from Telegram, keep daily operations visible, and stop rebuilding the shift from memory after closing.",
+        "From paper napkin math to real numbers — log receipts via Telegram, track attendance, and settle payroll without rebuilding the day from memory.",
       note: "Built for live work on a phone, while the day is still moving.",
+      pricingBadge: "Free to start — no card required",
       primaryCta: "Start free",
       secondaryCta: "See how it works (Demo)",
       bento: {
@@ -149,6 +174,16 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           meta: "The same data follows the whole flow",
         },
       },
+    },
+    socialProof: {
+      eyebrow: "Built by a restaurant owner",
+      headline: "Created from real shifts, not from a pitch deck.",
+      stats: [
+        { value: "30 sec", label: "to log an expense via Telegram" },
+        { value: "0", label: "spreadsheets needed" },
+        { value: "100%", label: "of data stays per-restaurant" },
+      ],
+      founderNote: "Built by someone who got tired of reconstructing the day at midnight from memory and receipts on the dashboard.",
     },
     story: {
       eyebrow: "What really happens",
@@ -235,7 +270,12 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           },
         },
       ],
-    },    workflow: {
+    },
+    darkBand: {
+      stat: "The average restaurant loses 8-12% of revenue to untracked daily costs.",
+      caption: "KoiRaboti catches them while the shift is still running.",
+    },
+    workflow: {
       eyebrow: "How it works",
       title: "Set it up once. Then the day runs cleaner.",
       description:
@@ -348,14 +388,21 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
     },
     footerDescription:
       "KoiRaboti keeps daily expenses, attendance, and payroll in one working flow for restaurants.",
+    footerMadeIn: "Made in Bulgaria",
+    footerLinks: [
+      { label: "Privacy policy", href: "/privacy" },
+      { label: "Terms of use", href: "/terms" },
+    ],
+    footerContact: "hello@koiraboti.com",
   },
   bg: {
     hero: {
       badge: "Край на хаоса с бележките",
-      title: "Всички разходи на ресторанта, най-после на едно място.",
+      title: "Спри да гадаеш колко изхарчи ресторантът вчера.",
       description:
-        "Снимай касовите бележки в Telegram. Управлявай графици и заплати без Excel. KoiRaboti подрежда деня ти, преди смяната да е приключила.",
+        "От бележки по салфетки до реални числа — снимай разходите в Telegram, отчитай присъствие и плащай заплати, без да сглобяваш деня по спомен.",
       note: "Създадено за реална работа - през телефона, в движение.",
+      pricingBadge: "Безплатен старт — без карта",
       primaryCta: "Започни безплатно",
       secondaryCta: "Виж как работи (Демо)",
       bento: {
@@ -384,6 +431,16 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           meta: "Едни и същи данни - от деня до заплатата",
         },
       },
+    },
+    socialProof: {
+      eyebrow: "Създадено от ресторантьор",
+      headline: "Родено от реални смени, не от презентация.",
+      stats: [
+        { value: "30 сек", label: "да запишеш разход в Telegram" },
+        { value: "0", label: "Excel таблици" },
+        { value: "100%", label: "данните остават по ресторант" },
+      ],
+      founderNote: "Направено от човек, който се умори да сглобява деня в полунощ от спомени и бележки по таблото.",
     },
     story: {
       eyebrow: "Реалността в бизнеса",
@@ -470,7 +527,12 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           },
         },
       ],
-    },    workflow: {
+    },
+    darkBand: {
+      stat: "Средният ресторант губи 8-12% от оборота заради неотчетени ежедневни разходи.",
+      caption: "KoiRaboti ги хваща, докато смяната още тече.",
+    },
+    workflow: {
       eyebrow: "Как работи",
       title: "Настройваш веднъж. После денят просто върви по-лесно.",
       description:
@@ -583,5 +645,11 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
     },
     footerDescription:
       "KoiRaboti събира ежедневните разходи, присъствието и заплатите в един работещ поток за ресторанта.",
+    footerMadeIn: "Направено в България",
+    footerLinks: [
+      { label: "Поверителност", href: "/privacy" },
+      { label: "Условия за ползване", href: "/terms" },
+    ],
+    footerContact: "hello@koiraboti.com",
   },
 };
