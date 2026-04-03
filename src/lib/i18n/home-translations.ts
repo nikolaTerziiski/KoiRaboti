@@ -154,16 +154,16 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
       eyebrow: "What really happens",
       title: "You forget one fuel stop here, one supplier receipt there, and the month stops making sense.",
       description:
-        "A normal day can turn from scattered notes into a clean report if you capture things while they happen.",
+        "A normal day feels much calmer when the details are captured while they happen instead of being rebuilt at closing.",
       scenes: [
         {
           id: "fuel",
           eyebrow: "Fuel",
           title: "You top up fuel in a rush.",
           description:
-            "You pay and move on. By the evening, nobody wants to remember the exact amount, what it was for, or where the receipt went.",
+            "You pay and move on. By the evening, nobody remembers the exact amount or where the receipt ended up.",
           outcome:
-            "A short Telegram message is enough to save the expense for today.",
+            "One Telegram message is enough to tie the expense to today.",
           phone: {
             badge: "Telegram expense",
             title: "Fuel is already logged",
@@ -187,7 +187,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           eyebrow: "Delivery",
           title: "The delivery arrives and the receipt gets left on the counter.",
           description:
-            "You are receiving stock, people are moving around, and if the receipt is not captured quickly, half the context is gone later.",
+            "Stock is coming in, people are moving around, and the receipt stays on the counter. If it is not captured quickly, half the context disappears later.",
           outcome:
             "The photo and note stay attached to the right day and the right category.",
           phone: {
@@ -211,11 +211,11 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
         {
           id: "close",
           eyebrow: "Closing",
-          title: "By closing time, what is missing is not just money. It is certainty.",
+          title: "By closing time, what is missing is not just money. It is clarity.",
           description:
-            "You still need to know what was spent, who worked, and how that affects payroll. When that gets rebuilt from memory, things drift.",
+            "You still need to know what was spent, who worked, and how that feeds payroll. When it all gets rebuilt from memory, the picture drifts.",
           outcome:
-            "You close the day with a clearer picture instead of piecing it together later.",
+            "You close the day with a clear picture instead of piecing it together later.",
           phone: {
             badge: "Daily summary",
             title: "You end the shift with a clean view",
@@ -235,8 +235,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           },
         },
       ],
-    },
-    workflow: {
+    },    workflow: {
       eyebrow: "How it works",
       title: "Set it up once. Then the day runs cleaner.",
       description:
@@ -390,16 +389,16 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
       eyebrow: "Реалността в бизнеса",
       title: "Забравяш 50 лв. за гориво тук, 100 лв. за лед там... и месецът не излиза.",
       description:
-        "Виж как един нормален ден се превръща от хаос в подреден отчет, без да губиш време.",
+        "Виж как един нормален ден се подрежда, докато още тече, вместо да го събираш вечер по спомен.",
       scenes: [
         {
           id: "fuel",
           eyebrow: "Гориво",
           title: "Зареждаш гориво в бързината.",
           description:
-            "Плащаш и продължаваш. После идва вечерта и вече никой не помни точната сума, за какво е била и къде е бележката.",
+            "Плащаш и продължаваш. После вечерта вече никой не помни точната сума и къде е бележката.",
           outcome:
-            "Пращаш кратко съобщение в Telegram и разходът е запазен за днес.",
+            "Едно съобщение в Telegram и разходът вече е вързан към днешния ден.",
           phone: {
             badge: "Telegram разход",
             title: "Горивото е записано",
@@ -423,7 +422,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           eyebrow: "Доставка",
           title: "Доставката идва, а бележката остава някъде на плота.",
           description:
-            "Приемаш стока, хората влизат и излизат, и ако не я хванеш веднага, после вече липсва половината информация.",
+            "Продукти идват, хора влизат и излизат, а бележката остава на плота. Ако не я хванеш веднага, после липсва половината информация.",
           outcome:
             "Снимката и кратката бележка остават към точния ден и точната категория.",
           phone: {
@@ -447,9 +446,9 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
         {
           id: "close",
           eyebrow: "Край на деня",
-          title: "В края на деня не ти липсват само суми. Липсва ти спокойствие.",
+          title: "Накрая липсват не само суми. Липсва ти и ясна картина.",
           description:
-            "Трябва да знаеш какво е похарчено, кой е бил на работа и как това ще удари заплатите. Ако го събираш по спомен, започват разминаванията.",
+            "Трябва да знаеш какво е похарчено, кой е бил на работа и как това влиза в заплатите. Ако го събираш по спомен, започват разминаванията.",
           outcome:
             "Затваряш деня с ясна картина, вместо да сглобяваш всичко после.",
           phone: {
@@ -471,8 +470,7 @@ export const homeTranslations: Record<Locale, HomeTranslations> = {
           },
         },
       ],
-    },
-    workflow: {
+    },    workflow: {
       eyebrow: "Как работи",
       title: "Настройваш веднъж. После денят просто върви по-лесно.",
       description:

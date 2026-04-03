@@ -1,6 +1,7 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -26,8 +27,9 @@ import { homeTranslations, type HomeTranslations } from "@/lib/i18n/home-transla
 import { cn } from "@/lib/utils";
 
 type HeroCardVariant = "attendance" | "telegram" | "payroll";
-
 type StoryScene = HomeTranslations["story"]["scenes"][number];
+
+const STORY_SCREENSHOT_SOURCES: Partial<Record<StoryScene["id"], string>> = {};
 
 function BrandLockup({
   subtitle,
@@ -88,6 +90,60 @@ function SurfaceCard({
   );
 }
 
+function Reveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [isVisible, setIsVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    const node = ref.current;
+
+    if (!node) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (entry?.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      {
+        threshold: 0.18,
+        rootMargin: "0px 0px -10% 0px",
+      },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={cn(
+        "transition-[opacity,transform] duration-700 ease-out will-change-transform motion-reduce:translate-y-0 motion-reduce:opacity-100",
+        isVisible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        className,
+      )}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function HeroCard({
   icon: Icon,
   copy,
@@ -104,7 +160,7 @@ function HeroCard({
   className?: string;
 }) {
   return (
-    <SurfaceCard className={cn("h-full min-h-[21rem] p-6 sm:p-7", className)}>
+    <SurfaceCard className={cn("h-full min-h-[23rem] p-6 sm:p-7", className)}>
       <div className="flex items-center justify-between gap-3">
         <Badge
           variant="outline"
@@ -117,14 +173,14 @@ function HeroCard({
         </div>
       </div>
 
-      <div className="mt-6 space-y-2">
+      <div className="mt-6 space-y-2.5">
         <h3 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
           {copy.title}
         </h3>
         <p className="text-sm leading-6 text-muted-foreground">{copy.description}</p>
       </div>
 
-      <div className="mt-6 rounded-[1.5rem] border border-border/50 bg-background p-4">
+      <div className="mt-6 rounded-[1.6rem] border border-border/50 bg-background p-4">
         <p className="text-2xl font-bold tracking-tight text-foreground sm:text-[1.75rem]">
           {copy.value}
         </p>
@@ -187,64 +243,88 @@ function HeroCard({
   );
 }
 
-function StoryPhone({
+function StoryProofVisual({
   scene,
-  compact = false,
+  previewLabel,
+  resultLabel,
+  productLabel,
 }: {
   scene: StoryScene;
-  compact?: boolean;
+  previewLabel: string;
+  resultLabel: string;
+  productLabel: string;
 }) {
-  return (
-    <div
-      className={cn(
-        "mx-auto w-full max-w-[400px] rounded-[2.4rem] border border-border/60 bg-card p-3 shadow-sm",
-        compact && "max-w-full rounded-[1.9rem] p-2.5 shadow-none",
-      )}
-    >
-      <div className="rounded-[2rem] border border-border/60 bg-background p-4">
-        <div className="mx-auto mb-4 h-1.5 w-16 rounded-full bg-border/80" />
+  const screenshotSrc = STORY_SCREENSHOT_SOURCES[scene.id];
 
-        <div className="flex items-start justify-between gap-3">
-          <div>
+  return (
+    <div className="space-y-4">
+      <div className="rounded-[1.75rem] border border-border/60 bg-background p-3 shadow-sm">
+        <div className="rounded-[1.5rem] border border-border/60 bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
             <Badge
               variant="outline"
-              className="border-border/60 bg-card px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-muted-foreground"
+              className="border-border/60 bg-background px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
             >
-              {scene.phone.badge}
+              {previewLabel}
             </Badge>
-            <p className="mt-3 text-lg font-bold tracking-tight text-foreground">
-              {scene.phone.title}
-            </p>
-          </div>
-          <div className="flex size-10 items-center justify-center rounded-2xl border border-border/60 bg-card">
-            <MessageSquareText className="size-4 text-foreground" />
-          </div>
-        </div>
-
-        <div className="mt-5 space-y-3">
-          {scene.phone.messages.map((message, index) => (
-            <div
-              key={`${scene.id}-${index}`}
-              className={cn(
-                "max-w-[88%] rounded-[1.35rem] px-4 py-3 text-sm leading-6 text-foreground",
-                message.sender === "owner"
-                  ? "ml-auto rounded-br-md bg-primary/10"
-                  : "rounded-bl-md bg-secondary",
-              )}
-            >
-              {message.text}
+            <div className="flex size-9 items-center justify-center rounded-2xl border border-border/60 bg-background">
+              <MessageSquareText className="size-4 text-foreground" />
             </div>
-          ))}
-        </div>
+          </div>
 
-        <div className="mt-5 rounded-[1.5rem] border border-border/60 bg-card p-4">
+          {screenshotSrc ? (
+            <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-border/60 bg-background">
+              <Image
+                src={screenshotSrc}
+                alt={scene.phone.title}
+                width={720}
+                height={1280}
+                className="h-[26rem] w-full object-cover object-top"
+              />
+            </div>
+          ) : (
+            <div className="mt-4 rounded-[1.35rem] border border-border/60 bg-background/80 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {scene.phone.badge}
+              </p>
+              <p className="mt-2 text-lg font-bold tracking-tight text-foreground">
+                {scene.phone.title}
+              </p>
+              <div className="mt-4 space-y-3">
+                {scene.phone.messages.map((message, index) => (
+                  <div
+                    key={`${scene.id}-${index}`}
+                    className={cn(
+                      "max-w-[88%] rounded-[1.3rem] px-4 py-3 text-sm leading-6 text-foreground",
+                      message.sender === "owner"
+                        ? "ml-auto rounded-br-md bg-primary/10"
+                        : "rounded-bl-md bg-secondary",
+                    )}
+                  >
+                    {message.text}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="rounded-[1.5rem] border border-border/60 bg-background p-4 shadow-sm">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {scene.phone.summaryLabel}
+            {resultLabel}
           </p>
           <p className="mt-2 text-base font-semibold text-foreground">{scene.phone.summaryValue}</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {scene.phone.summaryMeta}
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{scene.phone.summaryMeta}</p>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-border/60 bg-card p-4 shadow-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {productLabel}
           </p>
+          <p className="mt-2 text-base font-semibold text-foreground">{scene.phone.summaryLabel}</p>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{scene.outcome}</p>
         </div>
       </div>
     </div>
@@ -281,74 +361,15 @@ function CtaRow({
 export function HomePage() {
   const { locale, t } = useLocale();
   const home = homeTranslations[locale];
-  const sceneRefs = React.useRef<Array<HTMLElement | null>>([]);
-  const [activeStoryIndex, setActiveStoryIndex] = React.useState(0);
 
-  React.useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const updateActive = () => {
-      const nodes = sceneRefs.current.filter(
-        (node): node is HTMLElement => node instanceof HTMLElement,
-      );
-
-      if (nodes.length === 0) {
-        return;
-      }
-
-      const viewportAnchor = window.innerHeight * 0.42;
-      let bestIndex = 0;
-      let bestDistance = Number.POSITIVE_INFINITY;
-
-      nodes.forEach((node, index) => {
-        const rect = node.getBoundingClientRect();
-        const midpoint = rect.top + rect.height / 2;
-        const distance = Math.abs(midpoint - viewportAnchor);
-
-        if (distance < bestDistance) {
-          bestDistance = distance;
-          bestIndex = index;
-        }
-      });
-
-      setActiveStoryIndex((current) => (current === bestIndex ? current : bestIndex));
-    };
-
-    let frameId = 0;
-    const handleScroll = () => {
-      if (frameId !== 0) {
-        return;
-      }
-
-      frameId = window.requestAnimationFrame(() => {
-        updateActive();
-        frameId = 0;
-      });
-    };
-
-    updateActive();
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-
-    return () => {
-      if (frameId !== 0) {
-        window.cancelAnimationFrame(frameId);
-      }
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-    };
-  }, [home.story.scenes]);
-
-  const activeScene = home.story.scenes[activeStoryIndex] ?? home.story.scenes[0];
   const authLabels =
     locale === "bg"
       ? { signIn: "Вход", register: "Регистрация" }
       : { signIn: "Sign in", register: "Register" };
   const homeLinkLabel = locale === "bg" ? "Начало KoiRaboti" : "KoiRaboti home";
-  const storyPreviewLabel = locale === "bg" ? "Как изглежда в приложението" : "In the product";
-  const storyEffectLabel = locale === "bg" ? "Какво се променя" : "What changes";
+  const storyPreviewLabel = locale === "bg" ? "В Telegram" : "In Telegram";
+  const storyResultLabel = locale === "bg" ? "Записано за деня" : "Saved for the day";
+  const storyProductLabel = locale === "bg" ? "В KoiRaboti" : "In KoiRaboti";
   const attendanceRows =
     locale === "bg"
       ? [
@@ -435,9 +456,9 @@ export function HomePage() {
 
       <main>
         <section className="mx-auto w-full max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-24">
-          <div className="mx-auto max-w-4xl text-center">
+          <Reveal className="mx-auto max-w-4xl text-center">
             <SectionEyebrow>{home.hero.badge}</SectionEyebrow>
-            <h1 className="mt-5 text-5xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
+            <h1 className="mt-5 text-4xl font-bold tracking-tight text-foreground sm:text-6xl lg:text-7xl">
               {home.hero.title}
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -457,120 +478,92 @@ export function HomePage() {
               <Clock3 className="size-4 text-primary" />
               {home.hero.note}
             </div>
-          </div>
+          </Reveal>
 
           <div className="mt-12 grid gap-4 md:grid-cols-2 xl:grid-cols-12 xl:auto-rows-fr">
-            {heroCards.map(({ icon, variant, copy, className }) => (
-              <HeroCard
-                key={variant}
-                icon={icon}
-                variant={variant}
-                copy={copy}
-                attendanceRows={attendanceRows}
-                payrollRows={payrollRows}
-                className={className}
-              />
+            {heroCards.map(({ icon, variant, copy, className }, index) => (
+              <Reveal key={variant} delay={index * 80} className={cn("h-full", className)}>
+                <HeroCard
+                  icon={icon}
+                  variant={variant}
+                  copy={copy}
+                  attendanceRows={attendanceRows}
+                  payrollRows={payrollRows}
+                />
+              </Reveal>
             ))}
           </div>
         </section>
 
-        <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-18">
-          <div className="max-w-4xl">
+        <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-20">
+          <Reveal className="max-w-4xl">
             <SectionEyebrow>{home.story.eyebrow}</SectionEyebrow>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
+            <h2 className="mt-4 max-w-5xl text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl">
               {home.story.title}
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
               {home.story.description}
             </p>
-          </div>
+          </Reveal>
 
-          <div className="mt-14 grid items-start gap-8 xl:grid-cols-[minmax(0,1fr)_420px] xl:gap-12">
-            <div className="space-y-6">
-              {home.story.scenes.map((scene, index) => {
-                const Icon = storyIcons[index] ?? MessageSquareText;
-                const isActive = activeStoryIndex === index;
+          <div className="mt-10 space-y-6 lg:mt-12 lg:space-y-8">
+            {home.story.scenes.map((scene, index) => {
+              const Icon = storyIcons[index] ?? MessageSquareText;
 
-                return (
-                  <article
-                    key={scene.id}
-                    ref={(node) => {
-                      sceneRefs.current[index] = node;
-                    }}
-                    className="scroll-mt-28"
-                  >
-                    <SurfaceCard
-                      className={cn(
-                        "p-7 sm:p-8 transition-all",
-                        isActive
-                          ? "border-border/80 bg-card shadow-sm"
-                          : "border-border/50 bg-background",
-                      )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
-                          <Icon className="size-5 text-foreground" />
+              return (
+                <Reveal key={scene.id} delay={index * 70}>
+                  <SurfaceCard className="overflow-hidden">
+                    <div className="grid lg:grid-cols-[minmax(0,1.05fr)_minmax(340px,0.95fr)]">
+                      <div className="p-7 sm:p-8 lg:p-10">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
+                            <Icon className="size-5 text-foreground" />
+                          </div>
+                          <Badge
+                            variant="outline"
+                            className="border-border/60 bg-background px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+                          >
+                            {scene.eyebrow}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant="outline"
-                          className="border-border/60 bg-background px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
-                        >
-                          {scene.eyebrow}
-                        </Badge>
-                      </div>
 
-                      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
-                        <div>
+                        <div className="mt-6 max-w-xl">
                           <h3 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                             {scene.title}
                           </h3>
-                          <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+                          <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
                             {scene.description}
                           </p>
                         </div>
 
-                        <div className="rounded-[1.5rem] border border-border/50 bg-background px-5 py-4">
+                        <div className="mt-6 rounded-[1.5rem] border border-border/60 bg-background px-5 py-4 shadow-sm">
                           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                            {storyEffectLabel}
+                            {storyProductLabel}
                           </p>
-                          <p className="mt-2 text-sm font-medium leading-6 text-foreground">
+                          <p className="mt-2 text-base font-semibold leading-7 text-foreground sm:text-lg">
                             {scene.outcome}
                           </p>
                         </div>
                       </div>
 
-                      <div className="mt-6 xl:hidden">
-                        <StoryPhone scene={scene} compact />
+                      <div className="border-t border-border/60 bg-muted/20 p-5 sm:p-6 lg:border-l lg:border-t-0 lg:p-8">
+                        <StoryProofVisual
+                          scene={scene}
+                          previewLabel={storyPreviewLabel}
+                          resultLabel={storyResultLabel}
+                          productLabel={storyProductLabel}
+                        />
                       </div>
-                    </SurfaceCard>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div className="hidden xl:block">
-              <div className="sticky top-28">
-                <SurfaceCard className="p-5">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <Badge
-                      variant="outline"
-                      className="border-border/60 bg-background px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
-                    >
-                      {activeScene.eyebrow}
-                    </Badge>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {storyPreviewLabel}
-                    </p>
-                  </div>
-                  <StoryPhone scene={activeScene} compact />
-                </SurfaceCard>
-              </div>
-            </div>
+                    </div>
+                  </SurfaceCard>
+                </Reveal>
+              );
+            })}
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
-          <div className="max-w-3xl">
+          <Reveal className="max-w-3xl">
             <SectionEyebrow>{home.workflow.eyebrow}</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {home.workflow.title}
@@ -578,7 +571,7 @@ export function HomePage() {
             <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
               {home.workflow.description}
             </p>
-          </div>
+          </Reveal>
 
           <div className="relative mt-10 max-w-4xl">
             {home.workflow.steps.map((step, index) => {
@@ -586,34 +579,36 @@ export function HomePage() {
               const isLast = index === home.workflow.steps.length - 1;
 
               return (
-                <article key={step.title} className="relative pl-20">
-                  {!isLast ? (
-                    <span className="absolute left-[1.4rem] top-12 h-[calc(100%-0.5rem)] w-px bg-border/60" />
-                  ) : null}
+                <Reveal key={step.title} delay={index * 70}>
+                  <article className="relative pl-20">
+                    {!isLast ? (
+                      <span className="absolute left-[1.4rem] top-12 h-[calc(100%-0.5rem)] w-px bg-border/60" />
+                    ) : null}
 
-                  <div className="absolute left-0 top-0 flex size-11 items-center justify-center rounded-full border border-border/60 bg-card shadow-sm">
-                    <Icon className="size-5 text-foreground" />
-                  </div>
+                    <div className="absolute left-0 top-0 flex size-11 items-center justify-center rounded-full border border-border/60 bg-card shadow-sm">
+                      <Icon className="size-5 text-foreground" />
+                    </div>
 
-                  <div className="pb-12">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                      {step.meta}
-                    </p>
-                    <h3 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
-                      {step.title}
-                    </h3>
-                    <p className="mt-3 text-base leading-relaxed text-muted-foreground">
-                      {step.description}
-                    </p>
-                  </div>
-                </article>
+                    <div className="pb-12">
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        {step.meta}
+                      </p>
+                      <h3 className="mt-3 text-2xl font-bold tracking-tight text-foreground">
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-base leading-relaxed text-muted-foreground">
+                        {step.description}
+                      </p>
+                    </div>
+                  </article>
+                </Reveal>
               );
             })}
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-16">
-          <div className="max-w-3xl">
+          <Reveal className="max-w-3xl">
             <SectionEyebrow>{home.audience.eyebrow}</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {home.audience.title}
@@ -621,106 +616,114 @@ export function HomePage() {
             <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
               {home.audience.description}
             </p>
-          </div>
+          </Reveal>
 
           <div className="mt-10 grid gap-4 lg:grid-cols-12">
-            <SurfaceCard className="p-7 lg:col-span-7">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
-                  <WalletCards className="size-5 text-foreground" />
+            <Reveal className="lg:col-span-7">
+              <SurfaceCard className="h-full p-7">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
+                    <WalletCards className="size-5 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {home.audience.owners.title}
+                    </p>
+                    <h3 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+                      {home.audience.owners.description}
+                    </h3>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {home.audience.owners.title}
-                  </p>
-                  <h3 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-                    {home.audience.owners.description}
-                  </h3>
-                </div>
-              </div>
 
-              <ul className="mt-6 space-y-3">
-                {home.audience.owners.bullets.map((bullet) => (
-                  <li
-                    key={bullet}
-                    className="flex items-start gap-3 rounded-[1.5rem] border border-border/50 bg-background px-5 py-4 text-sm leading-6 text-muted-foreground"
-                  >
-                    <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </SurfaceCard>
+                <ul className="mt-6 space-y-3">
+                  {home.audience.owners.bullets.map((bullet) => (
+                    <li
+                      key={bullet}
+                      className="flex items-start gap-3 rounded-[1.5rem] border border-border/50 bg-background px-5 py-4 text-sm leading-6 text-muted-foreground"
+                    >
+                      <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-primary" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </SurfaceCard>
+            </Reveal>
 
-            <SurfaceCard className="p-7 lg:col-span-5">
-              <div className="flex items-center gap-3">
-                <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
-                  <Users2 className="size-5 text-foreground" />
+            <Reveal className="lg:col-span-5" delay={90}>
+              <SurfaceCard className="h-full p-7">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-11 items-center justify-center rounded-2xl border border-border/60 bg-background">
+                    <Users2 className="size-5 text-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                      {home.audience.staff.title}
+                    </p>
+                    <h3 className="mt-1 text-xl font-bold tracking-tight text-foreground">
+                      {home.audience.staff.description}
+                    </h3>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {home.audience.staff.title}
-                  </p>
-                  <h3 className="mt-1 text-xl font-bold tracking-tight text-foreground">
-                    {home.audience.staff.description}
-                  </h3>
-                </div>
-              </div>
 
-              <ul className="mt-6 space-y-3">
-                {home.audience.staff.bullets.map((bullet) => (
-                  <li key={bullet} className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                    <span>{bullet}</span>
-                  </li>
-                ))}
-              </ul>
-            </SurfaceCard>
+                <ul className="mt-6 space-y-3">
+                  {home.audience.staff.bullets.map((bullet) => (
+                    <li key={bullet} className="flex items-start gap-3 text-sm leading-6 text-muted-foreground">
+                      <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
+                      <span>{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+              </SurfaceCard>
+            </Reveal>
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
-          <div className="max-w-3xl">
+          <Reveal className="max-w-3xl">
             <SectionEyebrow>{home.evidence.eyebrow}</SectionEyebrow>
             <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {home.evidence.title}
             </h2>
-          </div>
+          </Reveal>
 
           <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {evidenceItems.map(({ icon: Icon, copy }) => (
-              <SurfaceCard key={copy.title} className="p-5">
-                <div className="flex size-10 items-center justify-center rounded-2xl border border-border/60 bg-background">
-                  <Icon className="size-4 text-foreground" />
-                </div>
-                <h3 className="mt-4 text-lg font-bold tracking-tight text-foreground">
-                  {copy.title}
-                </h3>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.description}</p>
-              </SurfaceCard>
+            {evidenceItems.map(({ icon: Icon, copy }, index) => (
+              <Reveal key={copy.title} delay={index * 60}>
+                <SurfaceCard className="h-full p-5">
+                  <div className="flex size-10 items-center justify-center rounded-2xl border border-border/60 bg-background">
+                    <Icon className="size-4 text-foreground" />
+                  </div>
+                  <h3 className="mt-4 text-lg font-bold tracking-tight text-foreground">
+                    {copy.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.description}</p>
+                </SurfaceCard>
+              </Reveal>
             ))}
           </div>
         </section>
 
         <section className="mx-auto w-full max-w-7xl px-4 pb-10 pt-8 sm:px-6 lg:px-8 lg:pb-16 lg:pt-12">
-          <SurfaceCard className="p-7 sm:p-8">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-              <div className="max-w-2xl">
-                <SectionEyebrow>{home.final.eyebrow}</SectionEyebrow>
-                <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-                  {home.final.title}
-                </h2>
-                <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
-                  {home.final.description}
-                </p>
-              </div>
+          <Reveal>
+            <SurfaceCard className="p-7 sm:p-8">
+              <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+                <div className="max-w-2xl">
+                  <SectionEyebrow>{home.final.eyebrow}</SectionEyebrow>
+                  <h2 className="mt-4 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+                    {home.final.title}
+                  </h2>
+                  <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+                    {home.final.description}
+                  </p>
+                </div>
 
-              <CtaRow
-                primaryLabel={home.final.primaryCta}
-                secondaryLabel={home.final.secondaryCta}
-              />
-            </div>
-          </SurfaceCard>
+                <CtaRow
+                  primaryLabel={home.final.primaryCta}
+                  secondaryLabel={home.final.secondaryCta}
+                />
+              </div>
+            </SurfaceCard>
+          </Reveal>
         </section>
       </main>
 
