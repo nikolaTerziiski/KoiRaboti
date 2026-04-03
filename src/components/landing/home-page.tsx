@@ -18,7 +18,6 @@ import {
   ShieldCheck,
   Smartphone,
   Sparkles,
-  TrendingUp,
   Users2,
   WalletCards,
   Zap,
@@ -680,7 +679,6 @@ export function HomePage() {
   ];
 
   const storyIcons: LucideIcon[] = [Fuel, ReceiptText, CheckCircle2];
-  const workflowIcons: LucideIcon[] = [Leaf, Clock3, TrendingUp];
 
   const evidenceItems: Array<{
     icon: LucideIcon;
@@ -754,6 +752,11 @@ export function HomePage() {
               <TelegramMiniDemo locale={locale} />
             </Reveal>
           </div>
+
+          {/* Mobile-only: Telegram demo below hero text */}
+          <Reveal delay={150} className="mt-8 lg:hidden">
+            <TelegramMiniDemo locale={locale} />
+          </Reveal>
 
           <div className="mx-auto mt-8 grid max-w-md gap-3 sm:mt-12 sm:max-w-none sm:gap-4 md:grid-cols-2 xl:grid-cols-12 xl:auto-rows-fr">
             {heroCards.map(({ icon, variant, copy, className }, index) => (
@@ -890,51 +893,6 @@ export function HomePage() {
 
         <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-16">
           <Reveal className="max-w-3xl">
-            <SectionEyebrow>{home.workflow.eyebrow}</SectionEyebrow>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
-              {home.workflow.title}
-            </h2>
-            <p className="mt-3 text-base leading-relaxed text-muted-foreground sm:mt-4 sm:text-lg">
-              {home.workflow.description}
-            </p>
-          </Reveal>
-
-          <div className="relative mt-6 max-w-4xl sm:mt-10">
-            {home.workflow.steps.map((step, index) => {
-              const Icon = workflowIcons[index] ?? Leaf;
-              const isLast = index === home.workflow.steps.length - 1;
-
-              return (
-                <Reveal key={step.title} delay={index * 70}>
-                  <article className="relative pl-14 sm:pl-20">
-                    {!isLast ? (
-                      <span className="absolute left-[0.95rem] top-9 h-[calc(100%-0.25rem)] w-px bg-border/60 sm:left-[1.4rem] sm:top-12 sm:h-[calc(100%-0.5rem)]" />
-                    ) : null}
-
-                    <div className="absolute left-0 top-0 flex size-8 items-center justify-center rounded-full border border-border/60 bg-card shadow-sm sm:size-11">
-                      <Icon className="size-4 text-foreground sm:size-5" />
-                    </div>
-
-                    <div className="pb-8 sm:pb-12">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                        {step.meta}
-                      </p>
-                      <h3 className="mt-2.5 text-xl font-bold tracking-tight text-foreground sm:mt-3 sm:text-2xl">
-                        {step.title}
-                      </h3>
-                      <p className="mt-2.5 text-base leading-relaxed text-muted-foreground sm:mt-3">
-                        {step.description}
-                      </p>
-                    </div>
-                  </article>
-                </Reveal>
-              );
-            })}
-          </div>
-        </section>
-
-        <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-16">
-          <Reveal className="max-w-3xl">
             <SectionEyebrow>{home.audience.eyebrow}</SectionEyebrow>
             <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
               {home.audience.title}
@@ -1002,31 +960,26 @@ export function HomePage() {
               </SurfaceCard>
             </Reveal>
           </div>
-        </section>
 
-        <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <Reveal className="max-w-3xl">
-            <SectionEyebrow>{home.evidence.eyebrow}</SectionEyebrow>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-4xl">
-              {home.evidence.title}
-            </h2>
-          </Reveal>
-
-          <div className="mt-6 grid gap-3 sm:mt-8 md:grid-cols-2 xl:grid-cols-4">
-            {evidenceItems.map(({ icon: Icon, copy }, index) => (
-              <Reveal key={copy.title} delay={index * 60}>
-                <SurfaceCard hoverable className="h-full p-4 sm:p-5">
-                  <div className="flex size-9 items-center justify-center rounded-2xl border border-border/60 bg-background sm:size-10">
-                    <Icon className="size-4 text-foreground" />
+          {/* Evidence — compact row merged into audience */}
+          <Reveal className="mt-6 sm:mt-8">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {evidenceItems.map(({ icon: EvidenceIcon, copy }) => (
+                <div
+                  key={copy.title}
+                  className="flex items-start gap-3 rounded-2xl border border-border/60 bg-background px-4 py-3.5 sm:px-5 sm:py-4"
+                >
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-xl border border-border/60 bg-card">
+                    <EvidenceIcon className="size-3.5 text-foreground" />
                   </div>
-                  <h3 className="mt-3 text-base font-bold tracking-tight text-foreground sm:mt-4 sm:text-lg">
-                    {copy.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{copy.description}</p>
-                </SurfaceCard>
-              </Reveal>
-            ))}
-          </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{copy.title}</p>
+                    <p className="mt-0.5 text-xs leading-5 text-muted-foreground">{copy.description}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Reveal>
         </section>
 
         <section className="mx-auto w-full max-w-7xl px-4 pb-6 pt-6 sm:px-6 sm:pb-10 sm:pt-8 lg:px-8 lg:pb-16 lg:pt-12">
