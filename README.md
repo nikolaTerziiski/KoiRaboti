@@ -164,6 +164,10 @@ npm run test
 npm run dev
 ```
 
+## Reusable prompts
+
+- Landing/auth responsiveness audit prompt: `prompts/landing-auth-responsiveness-audit.md`
+
 ## Project structure
 
 ```text

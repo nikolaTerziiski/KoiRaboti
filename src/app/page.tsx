@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionMode } from "@/actions/auth";
+import { HomePage } from "@/components/landing/home-page";
 import { hasSupabaseCredentials } from "@/lib/env";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -9,7 +10,7 @@ export default async function Home() {
   const sessionMode = await getSessionMode();
 
   if (sessionMode === "guest") {
-    redirect("/login");
+    return <HomePage />;
   }
 
   // For Supabase users: check if onboarding is complete (profile exists)
