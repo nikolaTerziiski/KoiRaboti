@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format, setISODay, startOfWeek } from "date-fns";
 import { bg, enUS } from "date-fns/locale";
-import { ClipboardList, Pencil, Phone, Wallet } from "lucide-react";
+import { ClipboardList, Pencil, Percent, Phone, Wallet } from "lucide-react";
 import type { EmployeeActionState } from "@/actions/employees";
 import {
   setEmployeeActiveAction,
@@ -22,7 +22,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { formatBgnCurrencyFromEur, formatCurrency } from "@/lib/format";
 import { useLocale } from "@/lib/i18n/context";
-import type { Employee, SnapshotMode } from "@/lib/types";
+import type { Employee, SnapshotMode, TurnoverSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const initialEmployeeActionState: EmployeeActionState = {
@@ -38,6 +38,17 @@ type EmployeeRowEditorProps = {
   employee: Employee;
   dataMode: SnapshotMode;
   currencyMode: CurrencyMode;
+};
+
+type EmployeeDraft = {
+  fullName: string;
+  role: Employee["role"];
+  phoneNumber: string;
+  dailyRate: string;
+  hasPercentage: boolean;
+  percentageRate: string;
+  turnoverSource: TurnoverSource;
+  payment: EmployeePaymentScheduleDraft;
 };
 
 function getDateLocale(locale: "bg" | "en") {
@@ -71,7 +82,11 @@ function getWeekdayLabel(day: number, locale: "bg" | "en") {
   });
 }
 
-function formatScheduleSummary(employee: Employee, t: ReturnType<typeof useLocale>["t"], locale: "bg" | "en") {
+function formatScheduleSummary(
+  employee: Employee,
+  t: ReturnType<typeof useLocale>["t"],
+  locale: "bg" | "en",
+) {
   if (employee.paymentSchedule === "weekly") {
     return `${t.employees.weekly} · ${getWeekdayLabel(employee.paymentWeekday ?? 1, locale)}`;
   }
@@ -87,18 +102,18 @@ function formatScheduleSummary(employee: Employee, t: ReturnType<typeof useLocal
   return `${t.employees.twiceMonthly} · ${t.employees.payDay1} ${employee.paymentDay1 ?? 1} · ${t.employees.payDay2} ${employee.paymentDay2 ?? 16}`;
 }
 
-function createInitialDraft(employee: Employee): {
-  fullName: string;
-  role: Employee["role"];
-  phoneNumber: string;
-  dailyRate: string;
-  payment: EmployeePaymentScheduleDraft;
-} {
+function createInitialDraft(employee: Employee): EmployeeDraft {
   return {
     fullName: employee.fullName,
     role: employee.role,
     phoneNumber: employee.phoneNumber ?? "",
     dailyRate: employee.dailyRate.toString(),
+    hasPercentage: employee.payType === "fixed_plus_percentage",
+    percentageRate:
+      employee.payType === "fixed_plus_percentage"
+        ? (employee.percentageRate * 100).toString()
+        : "",
+    turnoverSource: employee.turnoverSource ?? "personal",
     payment: {
       paymentSchedule: employee.paymentSchedule ?? "twice_monthly",
       paymentDay1: String(employee.paymentDay1 ?? 1),
@@ -106,6 +121,21 @@ function createInitialDraft(employee: Employee): {
       paymentWeekday: employee.paymentWeekday ?? 1,
     },
   };
+}
+
+function getTurnoverSourceLabel(
+  turnoverSource: TurnoverSource,
+  locale: "bg" | "en",
+) {
+  if (locale === "bg") {
+    return turnoverSource === "department"
+      ? "от оборот кухня"
+      : "от личен оборот";
+  }
+
+  return turnoverSource === "department"
+    ? "of kitchen turnover"
+    : "of personal turnover";
 }
 
 export function EmployeeRowEditor({
@@ -183,10 +213,9 @@ export function EmployeeRowEditor({
           secondary: formatBgnCurrencyFromEur(employee.dailyRate),
         };
   const employeeInitials = getEmployeeInitials(employee.fullName);
-  const draftDailyRateHelper =
-    currencyMode === "BGN"
-      ? `${t.employees.bgnView} ${formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}`
-      : `${t.employees.bgnView} ${formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}`;
+  const draftDailyRateHelper = `${t.employees.bgnView} ${formatBgnCurrencyFromEur(
+    toNumber(draft.dailyRate),
+  )}`;
 
   return (
     <div className={`rounded-[1.75rem] border p-5 ${roleTintClassName}`}>
@@ -237,6 +266,15 @@ export function EmployeeRowEditor({
             </p>
           </div>
         </div>
+        {employee.payType === "fixed_plus_percentage" ? (
+          <div className="mt-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-900/50 dark:bg-amber-950/40">
+            <Percent className="size-3.5 text-amber-600 dark:text-amber-400" />
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              + {(employee.percentageRate * 100).toFixed(1)}%{" "}
+              {getTurnoverSourceLabel(employee.turnoverSource, locale)}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -303,6 +341,15 @@ export function EmployeeRowEditor({
           className="mt-4 space-y-4 rounded-2xl border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900"
         >
           <input type="hidden" name="employeeId" value={employee.id} />
+          <input
+            type="hidden"
+            name="payType"
+            value={draft.hasPercentage ? "fixed_plus_percentage" : "fixed"}
+          />
+          <input type="hidden" name="turnoverSource" value={draft.turnoverSource} />
+          {draft.hasPercentage ? (
+            <input type="hidden" name="percentageRate" value={draft.percentageRate} />
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor={`employee-name-${employee.id}`}>{t.employees.name}</Label>
@@ -364,6 +411,90 @@ export function EmployeeRowEditor({
               className="h-11 rounded-2xl"
             />
             <p className="text-xs text-muted-foreground">{draftDailyRateHelper}</p>
+          </div>
+
+          <div className="space-y-3 rounded-[1.5rem] border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={draft.hasPercentage}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    hasPercentage: event.target.checked,
+                    percentageRate: event.target.checked ? current.percentageRate : "",
+                    turnoverSource: event.target.checked
+                      ? current.turnoverSource
+                      : "personal",
+                  }))
+                }
+                className="size-5 rounded-lg border-slate-300 text-emerald-600 accent-emerald-600"
+              />
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                {locale === "bg"
+                  ? "Работи ли с процент от оборота?"
+                  : "Works with turnover percentage?"}
+              </span>
+            </label>
+
+            {draft.hasPercentage ? (
+              <div className="space-y-4 border-t border-slate-200/70 pt-3 dark:border-slate-800">
+                <div className="space-y-2">
+                  <Label htmlFor={`employee-percentage-${employee.id}`}>
+                    {locale === "bg" ? "Процент (%)" : "Percentage (%)"}
+                  </Label>
+                  <Input
+                    id={`employee-percentage-${employee.id}`}
+                    inputMode="decimal"
+                    placeholder="2"
+                    value={draft.percentageRate}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        percentageRate: event.target.value,
+                      }))
+                    }
+                    className="h-11 rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor={`employee-turnover-source-${employee.id}`}>
+                    {locale === "bg" ? "Източник на оборот" : "Turnover source"}
+                  </Label>
+                  <SelectField
+                    id={`employee-turnover-source-${employee.id}`}
+                    value={draft.turnoverSource}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        turnoverSource:
+                          event.target.value === "department"
+                            ? "department"
+                            : "personal",
+                      }))
+                    }
+                    className="h-11 rounded-2xl"
+                  >
+                    <option value="personal">
+                      {locale === "bg"
+                        ? "Личен оборот (сервиз)"
+                        : "Personal turnover (service)"}
+                    </option>
+                    <option value="department">
+                      {locale === "bg"
+                        ? "Оборот кухня (от управител)"
+                        : "Kitchen turnover (from manager)"}
+                    </option>
+                  </SelectField>
+                  <p className="text-xs text-muted-foreground">
+                    {locale === "bg"
+                      ? "Сервизът ползва личния си оборот. Кухнята ползва общия оборот кухня, въведен от управителя."
+                      : "Service uses their personal turnover. Kitchen uses department turnover entered by the manager."}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3 rounded-[1.5rem] border border-slate-200/70 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/50">

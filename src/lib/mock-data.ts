@@ -54,6 +54,9 @@ function createDemoEmployee(
     paymentDay1: 1,
     paymentDay2: 16,
     paymentWeekday: 1,
+    payType: "fixed",
+    percentageRate: 0,
+    turnoverSource: "personal",
     balanceStartsFrom: DEMO_BALANCE_START,
     ...employee,
   };
@@ -317,6 +320,8 @@ function buildAttendanceEntries(
         dailyRate: employee.dailyRate,
         payUnits,
         payOverride,
+        shiftTurnover: null,
+        percentageRateSnapshot: null,
         notes: dayIndex === 0 && employee.id === "emp-1" ? "Late prep delivery." : null,
       };
     });

@@ -198,8 +198,25 @@ function compareUpcomingRows(left: PayrollRow, right: PayrollRow) {
   );
 }
 
-export function resolveAttendanceAmount(entry: AttendanceEntry) {
-  return entry.payOverride ?? entry.dailyRate * entry.payUnits;
+export function resolveAttendanceAmount(
+  entry: AttendanceEntry,
+  employee?: { payType: string; percentageRate: number },
+) {
+  const basePay = entry.payOverride ?? entry.dailyRate * entry.payUnits;
+  const percentageRate =
+    entry.percentageRateSnapshot ??
+    (employee?.payType === "fixed_plus_percentage" ? employee.percentageRate : null);
+
+  if (
+    percentageRate != null &&
+    percentageRate > 0 &&
+    entry.shiftTurnover != null &&
+    entry.shiftTurnover > 0
+  ) {
+    return basePay + entry.shiftTurnover * percentageRate;
+  }
+
+  return basePay;
 }
 
 export function getPayrollPresetWindow(
@@ -322,7 +339,10 @@ export function getRunningBalance(
     return paymentDate >= lowerBound && paymentDate <= referenceDateKey;
   });
   const grossAmount = roundPayrollAmount(
-    applicableAttendance.reduce((sum, entry) => sum + resolveAttendanceAmount(entry), 0),
+    applicableAttendance.reduce(
+      (sum, entry) => sum + resolveAttendanceAmount(entry, employee),
+      0,
+    ),
   );
   const advancesTotal = roundPayrollAmount(
     applicableAdvances.reduce((sum, payment) => sum + payment.amount, 0),

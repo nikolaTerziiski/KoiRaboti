@@ -5,6 +5,7 @@ import { calculateMonthStats } from "@/lib/profile-stats";
 import {
   buildPayrollRows,
   getPayrollPresetWindow,
+  resolveAttendanceAmount,
   summarizePayrollRows,
 } from "@/lib/payroll";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -67,6 +68,8 @@ interface AttendanceRow {
   daily_rate: number | string;
   pay_units: number | string;
   pay_override: number | string | null;
+  shift_turnover?: number | string | null;
+  percentage_rate_snapshot?: number | string | null;
   notes: string | null;
 }
 
@@ -78,6 +81,9 @@ interface EmployeeRow {
   role: string;
   phone_number: string | null;
   daily_rate: number | string;
+  pay_type?: string | null;
+  percentage_rate?: number | string | null;
+  turnover_source?: string | null;
   is_active: boolean;
   use_restaurant_payroll_defaults: boolean;
   payroll_cadence: string | null;
@@ -215,6 +221,11 @@ function mapAttendance(row: AttendanceRow): AttendanceEntry {
     dailyRate: Number(row.daily_rate),
     payUnits: Number(row.pay_units) as 1 | 1.5 | 2,
     payOverride: row.pay_override == null ? null : Number(row.pay_override),
+    shiftTurnover: row.shift_turnover == null ? null : Number(row.shift_turnover),
+    percentageRateSnapshot:
+      row.percentage_rate_snapshot == null
+        ? null
+        : Number(row.percentage_rate_snapshot),
     notes: row.notes,
   };
 }
@@ -229,6 +240,9 @@ function mapEmployee(row: EmployeeRow): Employee {
     role: row.role === "kitchen" ? "kitchen" : "service",
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
+    payType: row.pay_type === "fixed_plus_percentage" ? "fixed_plus_percentage" : "fixed",
+    percentageRate: row.percentage_rate == null ? 0 : Number(row.percentage_rate),
+    turnoverSource: row.turnover_source === "department" ? "department" : "personal",
     isActive: row.is_active,
     useRestaurantPayrollDefaults: row.use_restaurant_payroll_defaults,
     payrollCadence:
@@ -387,7 +401,7 @@ async function loadRestaurantOperationalData(restaurantId: string) {
     db
       .from("employees")
       .select(
-        "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
+        "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, pay_type, percentage_rate, turnover_source, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
       )
       .eq("restaurant_id", restaurantId)
       .order("last_name")
@@ -395,7 +409,7 @@ async function loadRestaurantOperationalData(restaurantId: string) {
     db
       .from("daily_reports")
       .select(
-        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
+        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, shift_turnover, percentage_rate_snapshot, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
       )
       .eq("restaurant_id", restaurantId)
       .order("work_date", { ascending: false }),
@@ -864,7 +878,7 @@ export async function getDailyReportDetails(
   const { data, error } = await db
     .from("daily_reports")
     .select(
-      "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
+      "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, shift_turnover, percentage_rate_snapshot, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
     )
     .eq("restaurant_id", restaurantId)
     .eq("work_date", workDate)
@@ -890,7 +904,7 @@ export async function getAttendanceSummary(params: {
   const { data, error } = await db
     .from("daily_reports")
     .select(
-      "id, work_date, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes)",
+      "id, work_date, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, shift_turnover, percentage_rate_snapshot, notes)",
     )
     .eq("restaurant_id", params.restaurantId)
     .gte("work_date", params.startDate)
@@ -917,10 +931,7 @@ export async function getAttendanceSummary(params: {
       uniqueEmployees.add(entry.employee_id);
       totalEntries += 1;
       totalUnits += Number(entry.pay_units);
-      laborTotal +=
-        entry.pay_override == null
-          ? Number(entry.daily_rate) * Number(entry.pay_units)
-          : Number(entry.pay_override);
+      laborTotal += resolveAttendanceAmount(mapAttendance(entry));
     }
   }
 
@@ -972,7 +983,7 @@ export async function getMonthKpis(restaurantId: string, monthKey?: string) {
   const { data, error } = await db
     .from("daily_reports")
     .select(
-      "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
+      "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, shift_turnover, percentage_rate_snapshot, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
     )
     .eq("restaurant_id", restaurantId)
     .gte("work_date", startDate)
@@ -994,7 +1005,7 @@ export async function listEmployeesForRestaurant(restaurantId: string) {
   const { data, error } = await db
     .from("employees")
     .select(
-      "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
+      "id, restaurant_id, first_name, last_name, role, phone_number, daily_rate, pay_type, percentage_rate, turnover_source, is_active, use_restaurant_payroll_defaults, payroll_cadence, weekly_payday, monthly_pay_day, twice_monthly_day_1, twice_monthly_day_2",
     )
     .eq("restaurant_id", restaurantId)
     .order("last_name")

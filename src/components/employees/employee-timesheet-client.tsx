@@ -147,7 +147,7 @@ export function EmployeeTimesheetClient({
     0,
   );
   const monthEarned = monthAttendance.reduce(
-    (sum, entry) => sum + resolveAttendanceAmount(entry),
+    (sum, entry) => sum + resolveAttendanceAmount(entry, employee),
     0,
   );
   const monthPaid = payments.reduce((sum, payment) => {

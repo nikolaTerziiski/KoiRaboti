@@ -45,6 +45,9 @@ type SupabaseEmployeeRow = {
   payment_day_2?: number | string | null;
   payment_weekday?: number | string | null;
   balance_starts_from?: string | null;
+  pay_type?: string | null;
+  percentage_rate?: number | string | null;
+  turnover_source?: string | null;
 };
 
 type SupabaseProfileRow = {
@@ -61,6 +64,8 @@ type SupabaseAttendanceRow = {
   daily_rate: number | string;
   pay_units: number | string;
   pay_override: number | string | null;
+  shift_turnover: number | string | null;
+  percentage_rate_snapshot?: number | string | null;
   notes: string | null;
 };
 
@@ -164,6 +169,9 @@ function mapEmployee(row: SupabaseEmployeeRow): Employee {
     role,
     phoneNumber: row.phone_number,
     dailyRate: Number(row.daily_rate),
+    payType: row.pay_type === "fixed_plus_percentage" ? "fixed_plus_percentage" : "fixed",
+    percentageRate: row.percentage_rate == null ? 0 : Number(row.percentage_rate),
+    turnoverSource: row.turnover_source === "department" ? "department" : "personal",
     isActive: row.is_active,
     useRestaurantPayrollDefaults: row.use_restaurant_payroll_defaults ?? true,
     payrollCadence:
@@ -238,6 +246,11 @@ function mapAttendance(row: SupabaseAttendanceRow): AttendanceEntry {
     dailyRate: Number(row.daily_rate),
     payUnits: Number(row.pay_units) as 1 | 1.5 | 2,
     payOverride: row.pay_override === null ? null : Number(row.pay_override),
+    shiftTurnover: row.shift_turnover === null || row.shift_turnover === undefined ? null : Number(row.shift_turnover),
+    percentageRateSnapshot:
+      row.percentage_rate_snapshot === null || row.percentage_rate_snapshot === undefined
+        ? null
+        : Number(row.percentage_rate_snapshot),
     notes: row.notes,
   };
 }
@@ -312,7 +325,7 @@ export async function getRestaurantSnapshot(): Promise<RestaurantSnapshot> {
     supabase
       .from("daily_reports")
       .select(
-        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
+        "id, work_date, turnover, profit, card_amount, manual_expense, notes, attendance_entries(id, daily_report_id, employee_id, daily_rate, pay_units, pay_override, shift_turnover, percentage_rate_snapshot, notes), daily_expense_items(id, daily_report_id, category_id, amount, amount_original, currency_original, description, receipt_image_path, receipt_ocr_text, source_type, telegram_user_id, created_at, restaurant_expense_categories(name, emoji))",
       )
       .order("work_date", { ascending: false }),
     supabase

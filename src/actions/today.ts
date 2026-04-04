@@ -25,17 +25,22 @@ type AttendancePayload = {
   employeeId: string;
   isPresent: boolean;
   payUnits: PayUnits;
+  shiftTurnover: number | null;
 };
 
 type AttendanceRowSnapshot = {
   employee_id: string;
   pay_override: number | string | null;
+  shift_turnover: number | string | null;
+  percentage_rate_snapshot: number | string | null;
   notes: string | null;
 };
 
 type EmployeeRateRow = {
   id: string;
   daily_rate: number | string;
+  pay_type: string | null;
+  percentage_rate: number | string | null;
 };
 
 type ExpenseItemPayload = ExpenseItemInput;
@@ -54,10 +59,18 @@ function parseAttendancePayload(rawValue: FormDataEntryValue | null): Attendance
       throw new Error("Attendance row is missing required values.");
     }
 
+    const shiftTurnover =
+      candidate.shiftTurnover == null ? null : Number(candidate.shiftTurnover);
+
+    if (shiftTurnover != null && (!Number.isFinite(shiftTurnover) || shiftTurnover < 0)) {
+      throw new Error("Shift turnover must be a valid non-negative number.");
+    }
+
     return {
       employeeId: String(candidate.employeeId),
       isPresent: Boolean(candidate.isPresent),
       payUnits,
+      shiftTurnover,
     };
   });
 }
@@ -246,7 +259,7 @@ export async function saveTodayReportAction(
 
     const { data: existingRows, error: existingRowsError } = await supabase
       .from("attendance_entries")
-      .select("employee_id, pay_override, notes")
+      .select("employee_id, pay_override, shift_turnover, percentage_rate_snapshot, notes")
       .eq("daily_report_id", reportRow.id);
 
     if (existingRowsError) {
@@ -264,11 +277,12 @@ export async function saveTodayReportAction(
 
     const selectedEmployeeIds = selectedRows.map((entry) => entry.employeeId);
     const employeeDailyRates = new Map<string, number>();
+    let employeeCompensationRows: EmployeeRateRow[] = [];
 
     if (selectedEmployeeIds.length > 0) {
       const { data: employeeRows, error: employeeRatesError } = await supabase
         .from("employees")
-        .select("id, daily_rate")
+        .select("id, daily_rate, pay_type, percentage_rate")
         .eq("restaurant_id", restaurantId)
         .in("id", selectedEmployeeIds);
 
@@ -276,7 +290,9 @@ export async function saveTodayReportAction(
         throw new Error(employeeRatesError.message);
       }
 
-      for (const row of (employeeRows ?? []) as EmployeeRateRow[]) {
+      employeeCompensationRows = (employeeRows ?? []) as EmployeeRateRow[];
+
+      for (const row of employeeCompensationRows) {
         employeeDailyRates.set(row.id, Number(row.daily_rate));
       }
 
@@ -302,6 +318,15 @@ export async function saveTodayReportAction(
             }
 
             const existingRow = existingRowsByEmployeeId.get(entry.employeeId);
+            const employeeRow = employeeCompensationRows.find(
+              (row) => row.id === entry.employeeId,
+            );
+            const percentageRateSnapshot =
+              employeeRow?.pay_type === "fixed_plus_percentage"
+                ? employeeRow.percentage_rate == null
+                  ? null
+                  : Number(employeeRow.percentage_rate)
+                : null;
 
             return {
               daily_report_id: reportRow.id,
@@ -310,6 +335,8 @@ export async function saveTodayReportAction(
               pay_units: entry.payUnits,
               pay_override:
                 existingRow?.pay_override == null ? null : Number(existingRow.pay_override),
+              shift_turnover: entry.shiftTurnover,
+              percentage_rate_snapshot: percentageRateSnapshot,
               notes: existingRow?.notes ?? null,
             };
           }),

@@ -3,7 +3,9 @@
     "allow": [
       "Bash(grep -r \"telegram\\\\|grammy\\\\|telegraf\\\\|bot\" /e/Projects/KoiRaboti --include=*.ts --include=*.tsx --include=*.json --include=*.js)",
       "Bash(npm install:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(find /e/Projects/KoiRaboti-Second/KoiRaboti -type f -name *.prisma -o -name *.ts -o -name *.tsx -o -name *.sql)",
+      "Bash(grep -r \"daily_expense_items\\\\|restaurant_expense_categories\" /e/Projects/KoiRaboti-Second/KoiRaboti/supabase/*.sql)"
     ]
   }
 }

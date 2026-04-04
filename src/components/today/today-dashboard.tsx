@@ -66,6 +66,7 @@ type AttendanceDraft = {
   isPresent: boolean;
   payUnits: PayUnits;
   dailyRate: number;
+  shiftTurnover: string;
 };
 
 export type TaskKey = "finance" | "attendance" | "expenses";
@@ -84,12 +85,36 @@ const ROLE_ORDER: EmployeeRole[] = ["kitchen", "service"];
 const SHIFT_OPTIONS: Array<0 | PayUnits> = [0, 1, 1.5, 2];
 
 function toNumber(value: string) {
-  const numericValue = Number(value);
+  const numericValue = Number(value.replace(/,/g, ".").trim());
   return Number.isFinite(numericValue) ? numericValue : 0;
 }
 
 function formatShiftUnits(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function isDepartmentPercentageEntry(
+  entry: AttendanceDraft,
+  role?: EmployeeRole,
+) {
+  return (
+    entry.employee.payType === "fixed_plus_percentage" &&
+    entry.employee.turnoverSource === "department" &&
+    (role === undefined || entry.employee.role === role)
+  );
+}
+
+function getSharedDepartmentTurnoverValue(
+  entries: AttendanceDraft[],
+  role: EmployeeRole,
+) {
+  return (
+    entries.find(
+      (entry) =>
+        isDepartmentPercentageEntry(entry, role) &&
+        entry.shiftTurnover.trim().length > 0,
+    )?.shiftTurnover ?? ""
+  );
 }
 
 function buildAttendanceDrafts(
@@ -108,6 +133,7 @@ function buildAttendanceDrafts(
         isPresent: Boolean(entry),
         payUnits: entry?.payUnits ?? 1,
         dailyRate: entry?.dailyRate ?? employee.dailyRate,
+        shiftTurnover: entry?.shiftTurnover != null ? String(entry.shiftTurnover) : "",
       };
     });
 }
@@ -391,15 +417,34 @@ export function TodayDashboard({
       : "Use the Employees page to build your roster, then come back here to assign shifts.";
   const attendanceEmptyCta = locale === "bg" ? "Отвори Служители" : "Open Employees";
 
-  const roleSections = ROLE_ORDER.map((role) => ({
-    role,
-    title: role === "kitchen" ? t.common.kitchen : t.common.service,
-    badgeClassName:
-      role === "kitchen"
-        ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-        : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-    entries: attendanceDrafts.filter((entry) => entry.employee.role === role),
-  }));
+  const roleSections = ROLE_ORDER.map((role) => {
+    const entries = attendanceDrafts.filter((entry) => entry.employee.role === role);
+    const departmentEntries = entries.filter((entry) =>
+      isDepartmentPercentageEntry(entry, role),
+    );
+    const selectedDepartmentEntries = departmentEntries.filter((entry) => entry.isPresent);
+    const sharedDepartmentTurnover = getSharedDepartmentTurnoverValue(
+      attendanceDrafts,
+      role,
+    );
+
+    return {
+      role,
+      title: role === "kitchen" ? t.common.kitchen : t.common.service,
+      badgeClassName:
+        role === "kitchen"
+          ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+      entries,
+      selectedDepartmentEntries,
+      sharedDepartmentTurnover,
+      sharedDepartmentBonus: selectedDepartmentEntries.reduce(
+        (sum, entry) =>
+          sum + toNumber(sharedDepartmentTurnover) * entry.employee.percentageRate,
+        0,
+      ),
+    };
+  });
   const attendanceTileDescription =
     checkedInCount > 0
       ? `${checkedInCount} ${attendanceSummaryLabel} · ${formatShiftUnits(totalPayUnits)} ${shiftsSummaryLabel}`
@@ -423,14 +468,50 @@ export function TodayDashboard({
   }
 
   function updateAttendanceSelection(employeeId: string, selection: 0 | PayUnits) {
-    setAttendanceDrafts((current) =>
-      current.map((entry) =>
+    setAttendanceDrafts((current) => {
+      const targetEntry = current.find((entry) => entry.employee.id === employeeId);
+
+      if (!targetEntry) {
+        return current;
+      }
+
+      const sharedDepartmentTurnover = isDepartmentPercentageEntry(targetEntry)
+        ? getSharedDepartmentTurnoverValue(current, targetEntry.employee.role)
+        : "";
+
+      return current.map((entry) =>
         entry.employee.id === employeeId
           ? {
               ...entry,
               isPresent: selection !== 0,
               payUnits: selection === 0 ? 1 : selection,
+              shiftTurnover:
+                selection !== 0 &&
+                isDepartmentPercentageEntry(entry) &&
+                entry.shiftTurnover.trim().length === 0
+                  ? sharedDepartmentTurnover
+                  : entry.shiftTurnover,
             }
+          : entry,
+      );
+    });
+  }
+
+  function updateDepartmentTurnover(role: EmployeeRole, value: string) {
+    setAttendanceDrafts((current) =>
+      current.map((entry) =>
+        isDepartmentPercentageEntry(entry, role)
+          ? { ...entry, shiftTurnover: value }
+          : entry,
+      ),
+    );
+  }
+
+  function updatePersonalTurnover(employeeId: string, value: string) {
+    setAttendanceDrafts((current) =>
+      current.map((entry) =>
+        entry.employee.id === employeeId
+          ? { ...entry, shiftTurnover: value }
           : entry,
       ),
     );
@@ -468,6 +549,10 @@ export function TodayDashboard({
             employeeId: entry.employee.id,
             isPresent: entry.isPresent,
             payUnits: entry.payUnits,
+            shiftTurnover:
+              entry.employee.payType === "fixed_plus_percentage" && entry.shiftTurnover
+                ? toNumber(entry.shiftTurnover)
+                : null,
           })),
         )}
       />
@@ -761,6 +846,49 @@ export function TodayDashboard({
                           </p>
                         ) : null}
 
+                        {section.selectedDepartmentEntries.length > 0 ? (
+                          <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-800/50 dark:bg-amber-950/30">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div>
+                                <p className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                                  {locale === "bg"
+                                    ? section.role === "kitchen"
+                                      ? "Оборот кухня"
+                                      : "Оборот отдел"
+                                    : section.role === "kitchen"
+                                      ? "Kitchen turnover"
+                                      : "Department turnover"}
+                                </p>
+                                <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/80">
+                                  {locale === "bg"
+                                    ? "Тази стойност се прилага към всички служители с процент от тази група."
+                                    : "This value is applied to every percentage-based employee in this group."}
+                                </p>
+                              </div>
+                              {section.sharedDepartmentTurnover &&
+                              toNumber(section.sharedDepartmentTurnover) > 0 ? (
+                                <p className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                                  {locale === "bg" ? "Общ бонус" : "Total bonus"}: EUR{" "}
+                                  {section.sharedDepartmentBonus.toFixed(2)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <Input
+                              inputMode="decimal"
+                              placeholder={
+                                locale === "bg"
+                                  ? "Въведи оборот (EUR)"
+                                  : "Enter turnover (EUR)"
+                              }
+                              value={section.sharedDepartmentTurnover}
+                              onChange={(event) =>
+                                updateDepartmentTurnover(section.role, event.target.value)
+                              }
+                              className="mt-3 h-11 rounded-2xl border-amber-300 bg-white dark:border-amber-700 dark:bg-slate-900"
+                            />
+                          </div>
+                        ) : null}
+
                         {section.entries.map((entry) => {
                           const selectedUnits = entry.isPresent ? entry.payUnits : 0;
 
@@ -783,6 +911,18 @@ export function TodayDashboard({
                                     <span className="inline-flex rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
                                       EUR {entry.dailyRate.toFixed(2)}
                                     </span>
+                                    {entry.employee.payType === "fixed_plus_percentage" ? (
+                                      <span className="inline-flex rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                        {(entry.employee.percentageRate * 100).toFixed(1)}%{" "}
+                                        {entry.employee.turnoverSource === "department"
+                                          ? locale === "bg"
+                                            ? "кухня"
+                                            : "kitchen"
+                                          : locale === "bg"
+                                            ? "личен"
+                                            : "personal"}
+                                      </span>
+                                    ) : null}
                                     <span
                                       className={cn(
                                         "inline-flex rounded-full px-3 py-1.5 text-xs font-semibold",
@@ -818,6 +958,38 @@ export function TodayDashboard({
                                   </button>
                                 ))}
                               </div>
+
+                              {entry.employee.payType === "fixed_plus_percentage" &&
+                              entry.employee.turnoverSource === "personal" &&
+                              entry.isPresent ? (
+                                <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-800/50 dark:bg-amber-950/30">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+                                      {locale === "bg"
+                                        ? `Оборот за смяната (${(entry.employee.percentageRate * 100).toFixed(1)}%)`
+                                        : `Shift turnover (${(entry.employee.percentageRate * 100).toFixed(1)}%)`}
+                                    </span>
+                                  </div>
+                                  <Input
+                                    inputMode="decimal"
+                                    placeholder={locale === "bg" ? "Въведи оборот (EUR)" : "Enter turnover (EUR)"}
+                                    value={entry.shiftTurnover}
+                                    onChange={(event) =>
+                                      updatePersonalTurnover(
+                                        entry.employee.id,
+                                        event.target.value,
+                                      )
+                                    }
+                                    className="mt-2 h-11 rounded-2xl border-amber-300 bg-white dark:border-amber-700 dark:bg-slate-900"
+                                  />
+                                  {entry.shiftTurnover && toNumber(entry.shiftTurnover) > 0 ? (
+                                    <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                      {locale === "bg" ? "Бонус" : "Bonus"}: EUR{" "}
+                                      {(toNumber(entry.shiftTurnover) * entry.employee.percentageRate).toFixed(2)}
+                                    </p>
+                                  ) : null}
+                                </div>
+                              ) : null}
                             </div>
                           );
                         })}

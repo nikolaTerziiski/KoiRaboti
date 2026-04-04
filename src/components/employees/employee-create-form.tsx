@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/components/ui/select-field";
 import { formatBgnCurrencyFromEur } from "@/lib/format";
 import { useLocale } from "@/lib/i18n/context";
-import type { SnapshotMode } from "@/lib/types";
+import type { SnapshotMode, TurnoverSource } from "@/lib/types";
 
 const initialEmployeeActionState: EmployeeActionState = {
   status: "idle",
@@ -40,6 +40,9 @@ type EmployeeCreateDraft = {
   role: "kitchen" | "service";
   phoneNumber: string;
   dailyRate: string;
+  hasPercentage: boolean;
+  percentageRate: string;
+  turnoverSource: TurnoverSource;
   balanceStartsFrom: string;
   payment: EmployeePaymentScheduleDraft;
 };
@@ -53,12 +56,15 @@ function toNumber(value: string) {
 function createInitialDraft(): EmployeeCreateDraft {
   return {
     fullName: "",
-    role: "service" as "kitchen" | "service",
+    role: "service",
     phoneNumber: "",
     dailyRate: "",
+    hasPercentage: false,
+    percentageRate: "",
+    turnoverSource: "personal",
     balanceStartsFrom: new Date().toISOString().slice(0, 10),
     payment: {
-      paymentSchedule: "twice_monthly" as const,
+      paymentSchedule: "twice_monthly",
       paymentDay1: "1",
       paymentDay2: "16",
       paymentWeekday: 1,
@@ -71,7 +77,7 @@ export function EmployeeCreateForm({
   onSuccess,
 }: EmployeeCreateFormProps) {
   const router = useRouter();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const refreshedKeyRef = useRef<string | null>(null);
   const [actionState, formAction, isPending] = useActionState(
     createEmployeeAction,
@@ -183,6 +189,95 @@ export function EmployeeCreateForm({
             <p className="text-xs text-muted-foreground">
               {t.employees.bgnView} {formatBgnCurrencyFromEur(toNumber(draft.dailyRate))}
             </p>
+          </div>
+
+          <input
+            type="hidden"
+            name="payType"
+            value={draft.hasPercentage ? "fixed_plus_percentage" : "fixed"}
+          />
+          <input type="hidden" name="turnoverSource" value={draft.turnoverSource} />
+
+          <div className="space-y-3 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+            <label className="flex cursor-pointer items-center gap-3">
+              <input
+                type="checkbox"
+                checked={draft.hasPercentage}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    hasPercentage: event.target.checked,
+                    percentageRate: event.target.checked ? current.percentageRate : "",
+                    turnoverSource: event.target.checked
+                      ? current.turnoverSource
+                      : "personal",
+                  }))
+                }
+                className="size-5 rounded-lg border-slate-300 text-emerald-600 accent-emerald-600"
+              />
+              <span className="text-sm font-semibold text-slate-900 dark:text-white">
+                {locale === "bg"
+                  ? "Работи ли с процент от оборота?"
+                  : "Works with turnover percentage?"}
+              </span>
+            </label>
+
+            {draft.hasPercentage ? (
+              <div className="space-y-4 border-t border-slate-200/70 pt-3 dark:border-slate-800">
+                <div className="space-y-2">
+                  <Label htmlFor="create-percentageRate">
+                    {locale === "bg" ? "Процент (%)" : "Percentage (%)"}
+                  </Label>
+                  <Input
+                    id="create-percentageRate"
+                    name="percentageRate"
+                    inputMode="decimal"
+                    placeholder="2"
+                    value={draft.percentageRate}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, percentageRate: event.target.value }))
+                    }
+                    className="h-12 rounded-2xl"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="create-turnoverSource">
+                    {locale === "bg" ? "Източник на оборот" : "Turnover source"}
+                  </Label>
+                  <SelectField
+                    id="create-turnoverSource"
+                    value={draft.turnoverSource}
+                    onChange={(event) =>
+                      setDraft((current) => ({
+                        ...current,
+                        turnoverSource:
+                          event.target.value === "department"
+                            ? "department"
+                            : "personal",
+                      }))
+                    }
+                    className="h-12 rounded-2xl"
+                  >
+                    <option value="personal">
+                      {locale === "bg"
+                        ? "Личен оборот (сервиз)"
+                        : "Personal turnover (service)"}
+                    </option>
+                    <option value="department">
+                      {locale === "bg"
+                        ? "Оборот кухня (от управител)"
+                        : "Kitchen turnover (from manager)"}
+                    </option>
+                  </SelectField>
+                  <p className="text-xs text-muted-foreground">
+                    {locale === "bg"
+                      ? "Сервизът ползва личния си оборот. Кухнята ползва общия оборот кухня, въведен от управителя."
+                      : "Service uses their personal turnover. Kitchen uses department turnover entered by the manager."}
+                  </p>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-3 rounded-[1.5rem] border border-slate-200/70 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">

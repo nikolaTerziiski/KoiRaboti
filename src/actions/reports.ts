@@ -25,12 +25,16 @@ type AttendanceCorrectionPayload = {
 type ExistingAttendanceRow = {
   employee_id: string;
   daily_rate: number | string | null;
+  shift_turnover: number | string | null;
+  percentage_rate_snapshot: number | string | null;
   notes: string | null;
 };
 
 type EmployeeRateRow = {
   id: string;
   daily_rate: number | string;
+  pay_type: string | null;
+  percentage_rate: number | string | null;
 };
 
 type ExpenseItemPayload = ExpenseItemInput;
@@ -188,7 +192,7 @@ export async function saveReportCorrectionAction(
     if (attendancePayload.length > 0) {
       const { data: existingAttendanceRows, error: existingAttendanceError } = await supabase
         .from("attendance_entries")
-        .select("employee_id, daily_rate, notes")
+        .select("employee_id, daily_rate, shift_turnover, percentage_rate_snapshot, notes")
         .eq("daily_report_id", reportId);
 
       if (existingAttendanceError) {
@@ -198,7 +202,7 @@ export async function saveReportCorrectionAction(
       const attendanceEmployeeIds = [...new Set(attendancePayload.map((entry) => entry.employeeId))];
       const { data: employeeRows, error: employeeRatesError } = await supabase
         .from("employees")
-        .select("id, daily_rate")
+        .select("id, daily_rate, pay_type, percentage_rate")
         .eq("restaurant_id", restaurantId)
         .in("id", attendanceEmployeeIds);
 
@@ -215,6 +219,7 @@ export async function saveReportCorrectionAction(
       const employeeDailyRates = new Map(
         ((employeeRows ?? []) as EmployeeRateRow[]).map((row) => [row.id, Number(row.daily_rate)]),
       );
+      const employeeCompensationRows = (employeeRows ?? []) as EmployeeRateRow[];
 
       const missingEmployeeIds = attendanceEmployeeIds.filter(
         (employeeId) =>
@@ -232,9 +237,20 @@ export async function saveReportCorrectionAction(
         .upsert(
           attendancePayload.map((entry) => {
             const existingRow = existingAttendanceByEmployeeId.get(entry.employeeId);
+            const employeeRow = employeeCompensationRows.find(
+              (row) => row.id === entry.employeeId,
+            );
             const currentDailyRate = employeeDailyRates.get(entry.employeeId);
             const dailyRate =
               existingRow?.daily_rate == null ? currentDailyRate : Number(existingRow.daily_rate);
+            const percentageRateSnapshot =
+              existingRow?.percentage_rate_snapshot != null
+                ? Number(existingRow.percentage_rate_snapshot)
+                : employeeRow?.pay_type === "fixed_plus_percentage"
+                  ? employeeRow.percentage_rate == null
+                    ? null
+                    : Number(employeeRow.percentage_rate)
+                  : null;
 
             if (dailyRate === undefined || !Number.isFinite(dailyRate)) {
               throw new Error(`Missing daily rate for employee ${entry.employeeId}.`);
@@ -246,6 +262,9 @@ export async function saveReportCorrectionAction(
               daily_rate: dailyRate,
               pay_units: entry.payUnits,
               pay_override: normalizeText(entry.payOverride),
+              shift_turnover:
+                existingRow?.shift_turnover == null ? null : Number(existingRow.shift_turnover),
+              percentage_rate_snapshot: percentageRateSnapshot,
               notes: existingRow?.notes ?? null,
             };
           }),

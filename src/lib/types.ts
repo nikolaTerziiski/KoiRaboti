@@ -1,4 +1,6 @@
 ﻿export type PayUnits = 1 | 1.5 | 2;
+export type PayType = "fixed" | "fixed_plus_percentage";
+export type TurnoverSource = "personal" | "department";
 export type SnapshotMode = "demo" | "supabase";
 export type SessionMode = "guest" | "demo" | "supabase";
 export type EmployeeRole = "kitchen" | "service";
@@ -47,6 +49,9 @@ export interface Employee {
   role: EmployeeRole;
   phoneNumber: string | null;
   dailyRate: number;
+  payType: PayType;
+  percentageRate: number;
+  turnoverSource: TurnoverSource;
   isActive: boolean;
   useRestaurantPayrollDefaults: boolean;
   payrollCadence: PayrollCadence | null;
@@ -78,6 +83,8 @@ export interface AttendanceEntry {
   dailyRate: number;
   payUnits: PayUnits;
   payOverride: number | null;
+  shiftTurnover: number | null;
+  percentageRateSnapshot: number | null;
   notes: string | null;
 }
 

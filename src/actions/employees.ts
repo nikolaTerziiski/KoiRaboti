@@ -5,7 +5,7 @@ import { hasSupabaseCredentials } from "@/lib/env";
 import { parseEmployeePaymentScheduleInput } from "@/lib/employee-payment-schedule";
 import { getUserRestaurantId } from "@/lib/supabase/data";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
-import type { EmployeeRole } from "@/lib/types";
+import type { EmployeeRole, PayType, TurnoverSource } from "@/lib/types";
 
 export type EmployeeActionState = {
   status: "idle" | "success" | "error";
@@ -47,6 +47,25 @@ function parseDailyRate(value: FormDataEntryValue | null) {
 function parseEmployeeRole(value: FormDataEntryValue | null): EmployeeRole {
   const normalized = String(value ?? "").trim();
   return normalized === "kitchen" ? "kitchen" : "service";
+}
+
+function parsePayType(value: FormDataEntryValue | null): PayType {
+  const normalized = String(value ?? "").trim();
+  return normalized === "fixed_plus_percentage" ? "fixed_plus_percentage" : "fixed";
+}
+
+function parsePercentageRate(value: FormDataEntryValue | null, payType: PayType): number {
+  if (payType === "fixed") return 0;
+  const parsed = Number(value ?? "");
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) {
+    throw new Error("Percentage rate must be between 0 and 100.");
+  }
+  return parsed / 100;
+}
+
+function parseTurnoverSource(value: FormDataEntryValue | null): TurnoverSource {
+  const normalized = String(value ?? "").trim();
+  return normalized === "department" ? "department" : "personal";
 }
 
 function splitFullName(fullName: string) {
@@ -105,6 +124,9 @@ export async function createEmployeeAction(
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
     const role = parseEmployeeRole(formData.get("role"));
+    const payType = parsePayType(formData.get("payType"));
+    const percentageRate = parsePercentageRate(formData.get("percentageRate"), payType);
+    const turnoverSource = parseTurnoverSource(formData.get("turnoverSource"));
     const paymentSchedule = parseEmployeePaymentScheduleInput({
       paymentSchedule: formData.get("paymentSchedule"),
       paymentDay1: formData.get("paymentDay1"),
@@ -121,6 +143,9 @@ export async function createEmployeeAction(
       role,
       phone_number: phoneNumber,
       daily_rate: dailyRate,
+      pay_type: payType,
+      percentage_rate: percentageRate,
+      turnover_source: turnoverSource,
       is_active: true,
       payment_schedule: paymentSchedule.paymentSchedule,
       payment_day_1: paymentSchedule.paymentDay1,
@@ -183,6 +208,9 @@ export async function updateEmployeeAction(
     const phoneNumber = normalizeOptionalText(formData.get("phoneNumber"));
     const dailyRate = parseDailyRate(formData.get("dailyRate"));
     const role = parseEmployeeRole(formData.get("role"));
+    const payType = parsePayType(formData.get("payType"));
+    const percentageRate = parsePercentageRate(formData.get("percentageRate"), payType);
+    const turnoverSource = parseTurnoverSource(formData.get("turnoverSource"));
     const paymentSchedule = parseEmployeePaymentScheduleInput({
       paymentSchedule: formData.get("paymentSchedule"),
       paymentDay1: formData.get("paymentDay1"),
@@ -199,6 +227,9 @@ export async function updateEmployeeAction(
         role,
         phone_number: phoneNumber,
         daily_rate: dailyRate,
+        pay_type: payType,
+        percentage_rate: percentageRate,
+        turnover_source: turnoverSource,
         payment_schedule: paymentSchedule.paymentSchedule,
         payment_day_1: paymentSchedule.paymentDay1,
         payment_day_2: paymentSchedule.paymentDay2,
